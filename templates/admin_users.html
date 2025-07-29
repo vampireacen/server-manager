@@ -1,0 +1,248 @@
+{% extends "base.html" %}
+
+{% block title %}用户管理 - 服务器管理系统{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col">
+        <h2><i class="bi bi-people"></i> 用户管理</h2>
+        <p class="text-muted">管理系统用户和权限</p>
+    </div>
+    <div class="col-auto">
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addUserModal">
+            <i class="bi bi-person-plus"></i> 添加用户
+        </button>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>用户名</th>
+                        <th>角色</th>
+                        <th>注册时间</th>
+                        <th>申请数量</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in users %}
+                    <tr>
+                        <td>
+                            <strong>{{ user.username }}</strong>
+                            {% if user.id == session.user_id %}
+                                <span class="badge bg-primary ms-1">当前用户</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge bg-{{ 'danger' if user.role == 'admin' else 'secondary' }}">
+                                {{ '管理员' if user.role == 'admin' else '普通用户' }}
+                            </span>
+                        </td>
+                        <td>{{ user.created_at.strftime('%Y-%m-%d') }}</td>
+                        <td>
+                            <span class="badge bg-light text-dark">{{ user.applications|length }}</span>
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <button class="btn btn-outline-primary" onclick="viewUserApplications({{ user.id }})">
+                                    <i class="bi bi-list-ul"></i> 申请记录
+                                </button>
+                                {% if user.id != session.user_id %}
+                                <button class="btn btn-outline-warning" onclick="toggleUserRole({{ user.id }}, '{{ user.role }}')">
+                                    <i class="bi bi-arrow-up-down"></i> 
+                                    {{ '降为普通用户' if user.role == 'admin' else '提升为管理员' }}
+                                </button>
+                                <button class="btn btn-outline-danger" onclick="deleteUser({{ user.id }})">
+                                    <i class="bi bi-trash"></i> 删除
+                                </button>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- 添加用户模态框 -->
+<div class="modal fade" id="addUserModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">添加用户</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="addUserForm">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="new_username" class="form-label">用户名 <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="new_username" name="username" required>
+                        <div class="form-text">用户名必须唯一</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="new_password" class="form-label">密码 <span class="text-danger">*</span></label>
+                        <input type="password" class="form-control" id="new_password" name="password" required>
+                        <div class="form-text">密码长度至少6位</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="confirm_password" class="form-label">确认密码 <span class="text-danger">*</span></label>
+                        <input type="password" class="form-control" id="confirm_password" name="confirm_password" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="new_role" class="form-label">角色</label>
+                        <select class="form-select" id="new_role" name="role">
+                            <option value="user">普通用户</option>
+                            <option value="admin">管理员</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-person-plus"></i> 添加
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- 用户申请记录模态框 -->
+<div class="modal fade" id="userApplicationsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">用户申请记录</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="userApplicationsContent">
+                <!-- 动态内容 -->
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const users = {{ users | tojson }};
+
+function viewUserApplications(userId) {
+    const user = users.find(u => u.id === userId);
+    if (!user) return;
+    
+    let content = `<h6>用户: ${user.username}</h6>`;
+    
+    if (user.applications && user.applications.length > 0) {
+        content += `
+            <div class="table-responsive">
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>服务器</th>
+                            <th>权限类型</th>
+                            <th>申请时间</th>
+                            <th>状态</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+        
+        user.applications.forEach(app => {
+            let statusBadge = '';
+            if (app.status === 'pending') {
+                statusBadge = '<span class="badge bg-warning">待审核</span>';
+            } else if (app.status === 'approved') {
+                statusBadge = '<span class="badge bg-success">已通过</span>';
+            } else if (app.status === 'rejected') {
+                statusBadge = '<span class="badge bg-danger">已拒绝</span>';
+            }
+            
+            content += `
+                <tr>
+                    <td>${app.server.name}</td>
+                    <td>${app.permission_type.name}</td>
+                    <td>${new Date(app.created_at).toLocaleString()}</td>
+                    <td>${statusBadge}</td>
+                </tr>
+            `;
+        });
+        
+        content += `
+                    </tbody>
+                </table>
+            </div>
+        `;
+    } else {
+        content += '<div class="alert alert-info">该用户还没有提交任何申请</div>';
+    }
+    
+    $('#userApplicationsContent').html(content);
+    $('#userApplicationsModal').modal('show');
+}
+
+function toggleUserRole(userId, currentRole) {
+    const newRole = currentRole === 'admin' ? 'user' : 'admin';
+    const action = newRole === 'admin' ? '提升为管理员' : '降为普通用户';
+    
+    if (confirm(`确定要将该用户${action}吗？`)) {
+        // 这里应该调用API来更新用户角色
+        alert('角色更改功能待实现');
+    }
+}
+
+function deleteUser(userId) {
+    if (confirm('确定要删除这个用户吗？\n\n注意：删除后该用户的所有申请记录也将被删除。')) {
+        // 这里应该调用API来删除用户
+        alert('删除用户功能待实现');
+    }
+}
+
+// 添加用户表单验证
+$('#addUserForm').submit(function(e) {
+    e.preventDefault();
+    
+    const username = $('#new_username').val().trim();
+    const password = $('#new_password').val();
+    const confirmPassword = $('#confirm_password').val();
+    
+    if (!username || !password || !confirmPassword) {
+        alert('请填写所有必填字段');
+        return false;
+    }
+    
+    if (password !== confirmPassword) {
+        alert('两次输入的密码不一致');
+        $('#confirm_password').focus();
+        return false;
+    }
+    
+    if (password.length < 6) {
+        alert('密码长度至少6位');
+        $('#new_password').focus();
+        return false;
+    }
+    
+    // 检查用户名是否已存在
+    const existingUser = users.find(u => u.username.toLowerCase() === username.toLowerCase());
+    if (existingUser) {
+        alert('用户名已存在，请选择其他用户名');
+        $('#new_username').focus();
+        return false;
+    }
+    
+    // 这里应该提交表单到后端
+    alert('添加用户功能待实现');
+    $('#addUserModal').modal('hide');
+});
+</script>
+{% endblock %}

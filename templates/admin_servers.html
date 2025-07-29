@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+
+{% block title %}服务器管理 - 服务器管理系统{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col">
+        <h2><i class="bi bi-server"></i> 服务器管理</h2>
+        <p class="text-muted">添加和管理服务器</p>
+    </div>
+    <div class="col-auto">
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addServerModal">
+            <i class="bi bi-plus-circle"></i> 添加服务器
+        </button>
+    </div>
+</div>
+
+{% if servers %}
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>服务器名称</th>
+                        <th>主机地址</th>
+                        <th>端口</th>
+                        <th>用户名</th>
+                        <th>状态</th>
+                        <th>添加时间</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for server in servers %}
+                    <tr>
+                        <td><strong>{{ server.name }}</strong></td>
+                        <td>{{ server.host }}</td>
+                        <td>{{ server.port }}</td>
+                        <td>{{ server.username }}</td>
+                        <td>
+                            <span class="badge bg-{{ 'success' if server.status == 'online' else 'danger' if server.status == 'offline' else 'secondary' }}">
+                                {{ server.status }}
+                            </span>
+                        </td>
+                        <td>{{ server.created_at.strftime('%Y-%m-%d') }}</td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <button class="btn btn-outline-primary" onclick="testConnection({{ server.id }})">
+                                    <i class="bi bi-wifi"></i> 测试
+                                </button>
+                                <button class="btn btn-outline-secondary" onclick="editServer({{ server.id }})">
+                                    <i class="bi bi-pencil"></i> 编辑
+                                </button>
+                                <button class="btn btn-outline-danger" onclick="deleteServer({{ server.id }})">
+                                    <i class="bi bi-trash"></i> 删除
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="alert alert-info text-center">
+    <i class="bi bi-info-circle"></i>
+    还没有添加任何服务器。<button class="btn btn-link p-0" data-bs-toggle="modal" data-bs-target="#addServerModal">立即添加</button>
+</div>
+{% endif %}
+
+<!-- 添加服务器模态框 -->
+<div class="modal fade" id="addServerModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">添加服务器</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="name" class="form-label">服务器名称 <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="name" name="name" required>
+                        <div class="form-text">给服务器一个易识别的名称</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="host" class="form-label">主机地址 <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="host" name="host" 
+                               placeholder="192.168.1.100 或 server.example.com" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="port" class="form-label">SSH端口</label>
+                        <input type="number" class="form-control" id="port" name="port" value="22" min="1" max="65535">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="username" class="form-label">用户名 <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="username" name="username" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="password" class="form-label">密码</label>
+                        <input type="password" class="form-control" id="password" name="password">
+                        <div class="form-text">暂只支持密码认证，留空表示使用密钥认证</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-plus-circle"></i> 添加
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function testConnection(serverId) {
+    const btn = event.target.closest('button');
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="bi bi-arrow-clockwise spin"></i> 测试中...';
+    btn.disabled = true;
+    
+    // 这里可以调用测试连接的API
+    setTimeout(() => {
+        alert('连接测试功能待实现');
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    }, 2000);
+}
+
+function editServer(serverId) {
+    alert('编辑功能待实现');
+}
+
+function deleteServer(serverId) {
+    if (confirm('确定要删除这个服务器吗？\n\n注意：删除后相关的申请记录将无法访问。')) {
+        // 创建删除表单
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `/admin/servers/${serverId}/delete`;
+        
+        // 添加CSRF令牌等必要字段
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'action';
+        input.value = 'delete';
+        form.appendChild(input);
+        
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+
+// 表单验证
+$(document).ready(function() {
+    $('form').submit(function(e) {
+        const name = $('#name').val().trim();
+        const host = $('#host').val().trim();
+        const username = $('#username').val().trim();
+        
+        if (!name || !host || !username) {
+            e.preventDefault();
+            alert('请填写必填字段');
+            return false;
+        }
+        
+        // 简单的IP/域名格式验证
+        const hostPattern = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$|^[a-zA-Z0-9][a-zA-Z0-9\.-]*[a-zA-Z0-9]$/;
+        if (!hostPattern.test(host)) {
+            e.preventDefault();
+            alert('请输入有效的IP地址或域名');
+            $('#host').focus();
+            return false;
+        }
+    });
+});
+</script>
+
+<style>
+.spin {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+</style>
+{% endblock %}

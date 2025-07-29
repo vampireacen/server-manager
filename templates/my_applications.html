@@ -1,0 +1,177 @@
+{% extends "base.html" %}
+
+{% block title %}我的申请 - 服务器管理系统{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col">
+        <h2><i class="bi bi-list-check"></i> 我的申请</h2>
+        <p class="text-muted">查看您提交的权限申请状态</p>
+    </div>
+    <div class="col-auto">
+        <a href="{{ url_for('apply') }}" class="btn btn-primary">
+            <i class="bi bi-plus-circle"></i> 新建申请
+        </a>
+    </div>
+</div>
+
+{% if applications %}
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>服务器</th>
+                        <th>权限类型</th>
+                        <th>申请时间</th>
+                        <th>状态</th>
+                        <th>审核时间</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for app in applications %}
+                    <tr>
+                        <td>
+                            <strong>{{ app.server.name }}</strong><br>
+                            <small class="text-muted">{{ app.server.host }}</small>
+                        </td>
+                        <td>
+                            <span class="badge bg-light text-dark">{{ app.permission_type.name }}</span>
+                        </td>
+                        <td>
+                            {{ app.created_at.strftime('%Y-%m-%d %H:%M') }}
+                        </td>
+                        <td>
+                            {% if app.status == 'pending' %}
+                                <span class="badge bg-warning">待审核</span>
+                            {% elif app.status == 'approved' %}
+                                <span class="badge bg-success">已通过</span>
+                            {% elif app.status == 'rejected' %}
+                                <span class="badge bg-danger">已拒绝</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if app.reviewed_at %}
+                                {{ app.reviewed_at.strftime('%Y-%m-%d %H:%M') }}
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary" 
+                                    onclick="showApplicationDetails({{ app.id }})"
+                                    data-bs-toggle="modal" 
+                                    data-bs-target="#applicationModal">
+                                <i class="bi bi-eye"></i> 查看
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="alert alert-info text-center">
+    <i class="bi bi-info-circle"></i>
+    您还没有提交任何申请。<a href="{{ url_for('apply') }}" class="alert-link">立即申请</a>
+</div>
+{% endif %}
+
+<!-- 申请详情模态框 -->
+<div class="modal fade" id="applicationModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">申请详情</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="applicationDetails">
+                <!-- 动态内容 -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.status-badge {
+    font-size: 0.8rem;
+    padding: 0.25rem 0.5rem;
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const applications = {{ applications | tojson }};
+
+function showApplicationDetails(appId) {
+    const app = applications.find(a => a.id === appId);
+    if (!app) return;
+    
+    let statusBadge = '';
+    if (app.status === 'pending') {
+        statusBadge = '<span class="badge bg-warning">待审核</span>';
+    } else if (app.status === 'approved') {
+        statusBadge = '<span class="badge bg-success">已通过</span>';
+    } else if (app.status === 'rejected') {
+        statusBadge = '<span class="badge bg-danger">已拒绝</span>';
+    }
+    
+    const reviewedInfo = app.reviewed_at ? 
+        `<div class="row mb-2">
+            <div class="col-4"><strong>审核时间:</strong></div>
+            <div class="col-8">${new Date(app.reviewed_at).toLocaleString()}</div>
+        </div>
+        <div class="row mb-2">
+            <div class="col-4"><strong>审核人:</strong></div>
+            <div class="col-8">${app.reviewer ? app.reviewer.username : '-'}</div>
+        </div>` : '';
+    
+    const adminComment = app.admin_comment ? 
+        `<div class="row mb-2">
+            <div class="col-4"><strong>审核意见:</strong></div>
+            <div class="col-8">
+                <div class="alert alert-info mb-0">
+                    ${app.admin_comment}
+                </div>
+            </div>
+        </div>` : '';
+    
+    const content = `
+        <div class="row mb-2">
+            <div class="col-4"><strong>服务器:</strong></div>
+            <div class="col-8">${app.server.name} (${app.server.host})</div>
+        </div>
+        <div class="row mb-2">
+            <div class="col-4"><strong>权限类型:</strong></div>
+            <div class="col-8">${app.permission_type.name}</div>
+        </div>
+        <div class="row mb-2">
+            <div class="col-4"><strong>申请时间:</strong></div>
+            <div class="col-8">${new Date(app.created_at).toLocaleString()}</div>
+        </div>
+        <div class="row mb-2">
+            <div class="col-4"><strong>状态:</strong></div>
+            <div class="col-8">${statusBadge}</div>
+        </div>
+        ${app.reason ? `
+        <div class="row mb-2">
+            <div class="col-4"><strong>申请理由:</strong></div>
+            <div class="col-8">
+                <div class="alert alert-light mb-0">
+                    ${app.reason}
+                </div>
+            </div>
+        </div>` : ''}
+        ${reviewedInfo}
+        ${adminComment}
+    `;
+    
+    $('#applicationDetails').html(content);
+}
+</script>
+{% endblock %}

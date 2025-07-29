@@ -1,0 +1,312 @@
+{% extends "base.html" %}
+
+{% block title %}控制台 - 服务器管理系统{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2><i class="bi bi-speedometer2"></i> 服务器监控控制台</h2>
+        <p class="text-muted">实时监控您的服务器状态</p>
+    </div>
+    {% if user.is_admin() %}
+    <div class="col-auto">
+        <button class="btn btn-primary" onclick="collectMetrics()">
+            <i class="bi bi-arrow-clockwise"></i> 刷新监控数据
+        </button>
+    </div>
+    {% endif %}
+</div>
+
+{% if user.is_admin() and pending_applications > 0 %}
+<div class="alert alert-warning" role="alert">
+    <i class="bi bi-exclamation-triangle"></i>
+    您有 <strong>{{ pending_applications }}</strong> 个待审核的申请。
+    <a href="{{ url_for('admin_review') }}" class="alert-link">立即查看</a>
+</div>
+{% endif %}
+
+<div class="row">
+    {% for server in servers %}
+    <div class="col-md-6 col-lg-4 mb-4">
+        <div class="card metric-card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="bi bi-server"></i> {{ server.name }}
+                </h5>
+                <span class="badge bg-{{ 'success' if server.status == 'online' else 'danger' if server.status == 'offline' else 'secondary' }}">
+                    {{ server.status }}
+                </span>
+            </div>
+            <div class="card-body">
+                <div class="server-info mb-3">
+                    <small class="text-muted">{{ server.host }}:{{ server.port }}</small>
+                </div>
+                
+                <div id="metrics-{{ server.id }}" class="metrics-container">
+                    <div class="row text-center">
+                        <div class="col-4">
+                            <div class="metric-item">
+                                <div class="metric-value" id="cpu-{{ server.id }}">--</div>
+                                <div class="metric-label">CPU</div>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="metric-item">
+                                <div class="metric-value" id="memory-{{ server.id }}">--</div>
+                                <div class="metric-label">内存</div>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="metric-item">
+                                <div class="metric-value" id="disk-{{ server.id }}">--</div>
+                                <div class="metric-label">磁盘</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-3">
+                    <canvas id="chart-{{ server.id }}" width="300" height="200"></canvas>
+                </div>
+                
+                <div class="mt-3">
+                    <small class="text-muted">
+                        <i class="bi bi-clock"></i> 
+                        负载: <span id="load-{{ server.id }}">--</span>
+                    </small>
+                </div>
+            </div>
+            <div class="card-footer">
+                <div class="d-grid gap-2 d-md-flex">
+                    <button class="btn btn-sm btn-outline-primary flex-fill" onclick="showServerDetails({{ server.id }})">
+                        <i class="bi bi-info-circle"></i> 详情
+                    </button>
+                    <button class="btn btn-sm btn-outline-success flex-fill" onclick="refreshServerMetrics({{ server.id }})">
+                        <i class="bi bi-arrow-clockwise"></i> 刷新
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+    
+    {% if not servers %}
+    <div class="col-12">
+        <div class="alert alert-info text-center">
+            <i class="bi bi-info-circle"></i>
+            {% if user.is_admin() %}
+                还没有添加任何服务器。<a href="{{ url_for('admin_servers') }}" class="alert-link">立即添加</a>
+            {% else %}
+                管理员还没有添加任何服务器。
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- 服务器详情模态框 -->
+<div class="modal fade" id="serverDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">服务器详情</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="server-details-content">
+                    <div class="text-center">
+                        <div class="spinner-border" role="status">
+                            <span class="visually-hidden">加载中...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.metric-item {
+    padding: 10px;
+}
+.metric-value {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: #0d6efd;
+}
+.metric-label {
+    font-size: 0.8rem;
+    color: #6c757d;
+    text-transform: uppercase;
+}
+.metrics-container {
+    min-height: 80px;
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const serverCharts = {};
+
+function initChart(serverId) {
+    const ctx = document.getElementById(`chart-${serverId}`).getContext('2d');
+    serverCharts[serverId] = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [{
+                label: 'CPU %',
+                data: [],
+                borderColor: 'rgb(255, 99, 132)',
+                backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                tension: 0.1
+            }, {
+                label: '内存 %',
+                data: [],
+                borderColor: 'rgb(54, 162, 235)',
+                backgroundColor: 'rgba(54, 162, 235, 0.1)',
+                tension: 0.1
+            }, {
+                label: '磁盘 %',
+                data: [],
+                borderColor: 'rgb(255, 205, 86)',
+                backgroundColor: 'rgba(255, 205, 86, 0.1)',
+                tension: 0.1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                }
+            }
+        }
+    });
+}
+
+function updateServerMetrics(serverId) {
+    $.get(`/api/server_metrics/${serverId}`, function(data) {
+        if (data && data.cpu_usage !== undefined) {
+            $(`#cpu-${serverId}`).text(data.cpu_usage.toFixed(1) + '%');
+            $(`#memory-${serverId}`).text(data.memory_usage.toFixed(1) + '%');
+            $(`#disk-${serverId}`).text(data.disk_usage.toFixed(1) + '%');
+            $(`#load-${serverId}`).text(data.load_average);
+            
+            // 更新图表
+            if (serverCharts[serverId]) {
+                const chart = serverCharts[serverId];
+                const time = new Date(data.timestamp).toLocaleTimeString();
+                
+                chart.data.labels.push(time);
+                chart.data.datasets[0].data.push(data.cpu_usage);
+                chart.data.datasets[1].data.push(data.memory_usage);
+                chart.data.datasets[2].data.push(data.disk_usage);
+                
+                // 只保留最近10个数据点
+                if (chart.data.labels.length > 10) {
+                    chart.data.labels.shift();
+                    chart.data.datasets.forEach(dataset => dataset.data.shift());
+                }
+                
+                chart.update();
+            }
+        }
+    }).fail(function() {
+        $(`#cpu-${serverId}, #memory-${serverId}, #disk-${serverId}`).text('--');
+        $(`#load-${serverId}`).text('--');
+    });
+}
+
+function refreshServerMetrics(serverId) {
+    updateServerMetrics(serverId);
+}
+
+function collectMetrics() {
+    $('#collect-btn').prop('disabled', true).html('<i class="bi bi-arrow-clockwise spin"></i> 收集中...');
+    
+    $.get('/api/collect_metrics', function(data) {
+        // 刷新所有服务器数据
+        {% for server in servers %}
+        updateServerMetrics({{ server.id }});
+        {% endfor %}
+    }).always(function() {
+        $('#collect-btn').prop('disabled', false).html('<i class="bi bi-arrow-clockwise"></i> 刷新监控数据');
+    });
+}
+
+function showServerDetails(serverId) {
+    $('#serverDetailsModal').modal('show');
+    
+    // 加载服务器历史数据
+    $.get(`/api/server_metrics_history/${serverId}?hours=6`, function(data) {
+        // 创建历史数据图表
+        const content = `
+            <div class="row">
+                <div class="col-12">
+                    <canvas id="history-chart" width="400" height="200"></canvas>
+                </div>
+            </div>
+        `;
+        $('#server-details-content').html(content);
+        
+        const ctx = document.getElementById('history-chart').getContext('2d');
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: data.map(d => new Date(d.timestamp).toLocaleTimeString()),
+                datasets: [{
+                    label: 'CPU使用率 %',
+                    data: data.map(d => d.cpu_usage),
+                    borderColor: 'rgb(255, 99, 132)',
+                    tension: 0.1
+                }, {
+                    label: '内存使用率 %',
+                    data: data.map(d => d.memory_usage),
+                    borderColor: 'rgb(54, 162, 235)',
+                    tension: 0.1
+                }, {
+                    label: '磁盘使用率 %',
+                    data: data.map(d => d.disk_usage),
+                    borderColor: 'rgb(255, 205, 86)',
+                    tension: 0.1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100
+                    }
+                }
+            }
+        });
+    });
+}
+
+$(document).ready(function() {
+    // 初始化所有服务器的图表
+    {% for server in servers %}
+    initChart({{ server.id }});
+    updateServerMetrics({{ server.id }});
+    {% endfor %}
+    
+    // 每30秒自动更新数据
+    setInterval(function() {
+        {% for server in servers %}
+        updateServerMetrics({{ server.id }});
+        {% endfor %}
+    }, 30000);
+});
+</script>
+{% endblock %}

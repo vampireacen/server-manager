@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+
+{% block title %}申请权限 - 服务器管理系统{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <h2><i class="bi bi-plus-circle"></i> 申请服务器权限</h2>
+        <p class="text-muted">选择服务器和权限类型，提交申请等待审核</p>
+        
+        <div class="card">
+            <div class="card-body">
+                <form method="POST" id="applicationForm">
+                    <div class="mb-3">
+                        <label for="server_id" class="form-label">选择服务器 <span class="text-danger">*</span></label>
+                        <select class="form-select" id="server_id" name="server_id" required>
+                            <option value="">请选择服务器</option>
+                            {% for server in servers %}
+                            <option value="{{ server.id }}">{{ server.name }} ({{ server.host }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="permission_type_id" class="form-label">权限类型 <span class="text-danger">*</span></label>
+                        <select class="form-select" id="permission_type_id" name="permission_type_id" required>
+                            <option value="">请选择权限类型</option>
+                            {% for ptype in permission_types %}
+                            <option value="{{ ptype.id }}" data-requires-reason="{{ ptype.requires_reason }}">
+                                {{ ptype.name }} - {{ ptype.description }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3" id="reasonContainer" style="display: none;">
+                        <label for="reason" class="form-label">申请理由 <span class="text-danger">*</span></label>
+                        <textarea class="form-control" id="reason" name="reason" rows="4" 
+                                placeholder="请详细说明您申请此权限的理由和用途"></textarea>
+                        <div class="form-text">申请特殊权限时必须提供详细理由</div>
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <button type="button" class="btn btn-secondary" onclick="history.back()">取消</button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-send"></i> 提交申请
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="bi bi-info-circle"></i> 申请须知</h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled">
+                    <li class="mb-2">
+                        <i class="bi bi-check-circle text-success"></i>
+                        普通用户权限通常会快速审核通过
+                    </li>
+                    <li class="mb-2">
+                        <i class="bi bi-exclamation-triangle text-warning"></i>
+                        特殊权限需要详细说明使用理由
+                    </li>
+                    <li class="mb-2">
+                        <i class="bi bi-clock text-info"></i>
+                        管理员将在1-3个工作日内处理申请
+                    </li>
+                    <li class="mb-2">
+                        <i class="bi bi-shield-check text-primary"></i>
+                        请确保申请的权限符合公司安全政策
+                    </li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6><i class="bi bi-list-ul"></i> 权限说明</h6>
+            </div>
+            <div class="card-body">
+                {% for ptype in permission_types %}
+                <div class="mb-2">
+                    <strong>{{ ptype.name }}</strong>
+                    <p class="text-muted small mb-0">{{ ptype.description }}</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+$(document).ready(function() {
+    $('#permission_type_id').change(function() {
+        const selectedOption = $(this).find('option:selected');
+        const requiresReason = selectedOption.data('requires-reason');
+        
+        if (requiresReason) {
+            $('#reasonContainer').show();
+            $('#reason').prop('required', true);
+        } else {
+            $('#reasonContainer').hide();
+            $('#reason').prop('required', false);
+        }
+    });
+    
+    $('#applicationForm').submit(function(e) {
+        const permissionTypeId = $('#permission_type_id').val();
+        const selectedOption = $('#permission_type_id').find('option:selected');
+        const requiresReason = selectedOption.data('requires-reason');
+        const reason = $('#reason').val().trim();
+        
+        if (requiresReason && !reason) {
+            e.preventDefault();
+            alert('申请此权限需要填写详细理由');
+            $('#reason').focus();
+            return false;
+        }
+        
+        if (reason.length > 0 && reason.length < 10) {
+            e.preventDefault();
+            alert('申请理由至少需要10个字符');
+            $('#reason').focus();
+            return false;
+        }
+    });
+});
+</script>
+{% endblock %}

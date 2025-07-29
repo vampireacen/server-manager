@@ -1,0 +1,288 @@
+{% extends "base.html" %}
+
+{% block title %}审核申请 - 服务器管理系统{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col">
+        <h2><i class="bi bi-check-circle"></i> 审核申请</h2>
+        <p class="text-muted">管理用户的权限申请</p>
+    </div>
+</div>
+
+<div class="card mb-3">
+    <div class="card-body">
+        <div class="row align-items-center">
+            <div class="col">
+                <div class="btn-group" role="group">
+                    <a href="{{ url_for('admin_review', status='pending') }}" 
+                       class="btn btn-{{ 'primary' if status_filter == 'pending' else 'outline-primary' }}">
+                        待审核
+                    </a>
+                    <a href="{{ url_for('admin_review', status='approved') }}" 
+                       class="btn btn-{{ 'success' if status_filter == 'approved' else 'outline-success' }}">
+                        已通过
+                    </a>
+                    <a href="{{ url_for('admin_review', status='rejected') }}" 
+                       class="btn btn-{{ 'danger' if status_filter == 'rejected' else 'outline-danger' }}">
+                        已拒绝
+                    </a>
+                    <a href="{{ url_for('admin_review', status='all') }}" 
+                       class="btn btn-{{ 'secondary' if status_filter == 'all' else 'outline-secondary' }}">
+                        全部
+                    </a>
+                </div>
+            </div>
+            <div class="col-auto">
+                <span class="text-muted">共 {{ applications|length }} 条记录</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if applications %}
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>申请人</th>
+                        <th>服务器</th>
+                        <th>权限类型</th>
+                        <th>申请时间</th>
+                        <th>状态</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for app in applications %}
+                    <tr class="{{ 'table-warning' if app.status == 'pending' else '' }}">
+                        <td>
+                            <strong>{{ app.user.username }}</strong>
+                        </td>
+                        <td>
+                            <strong>{{ app.server.name }}</strong><br>
+                            <small class="text-muted">{{ app.server.host }}</small>
+                        </td>
+                        <td>
+                            <span class="badge bg-light text-dark">{{ app.permission_type.name }}</span>
+                            {% if app.reason %}
+                            <br><small class="text-muted">有申请理由</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {{ app.created_at.strftime('%Y-%m-%d %H:%M') }}
+                        </td>
+                        <td>
+                            {% if app.status == 'pending' %}
+                                <span class="badge bg-warning">待审核</span>
+                            {% elif app.status == 'approved' %}
+                                <span class="badge bg-success">已通过</span>
+                            {% elif app.status == 'rejected' %}
+                                <span class="badge bg-danger">已拒绝</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <button class="btn btn-outline-primary" 
+                                        onclick="showReviewModal({{ app.id }})"
+                                        data-bs-toggle="modal" 
+                                        data-bs-target="#reviewModal">
+                                    <i class="bi bi-eye"></i> 查看
+                                </button>
+                                {% if app.status == 'pending' %}
+                                <button class="btn btn-outline-success" 
+                                        onclick="quickApprove({{ app.id }})">
+                                    <i class="bi bi-check"></i> 通过
+                                </button>
+                                <button class="btn btn-outline-danger" 
+                                        onclick="quickReject({{ app.id }})">
+                                    <i class="bi bi-x"></i> 拒绝
+                                </button>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="alert alert-info text-center">
+    <i class="bi bi-info-circle"></i>
+    {% if status_filter == 'pending' %}
+        暂无待审核的申请
+    {% else %}
+        没有找到相关的申请记录
+    {% endif %}
+</div>
+{% endif %}
+
+<!-- 审核模态框 -->
+<div class="modal fade" id="reviewModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">审核申请</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="reviewForm" method="POST">
+                <div class="modal-body" id="reviewDetails">
+                    <!-- 动态内容 -->
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" name="action" value="approved" class="btn btn-success">
+                        <i class="bi bi-check-circle"></i> 通过
+                    </button>
+                    <button type="submit" name="action" value="rejected" class="btn btn-danger">
+                        <i class="bi bi-x-circle"></i> 拒绝
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const applications = {{ applications | tojson }};
+
+function showReviewModal(appId) {
+    const app = applications.find(a => a.id === appId);
+    if (!app) return;
+    
+    let statusBadge = '';
+    if (app.status === 'pending') {
+        statusBadge = '<span class="badge bg-warning">待审核</span>';
+    } else if (app.status === 'approved') {
+        statusBadge = '<span class="badge bg-success">已通过</span>';
+    } else if (app.status === 'rejected') {
+        statusBadge = '<span class="badge bg-danger">已拒绝</span>';
+    }
+    
+    const reviewedInfo = app.reviewed_at ? 
+        `<div class="row mb-3">
+            <div class="col-3"><strong>审核时间:</strong></div>
+            <div class="col-9">${new Date(app.reviewed_at).toLocaleString()}</div>
+        </div>
+        <div class="row mb-3">
+            <div class="col-3"><strong>审核人:</strong></div>
+            <div class="col-9">${app.reviewer ? app.reviewer.username : '-'}</div>
+        </div>` : '';
+    
+    const existingComment = app.admin_comment ? app.admin_comment : '';
+    
+    const content = `
+        <div class="row mb-3">
+            <div class="col-3"><strong>申请人:</strong></div>
+            <div class="col-9">${app.user.username}</div>
+        </div>
+        <div class="row mb-3">
+            <div class="col-3"><strong>服务器:</strong></div>
+            <div class="col-9">${app.server.name} (${app.server.host})</div>
+        </div>
+        <div class="row mb-3">
+            <div class="col-3"><strong>权限类型:</strong></div>
+            <div class="col-9">
+                ${app.permission_type.name}
+                <br><small class="text-muted">${app.permission_type.description}</small>
+            </div>
+        </div>
+        <div class="row mb-3">
+            <div class="col-3"><strong>申请时间:</strong></div>
+            <div class="col-9">${new Date(app.created_at).toLocaleString()}</div>
+        </div>
+        <div class="row mb-3">
+            <div class="col-3"><strong>状态:</strong></div>
+            <div class="col-9">${statusBadge}</div>
+        </div>
+        ${app.reason ? `
+        <div class="row mb-3">
+            <div class="col-3"><strong>申请理由:</strong></div>
+            <div class="col-9">
+                <div class="alert alert-light mb-0">
+                    ${app.reason}
+                </div>
+            </div>
+        </div>` : ''}
+        ${reviewedInfo}
+        ${app.status === 'pending' ? `
+        <div class="row mb-3">
+            <div class="col-3"><strong>审核意见:</strong></div>
+            <div class="col-9">
+                <textarea class="form-control" name="admin_comment" rows="3" 
+                          placeholder="请输入审核意见（可选）">${existingComment}</textarea>
+            </div>
+        </div>` : (app.admin_comment ? `
+        <div class="row mb-3">
+            <div class="col-3"><strong>审核意见:</strong></div>
+            <div class="col-9">
+                <div class="alert alert-info mb-0">
+                    ${app.admin_comment}
+                </div>
+            </div>
+        </div>` : '')}
+    `;
+    
+    $('#reviewDetails').html(content);
+    $('#reviewForm').attr('action', `/admin/review_application/${appId}`);
+    
+    // 如果已经审核过，隐藏操作按钮
+    if (app.status !== 'pending') {
+        $('.modal-footer button[name="action"]').hide();
+    } else {
+        $('.modal-footer button[name="action"]').show();
+    }
+}
+
+function quickApprove(appId) {
+    if (confirm('确定要通过这个申请吗？')) {
+        const form = $('<form>', {
+            method: 'POST',
+            action: `/admin/review_application/${appId}`
+        });
+        
+        form.append($('<input>', {
+            type: 'hidden',
+            name: 'action',
+            value: 'approved'
+        }));
+        
+        $('body').append(form);
+        form.submit();
+    }
+}
+
+function quickReject(appId) {
+    const reason = prompt('请输入拒绝理由（可选）:');
+    if (reason !== null) {
+        const form = $('<form>', {
+            method: 'POST',
+            action: `/admin/review_application/${appId}`
+        });
+        
+        form.append($('<input>', {
+            type: 'hidden',
+            name: 'action',
+            value: 'rejected'
+        }));
+        
+        if (reason.trim()) {
+            form.append($('<input>', {
+                type: 'hidden',
+                name: 'admin_comment',
+                value: reason.trim()
+            }));
+        }
+        
+        $('body').append(form);
+        form.submit();
+    }
+}
+</script>
+{% endblock %}
