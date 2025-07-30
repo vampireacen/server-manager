@@ -325,6 +325,17 @@ body {
   box-shadow: var(--claude-shadow-md);
 }
 
+.claude-btn-warning {
+  background: linear-gradient(135deg, var(--claude-warning) 0%, var(--claude-warning-dark) 100%);
+  color: white;
+}
+
+.claude-btn-warning:hover {
+  background: linear-gradient(135deg, var(--claude-warning-dark) 0%, #b45309 100%);
+  transform: translateY(-1px);
+  box-shadow: var(--claude-shadow-md);
+}
+
 .claude-btn-sm {
   padding: 6px 12px;
   font-size: 0.75rem;

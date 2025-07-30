@@ -206,6 +206,34 @@ def api_server_metrics_history(server_id):
     metrics = get_server_metrics_history(server_id, hours)
     return jsonify(metrics)
 
+@app.route('/api/test_connection/<int:server_id>')
+@admin_required
+def api_test_connection(server_id):
+    """测试服务器连接API"""
+    server = Server.query.get_or_404(server_id)
+    
+    try:
+        from server_monitor import ServerMonitor
+        monitor = ServerMonitor(server)
+        
+        # 尝试连接服务器
+        if monitor.connect():
+            monitor.disconnect()
+            return jsonify({
+                'success': True,
+                'message': f'连接到服务器 {server.name} 成功'
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': f'无法连接到服务器 {server.name}，请检查网络连接和SSH配置'
+            })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'连接测试异常: {str(e)}'
+        })
+
 @app.route('/api/collect_metrics')
 @admin_required
 def api_collect_metrics():
@@ -399,22 +427,24 @@ def admin_review():
     """管理员审核页面 - 按批次显示"""
     status_filter = request.args.get('status', 'pending')
     
-    # 根据状态过滤批次
-    if status_filter == 'pending':
-        batches_query = ApplicationBatch.query.filter_by(status='pending')
-    elif status_filter == 'processing':
-        batches_query = ApplicationBatch.query.filter(ApplicationBatch.status.in_(['processing']))
-    elif status_filter == 'completed':
-        batches_query = ApplicationBatch.query.filter(ApplicationBatch.status.in_(['completed']))
-    elif status_filter == 'cancelled':
-        batches_query = ApplicationBatch.query.filter_by(status='cancelled')
-    else:  # all
-        batches_query = ApplicationBatch.query
-    
-    batches = batches_query.options(
+    # 获取所有批次，然后基于状态摘要过滤
+    all_batches = ApplicationBatch.query.options(
         db.joinedload(ApplicationBatch.server),
         db.joinedload(ApplicationBatch.user)
     ).order_by(ApplicationBatch.created_at.desc()).all()
+    
+    # 根据状态过滤批次（使用get_status_summary方法）
+    if status_filter == 'pending':
+        batches = [batch for batch in all_batches if batch.get_status_summary() == 'pending']
+    elif status_filter == 'processing':
+        batches = [batch for batch in all_batches if batch.get_status_summary() == 'processing']  
+    elif status_filter == 'completed':
+        batches = [batch for batch in all_batches if batch.get_status_summary() == 'completed']
+    elif status_filter == 'cancelled':
+        batches = [batch for batch in all_batches if batch.get_status_summary() == 'cancelled']
+    else:  # all
+        batches = all_batches
+    
     
     # 转换为字典格式以便JSON序列化
     batches_json = []
@@ -477,7 +507,11 @@ def admin_review():
     Notification.query.filter_by(admin_id=session['user_id'], is_read=False).update({'is_read': True})
     db.session.commit()
     
-    return render_template('admin_review.html', batches=batches, batches_json=batches_json, status_filter=status_filter)
+    return render_template('admin_review.html', 
+                         batches=batches, 
+                         all_batches=all_batches,
+                         batches_json=batches_json, 
+                         status_filter=status_filter)
 
 @app.route('/admin/review_batch/<int:batch_id>', methods=['POST'])
 @admin_required
@@ -536,7 +570,16 @@ def admin_review_batch(batch_id):
                 app.admin_comment = (app.admin_comment or '') + error_comment
     
     # 更新批次状态
-    batch.status = 'processing'  # 批次进入处理中状态
+    # 检查批次中所有申请是否都已被审核
+    all_applications_in_batch = Application.query.filter_by(batch_id=batch_id).all()
+    pending_applications = [app for app in all_applications_in_batch if app.status == 'pending']
+    
+    if len(pending_applications) == 0:
+        # 所有申请都已审核完成，批次状态设为已完成
+        batch.status = 'completed'
+    else:
+        # 还有未审核的申请，批次状态设为处理中
+        batch.status = 'processing'
     
     # 提交数据库更改
     db.session.commit()

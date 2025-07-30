@@ -19,7 +19,7 @@
         <div class="claude-metric-card">
             <div class="d-flex align-items-center">
                 <div class="flex-grow-1">
-                    <div class="claude-metric-value" style="color: var(--claude-warning);">{{ batches|selectattr('get_status_summary', 'equalto', 'pending')|list|length }}</div>
+                    <div class="claude-metric-value" style="color: var(--claude-warning);">{{ all_batches|selectattr('get_status_summary', 'equalto', 'pending')|list|length }}</div>
                     <div class="claude-metric-label">待审核</div>
                 </div>
                 <i class="bi bi-clock-history" style="font-size: 2rem; color: var(--claude-warning); opacity: 0.7;"></i>
@@ -30,7 +30,7 @@
         <div class="claude-metric-card">
             <div class="d-flex align-items-center">
                 <div class="flex-grow-1">
-                    <div class="claude-metric-value" style="color: var(--claude-info);">{{ batches|selectattr('get_status_summary', 'equalto', 'processing')|list|length }}</div>
+                    <div class="claude-metric-value" style="color: var(--claude-info);">{{ all_batches|selectattr('get_status_summary', 'equalto', 'processing')|list|length }}</div>
                     <div class="claude-metric-label">审核中</div>
                 </div>
                 <i class="bi bi-gear" style="font-size: 2rem; color: var(--claude-info); opacity: 0.7;"></i>
@@ -41,7 +41,7 @@
         <div class="claude-metric-card">
             <div class="d-flex align-items-center">
                 <div class="flex-grow-1">
-                    <div class="claude-metric-value" style="color: var(--claude-success);">{{ batches|selectattr('get_status_summary', 'equalto', 'completed')|list|length }}</div>
+                    <div class="claude-metric-value" style="color: var(--claude-success);">{{ all_batches|selectattr('get_status_summary', 'equalto', 'completed')|list|length }}</div>
                     <div class="claude-metric-label">已完成</div>
                 </div>
                 <i class="bi bi-check-circle" style="font-size: 2rem; color: var(--claude-success); opacity: 0.7;"></i>
@@ -52,7 +52,7 @@
         <div class="claude-metric-card">
             <div class="d-flex align-items-center">
                 <div class="flex-grow-1">
-                    <div class="claude-metric-value">{{ batches|length }}</div>
+                    <div class="claude-metric-value">{{ all_batches|length }}</div>
                     <div class="claude-metric-label">总申请批次</div>
                 </div>
                 <i class="bi bi-list-check" style="font-size: 2rem; color: var(--claude-primary); opacity: 0.7;"></i>
@@ -67,34 +67,38 @@
         <div class="d-flex justify-content-between align-items-center">
             <div class="d-flex gap-2">
                 <a href="{{ url_for('admin_review', status='pending') }}" 
-                   class="claude-btn {{ 'claude-btn-primary' if status_filter == 'pending' else 'claude-btn-secondary' }}">
+                   class="claude-btn claude-filter-btn claude-filter-pending {{ 'active' if status_filter == 'pending' else '' }}" data-status="pending">
                     <i class="bi bi-clock-history me-1"></i>
                     待审核
                 </a>
                 <a href="{{ url_for('admin_review', status='processing') }}" 
-                   class="claude-btn {{ 'claude-btn-info' if status_filter == 'processing' else 'claude-btn-secondary' }}">
+                   class="claude-btn claude-filter-btn claude-filter-processing {{ 'active' if status_filter == 'processing' else '' }}" data-status="processing">
                     <i class="bi bi-gear me-1"></i>
                     审核中
                 </a>
                 <a href="{{ url_for('admin_review', status='completed') }}" 
-                   class="claude-btn {{ 'claude-btn-success' if status_filter == 'completed' else 'claude-btn-secondary' }}">
+                   class="claude-btn claude-filter-btn claude-filter-completed {{ 'active' if status_filter == 'completed' else '' }}" data-status="completed">
                     <i class="bi bi-check-circle me-1"></i>
                     已完成
                 </a>
                 <a href="{{ url_for('admin_review', status='cancelled') }}" 
-                   class="claude-btn {{ 'claude-btn-secondary' if status_filter == 'cancelled' else 'claude-btn-secondary' }}">
+                   class="claude-btn claude-filter-btn claude-filter-cancelled {{ 'active' if status_filter == 'cancelled' else '' }}" data-status="cancelled">
                     <i class="bi bi-x-circle me-1"></i>
                     已撤销
                 </a>
                 <a href="{{ url_for('admin_review', status='all') }}" 
-                   class="claude-btn {{ 'claude-btn-primary' if status_filter == 'all' else 'claude-btn-secondary' }}">
+                   class="claude-btn claude-filter-btn claude-filter-all {{ 'active' if status_filter == 'all' else '' }}" data-status="all">
                     <i class="bi bi-list me-1"></i>
                     全部
                 </a>
             </div>
             <div class="text-muted">
                 <i class="bi bi-info-circle me-1"></i>
+                {% if status_filter == 'all' %}
                 共 <strong>{{ batches|length }}</strong> 个申请批次
+                {% else %}
+                当前筛选显示 <strong>{{ batches|length }}</strong> 个申请批次，总共 <strong>{{ all_batches|length }}</strong> 个
+                {% endif %}
             </div>
         </div>
     </div>
@@ -499,6 +503,91 @@
         font-size: 0.8rem;
         padding: 10px;
     }
+}
+
+/* 筛选按钮统一基础样式 */
+.claude-filter-btn {
+    background: var(--claude-bg-secondary);
+    color: var(--claude-text-secondary);
+    border: 1px solid var(--claude-border-medium);
+    transition: all 0.2s ease;
+}
+
+.claude-filter-btn:hover {
+    background: var(--claude-bg-tertiary);
+    border-color: var(--claude-border-dark);
+    color: var(--claude-text-primary);
+    text-decoration: none;
+}
+
+/* 待审核 - 橙色 */
+.claude-filter-pending.active {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    color: white;
+    border-color: #f59e0b;
+    box-shadow: 0 2px 4px rgba(245, 158, 11, 0.3);
+}
+
+.claude-filter-pending.active:hover {
+    background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+    border-color: #d97706;
+    color: white;
+}
+
+/* 审核中 - 蓝色 */
+.claude-filter-processing.active {
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    color: white;
+    border-color: #3b82f6;
+    box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
+}
+
+.claude-filter-processing.active:hover {
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    border-color: #2563eb;
+    color: white;
+}
+
+/* 已完成 - 绿色 */
+.claude-filter-completed.active {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white;
+    border-color: #10b981;
+    box-shadow: 0 2px 4px rgba(16, 185, 129, 0.3);
+}
+
+.claude-filter-completed.active:hover {
+    background: linear-gradient(135deg, #059669 0%, #047857 100%);
+    border-color: #059669;
+    color: white;
+}
+
+/* 已撤销 - 紫色 */
+.claude-filter-cancelled.active {
+    background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+    color: white;
+    border-color: #8b5cf6;
+    box-shadow: 0 2px 4px rgba(139, 92, 246, 0.3);
+}
+
+.claude-filter-cancelled.active:hover {
+    background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+    border-color: #7c3aed;
+    color: white;
+}
+
+/* 全部 - Claude主色调（红橙色） */
+.claude-filter-all.active {
+    background: linear-gradient(135deg, var(--claude-primary) 0%, var(--claude-primary-dark) 100%);
+    color: white;
+    border-color: var(--claude-primary);
+    box-shadow: 0 2px 4px rgba(255, 107, 53, 0.3);
+}
+
+.claude-filter-all.active:hover {
+    background: linear-gradient(135deg, var(--claude-primary-dark) 0%, #d44a21 100%);
+    border-color: var(--claude-primary-dark);
+    color: white;
 }
 </style>
 

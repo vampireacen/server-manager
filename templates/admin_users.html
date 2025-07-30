@@ -114,14 +114,14 @@
                         </td>
                         <td>
                             <div class="btn-group">
-                                <button class="btn btn-sm btn-info text-white" onclick="manageUserAccounts({{ user.id }}, '{{ user.username }}')" title="管理用户账户">
+                                <button class="claude-btn claude-btn-sm claude-btn-secondary" onclick="manageUserAccounts({{ user.id }}, '{{ user.username }}')" title="管理用户账户">
                                     <i class="bi bi-person-gear"></i>
                                 </button>
                                 {% if user.id != session.user_id %}
-                                <button class="btn btn-sm btn-{{ 'warning text-white' if user.role == 'admin' else 'primary text-white' }}" onclick="toggleUserRole({{ user.id }}, '{{ user.role }}', '{{ user.username }}')" title="{{ '降为普通用户' if user.role == 'admin' else '提升为管理员' }}">
+                                <button class="claude-btn claude-btn-sm claude-btn-{{ 'warning' if user.role == 'admin' else 'secondary' }}" onclick="toggleUserRole({{ user.id }}, '{{ user.role }}', '{{ user.username }}')" title="{{ '降为普通用户' if user.role == 'admin' else '提升为管理员' }}">
                                     <i class="bi bi-{{ 'arrow-down-circle' if user.role == 'admin' else 'arrow-up-circle' }}"></i>
                                 </button>
-                                <button class="btn btn-sm btn-danger text-white" onclick="deleteUser({{ user.id }}, '{{ user.username }}')" title="删除用户">
+                                <button class="claude-btn claude-btn-sm claude-btn-danger" onclick="deleteUser({{ user.id }}, '{{ user.username }}')" title="删除用户">
                                     <i class="bi bi-trash"></i>
                                 </button>
                                 {% endif %}
@@ -242,8 +242,8 @@
                 <div id="resetUserPasswordError" class="alert alert-danger d-none"></div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-                <button type="button" class="btn btn-warning" onclick="resetUserPassword()">
+                <button type="button" class="claude-btn claude-btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="claude-btn claude-btn-warning" onclick="resetUserPassword()">
                     <i class="bi bi-check-circle me-1"></i>重置密码
                 </button>
             </div>
@@ -290,8 +290,8 @@
                 <div id="resetServerPasswordError" class="alert alert-danger d-none"></div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-                <button type="button" class="btn btn-warning" onclick="resetServerPassword()">
+                <button type="button" class="claude-btn claude-btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="claude-btn claude-btn-warning" onclick="resetServerPassword()">
                     <i class="bi bi-arrow-clockwise me-1"></i>重置密码
                 </button>
             </div>
@@ -468,7 +468,7 @@ function manageUserAccounts(userId, username) {
                         <h6 class="mb-0">
                             <i class="bi bi-person-circle me-2"></i>用户基本信息
                         </h6>
-                        <button class="btn btn-sm btn-warning text-white" onclick="showResetUserPasswordModal(${userId}, '${data.user.username}')">
+                        <button class="claude-btn claude-btn-sm claude-btn-warning" onclick="showResetUserPasswordModal(${userId}, '${data.user.username}')">
                             <i class="bi bi-key me-1"></i>重置用户密码
                         </button>
                     </div>
@@ -526,7 +526,7 @@ function manageUserAccounts(userId, username) {
                                     </div>
                                 </div>
                                 <div class="col-md-6 text-end">
-                                    <button class="btn btn-sm btn-warning text-white" onclick="showResetServerPasswordModal(${userId}, ${account.server_id}, '${account.username}', '${account.server_name}')">
+                                    <button class="claude-btn claude-btn-sm claude-btn-warning" onclick="showResetServerPasswordModal(${userId}, ${account.server_id}, '${account.username}', '${account.server_name}')">
                                         <i class="bi bi-arrow-clockwise me-1"></i>重置服务器密码
                                     </button>
                                 </div>
