@@ -38,7 +38,7 @@
             <div class="d-flex align-items-center">
                 <div class="flex-grow-1">
                     <div class="claude-metric-value" style="color: var(--claude-warning);">
-                        {{ recent_applications|selectattr('status', 'equalto', 'pending')|list|length }}
+                        {{ recent_batches|selectattr('get_status_summary', 'equalto', 'pending')|list|length }}
                     </div>
                     <div class="claude-metric-label">待审核</div>
                 </div>
@@ -61,7 +61,7 @@
         <div class="claude-metric-card">
             <div class="d-flex align-items-center">
                 <div class="flex-grow-1">
-                    <div class="claude-metric-value" style="color: var(--claude-text-muted);">{{ recent_applications|length }}</div>
+                    <div class="claude-metric-value" style="color: var(--claude-text-muted);">{{ recent_batches|length }}</div>
                     <div class="claude-metric-label">总申请</div>
                 </div>
                 <i class="bi bi-list-check" style="font-size: 2rem; color: var(--claude-text-muted); opacity: 0.7;"></i>
@@ -194,7 +194,7 @@
                 </a>
             </div>
             <div class="claude-card-body">
-                {% if recent_applications %}
+                {% if recent_batches %}
                 <div class="table-responsive">
                     <table class="table table-hover mb-0">
                         <thead class="table-light">
@@ -207,33 +207,33 @@
                             </tr>
                         </thead>
                         <tbody>
-                            {% for app in recent_applications %}
+                            {% for batch in recent_batches %}
                             <tr>
                                 <td>
                                     <div class="d-flex align-items-center">
                                         <i class="bi bi-server me-2" style="color: var(--claude-primary);"></i>
                                         <div>
-                                            <div class="fw-semibold">{{ app.server.name }}</div>
-                                            <small class="text-muted">{{ app.server.host }}:{{ app.server.port }}</small>
+                                            <div class="fw-semibold">{{ batch.server.name }}</div>
+                                            <small class="text-muted">{{ batch.server.host }}:{{ batch.server.port }}</small>
                                         </div>
                                     </div>
                                 </td>
                                 <td>
                                     <span class="claude-badge claude-badge-info">
-                                        {{ app.permission_type.name }}
+                                        {{ batch.applications.count() }} 个权限
                                     </span>
                                 </td>
                                 <td>
-                                    <span class="claude-badge claude-badge-{{ 'success' if app.status == 'approved' else 'warning' if app.status == 'pending' else 'danger' }}">
-                                        <i class="bi bi-{{ 'check-circle' if app.status == 'approved' else 'clock' if app.status == 'pending' else 'x-circle' }}"></i>
-                                        {{ '已批准' if app.status == 'approved' else '待审核' if app.status == 'pending' else '已拒绝' }}
+                                    <span class="claude-badge claude-badge-{{ 'success' if batch.get_status_summary() == 'completed' else 'warning' if batch.get_status_summary() == 'pending' else 'info' if batch.get_status_summary() == 'processing' else 'secondary' }}">
+                                        <i class="bi bi-{{ 'check-circle' if batch.get_status_summary() == 'completed' else 'clock' if batch.get_status_summary() == 'pending' else 'gear' if batch.get_status_summary() == 'processing' else 'x-circle' }}"></i>
+                                        {{ '已完成' if batch.get_status_summary() == 'completed' else '待审核' if batch.get_status_summary() == 'pending' else '审核中' if batch.get_status_summary() == 'processing' else '已撤销' }}
                                     </span>
                                 </td>
                                 <td>
-                                    <small class="text-muted">{{ app.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
+                                    <small class="text-muted">{{ batch.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
                                 </td>
                                 <td>
-                                    <small class="text-muted">{{ app.reviewed_at.strftime('%Y-%m-%d %H:%M') if app.reviewed_at else '--' }}</small>
+                                    <small class="text-muted">--</small>
                                 </td>
                             </tr>
                             {% endfor %}

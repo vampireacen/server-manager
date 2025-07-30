@@ -15,81 +15,110 @@
     </div>
 </div>
 
-{% if applications %}
-<div class="card">
-    <div class="card-body">
-        <div class="table-responsive">
-            <table class="table table-hover">
-                <thead>
-                    <tr>
-                        <th>服务器</th>
-                        <th>权限类型</th>
-                        <th>申请时间</th>
-                        <th>状态</th>
-                        <th>审核时间</th>
-                        <th>操作</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for app in applications %}
-                    <tr>
-                        <td>
-                            <strong>{{ app.server.name }}</strong><br>
-                            <small class="text-muted">{{ app.server.host }}</small>
-                        </td>
-                        <td>
-                            <span class="badge bg-light text-dark">{{ app.permission_type.name }}</span>
-                        </td>
-                        <td>
-                            {{ app.created_at.strftime('%Y-%m-%d %H:%M') }}
-                        </td>
-                        <td>
-                            {% if app.status == 'pending' %}
-                                <span class="badge bg-warning">待审核</span>
-                            {% elif app.status == 'approved' %}
-                                <span class="badge bg-success">已通过</span>
-                            {% elif app.status == 'rejected' %}
-                                <span class="badge bg-danger">已拒绝</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            {% if app.reviewed_at %}
-                                {{ app.reviewed_at.strftime('%Y-%m-%d %H:%M') }}
-                            {% else %}
-                                <span class="text-muted">-</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            <button class="claude-btn claude-btn-sm claude-btn-secondary" 
-                                    onclick="showApplicationDetails({{ app.id }})"
-                                    data-bs-toggle="modal" 
-                                    data-bs-target="#applicationModal">
-                                <i class="bi bi-eye"></i> 查看
-                            </button>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+{% if batches %}
+<div class="row">
+    {% for batch in batches %}
+    <div class="col-xl-6 col-lg-12 col-md-6 col-sm-12 mb-4">
+        <div class="claude-card {{ 'border-warning' if batch.get_status_summary() == 'pending' else 'border-info' if batch.get_status_summary() == 'processing' else 'border-success' if batch.get_status_summary() == 'completed' else 'border-secondary' }}" 
+             style="border-left-width: 4px !important;">
+            <!-- 申请批次头部 -->
+            <div class="claude-card-header">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="d-flex align-items-center">
+                        <div class="me-3">
+                            <div class="bg-light rounded-circle d-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
+                                <i class="bi bi-server" style="font-size: 1.5rem; color: var(--claude-primary);"></i>
+                            </div>
+                        </div>
+                        <div>
+                            <h6 class="mb-1 fw-semibold">{{ batch.server.name }}</h6>
+                            <small class="text-muted">申请时间: {{ batch.created_at.strftime('%m-%d %H:%M') }}</small>
+                        </div>
+                    </div>
+                    <span class="claude-badge claude-badge-{{ 'warning' if batch.get_status_summary() == 'pending' else 'info' if batch.get_status_summary() == 'processing' else 'success' if batch.get_status_summary() == 'completed' else 'secondary' }}">
+                        <i class="bi bi-{{ 'clock-history' if batch.get_status_summary() == 'pending' else 'gear' if batch.get_status_summary() == 'processing' else 'check-circle' if batch.get_status_summary() == 'completed' else 'x-circle' }}"></i>
+                        {{ '待审核' if batch.get_status_summary() == 'pending' else '审核中' if batch.get_status_summary() == 'processing' else '已完成' if batch.get_status_summary() == 'completed' else '已撤销' }}
+                    </span>
+                </div>
+            </div>
+            
+            <!-- 申请权限列表 -->
+            <div class="claude-card-body">
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">申请权限</label>
+                    <div class="permissions-list">
+                        {% for app in batch.applications %}
+                        <div class="permission-item d-flex justify-content-between align-items-center mb-2">
+                            <span class="permission-name">{{ app.permission_type.name }}</span>
+                            <span class="claude-badge claude-badge-sm claude-badge-{{ 'success' if app.status == 'approved' else 'danger' if app.status == 'rejected' else 'secondary' }}">
+                                <i class="bi bi-{{ 'check-circle' if app.status == 'approved' else 'x-circle' if app.status == 'rejected' else 'clock-history' }}"></i>
+                                {{ '已通过' if app.status == 'approved' else '已拒绝' if app.status == 'rejected' else '待审核' }}
+                            </span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                
+                {% if batch.reason %}
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">申请理由</label>
+                    <div class="alert alert-light border-0 mb-0" style="background: var(--claude-bg-secondary);">
+                        <i class="bi bi-chat-text me-2"></i>
+                        {{ batch.reason }}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            
+            <!-- 操作按钮 -->
+            <div class="claude-card-footer">
+                <div class="d-flex gap-2">
+                    <button class="claude-btn claude-btn-secondary flex-fill" 
+                            onclick="showBatchDetails({{ batch.id }})"
+                            data-bs-toggle="modal" 
+                            data-bs-target="#batchModal">
+                        <i class="bi bi-eye"></i>
+                        查看详情
+                    </button>
+                    {% if batch.can_be_cancelled() %}
+                    <button class="claude-btn claude-btn-danger" 
+                            onclick="cancelBatch({{ batch.id }})">
+                        <i class="bi bi-x-circle"></i>
+                        撤销申请
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
         </div>
     </div>
+    {% endfor %}
 </div>
 {% else %}
-<div class="alert alert-info text-center">
-    <i class="bi bi-info-circle"></i>
-    您还没有提交任何申请。<a href="{{ url_for('apply') }}" class="alert-link">立即申请</a>
+<div class="claude-card text-center py-5">
+    <div class="claude-card-body">
+        <i class="bi bi-inbox" style="font-size: 4rem; color: var(--claude-text-muted); opacity: 0.5;"></i>
+        <h4 class="mt-3 mb-2" style="color: var(--claude-text-secondary);">暂无申请记录</h4>
+        <p class="text-muted mb-3">您还没有提交任何申请</p>
+        <a href="{{ url_for('apply') }}" class="claude-btn claude-btn-primary">
+            <i class="bi bi-plus-circle me-1"></i>
+            立即申请
+        </a>
+    </div>
 </div>
 {% endif %}
 
-<!-- 申请详情模态框 -->
-<div class="modal fade" id="applicationModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">申请详情</h5>
+<!-- 申请批次详情模态框 -->
+<div class="modal fade" id="batchModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content" style="border: none; box-shadow: var(--claude-shadow-lg);">
+            <div class="modal-header" style="background: var(--claude-bg-secondary); border-bottom: 1px solid var(--claude-border-light);">
+                <h5 class="modal-title" style="color: var(--claude-text-primary); font-weight: 600;">
+                    <i class="bi bi-eye me-2"></i>
+                    申请详情
+                </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body" id="applicationDetails">
+            <div class="modal-body p-4" id="batchDetails">
                 <!-- 动态内容 -->
             </div>
         </div>
@@ -106,72 +135,144 @@
 
 {% block scripts %}
 <script>
-const applications = {{ applications_json | tojson }};
+const batches = {{ batches_json | tojson }};
 
-function showApplicationDetails(appId) {
-    const app = applications.find(a => a.id === appId);
-    if (!app) return;
+function showBatchDetails(batchId) {
+    const batch = batches.find(b => b.id === batchId);
+    if (!batch) return;
     
     let statusBadge = '';
-    if (app.status === 'pending') {
-        statusBadge = '<span class="badge bg-warning">待审核</span>';
-    } else if (app.status === 'approved') {
-        statusBadge = '<span class="badge bg-success">已通过</span>';
-    } else if (app.status === 'rejected') {
-        statusBadge = '<span class="badge bg-danger">已拒绝</span>';
+    if (batch.status === 'pending') {
+        statusBadge = '<span class="claude-badge claude-badge-warning"><i class="bi bi-clock-history me-1"></i>待审核</span>';
+    } else if (batch.status === 'processing') {
+        statusBadge = '<span class="claude-badge claude-badge-info"><i class="bi bi-gear me-1"></i>审核中</span>';
+    } else if (batch.status === 'completed') {
+        statusBadge = '<span class="claude-badge claude-badge-success"><i class="bi bi-check-circle me-1"></i>已完成</span>';
+    } else if (batch.status === 'cancelled') {
+        statusBadge = '<span class="claude-badge claude-badge-secondary"><i class="bi bi-x-circle me-1"></i>已撤销</span>';
     }
     
-    const reviewedInfo = app.reviewed_at ? 
-        `<div class="row mb-2">
-            <div class="col-4"><strong>审核时间:</strong></div>
-            <div class="col-8">${new Date(app.reviewed_at).toLocaleString()}</div>
-        </div>
-        <div class="row mb-2">
-            <div class="col-4"><strong>审核人:</strong></div>
-            <div class="col-8">${app.reviewer ? app.reviewer.username : '-'}</div>
-        </div>` : '';
-    
-    const adminComment = app.admin_comment ? 
-        `<div class="row mb-2">
-            <div class="col-4"><strong>审核意见:</strong></div>
-            <div class="col-8">
-                <div class="alert alert-info mb-0">
-                    ${app.admin_comment}
+    // 构造权限列表
+    let permissionsHtml = '';
+    batch.permissions.forEach(perm => {
+        let permStatusBadge = '';
+        let permStatusColor = '';
+        if (perm.status === 'approved') {
+            permStatusBadge = '<span class="claude-badge claude-badge-success claude-badge-sm"><i class="bi bi-check-circle me-1"></i>已通过</span>';
+            permStatusColor = 'success';
+        } else if (perm.status === 'rejected') {
+            permStatusBadge = '<span class="claude-badge claude-badge-danger claude-badge-sm"><i class="bi bi-x-circle me-1"></i>已拒绝</span>';
+            permStatusColor = 'danger';
+        } else {
+            permStatusBadge = '<span class="claude-badge claude-badge-secondary claude-badge-sm"><i class="bi bi-clock-history me-1"></i>待审核</span>';
+            permStatusColor = 'secondary';
+        }
+        
+        permissionsHtml += `
+            <div class="permission-detail-item border-start border-3 border-${permStatusColor} ps-3 mb-3">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h6 class="mb-0 fw-semibold">${perm.permission_type.name}</h6>
+                    ${permStatusBadge}
                 </div>
+                <p class="text-muted mb-2 small">${perm.permission_type.description}</p>
+                ${perm.admin_comment ? `
+                <div class="alert alert-info border-0 mb-2 small">
+                    <strong>审核意见:</strong> ${perm.admin_comment}
+                </div>` : ''}
+                ${perm.reviewed_at ? `
+                <small class="text-muted">审核时间: ${new Date(perm.reviewed_at).toLocaleString()}</small>
+                ` : ''}
             </div>
-        </div>` : '';
+        `;
+    });
     
     const content = `
-        <div class="row mb-2">
-            <div class="col-4"><strong>服务器:</strong></div>
-            <div class="col-8">${app.server.name} (${app.server.host})</div>
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <div class="application-detail-item">
+                    <label>目标服务器</label>
+                    <div class="application-detail-value">
+                        <i class="bi bi-server me-2" style="color: var(--claude-primary);"></i>
+                        <div>
+                            <strong>${batch.server.name}</strong>
+                            <br><small class="text-muted">${batch.server.host}:${batch.server.port}</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="application-detail-item">
+                    <label>申请状态</label>
+                    <div class="application-detail-value">
+                        ${statusBadge}
+                    </div>
+                </div>
+            </div>
         </div>
-        <div class="row mb-2">
-            <div class="col-4"><strong>权限类型:</strong></div>
-            <div class="col-8">${app.permission_type.name}</div>
+        
+        <div class="application-detail-item">
+            <label>申请时间</label>
+            <div class="application-detail-value">
+                <i class="bi bi-calendar me-2" style="color: var(--claude-info);"></i>
+                ${new Date(batch.created_at).toLocaleString()}
+            </div>
         </div>
-        <div class="row mb-2">
-            <div class="col-4"><strong>申请时间:</strong></div>
-            <div class="col-8">${new Date(app.created_at).toLocaleString()}</div>
-        </div>
-        <div class="row mb-2">
-            <div class="col-4"><strong>状态:</strong></div>
-            <div class="col-8">${statusBadge}</div>
-        </div>
-        ${app.reason ? `
-        <div class="row mb-2">
-            <div class="col-4"><strong>申请理由:</strong></div>
-            <div class="col-8">
-                <div class="alert alert-light mb-0">
-                    ${app.reason}
+        
+        ${batch.reason ? `
+        <div class="application-detail-item">
+            <label>申请理由</label>
+            <div class="application-detail-value">
+                <div class="alert alert-light border-0 w-100" style="background: var(--claude-bg-secondary);">
+                    <i class="bi bi-chat-text me-2"></i>
+                    ${batch.reason}
                 </div>
             </div>
         </div>` : ''}
-        ${reviewedInfo}
-        ${adminComment}
+        
+        <div class="application-detail-item">
+            <label>申请权限详情</label>
+            <div class="application-detail-value w-100">
+                ${permissionsHtml}
+            </div>
+        </div>
     `;
     
-    $('#applicationDetails').html(content);
+    $('#batchDetails').html(content);
+}
+
+function cancelBatch(batchId) {
+    if (!confirm('确定要撤销这个申请吗？\n\n撤销后无法恢复，管理员将不会收到此申请。')) {
+        return;
+    }
+    
+    const btn = event.target.closest('button');
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="bi bi-arrow-clockwise"></i> 撤销中...';
+    btn.disabled = true;
+    
+    fetch(`/api/cancel_application_batch/${batchId}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // 刷新页面
+            location.reload();
+        } else {
+            alert('撤销失败: ' + data.message);
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('撤销失败: 网络错误');
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    });
 }
 </script>
 {% endblock %}

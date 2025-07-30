@@ -19,7 +19,7 @@
         <div class="claude-metric-card">
             <div class="d-flex align-items-center">
                 <div class="flex-grow-1">
-                    <div class="claude-metric-value" style="color: var(--claude-warning);">{{ applications|selectattr('status', 'equalto', 'pending')|list|length }}</div>
+                    <div class="claude-metric-value" style="color: var(--claude-warning);">{{ batches|selectattr('get_status_summary', 'equalto', 'pending')|list|length }}</div>
                     <div class="claude-metric-label">待审核</div>
                 </div>
                 <i class="bi bi-clock-history" style="font-size: 2rem; color: var(--claude-warning); opacity: 0.7;"></i>
@@ -30,8 +30,19 @@
         <div class="claude-metric-card">
             <div class="d-flex align-items-center">
                 <div class="flex-grow-1">
-                    <div class="claude-metric-value" style="color: var(--claude-success);">{{ applications|selectattr('status', 'equalto', 'approved')|list|length }}</div>
-                    <div class="claude-metric-label">已通过</div>
+                    <div class="claude-metric-value" style="color: var(--claude-info);">{{ batches|selectattr('get_status_summary', 'equalto', 'processing')|list|length }}</div>
+                    <div class="claude-metric-label">审核中</div>
+                </div>
+                <i class="bi bi-gear" style="font-size: 2rem; color: var(--claude-info); opacity: 0.7;"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="claude-metric-card">
+            <div class="d-flex align-items-center">
+                <div class="flex-grow-1">
+                    <div class="claude-metric-value" style="color: var(--claude-success);">{{ batches|selectattr('get_status_summary', 'equalto', 'completed')|list|length }}</div>
+                    <div class="claude-metric-label">已完成</div>
                 </div>
                 <i class="bi bi-check-circle" style="font-size: 2rem; color: var(--claude-success); opacity: 0.7;"></i>
             </div>
@@ -41,19 +52,8 @@
         <div class="claude-metric-card">
             <div class="d-flex align-items-center">
                 <div class="flex-grow-1">
-                    <div class="claude-metric-value" style="color: var(--claude-danger);">{{ applications|selectattr('status', 'equalto', 'rejected')|list|length }}</div>
-                    <div class="claude-metric-label">已拒绝</div>
-                </div>
-                <i class="bi bi-x-circle" style="font-size: 2rem; color: var(--claude-danger); opacity: 0.7;"></i>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="claude-metric-card">
-            <div class="d-flex align-items-center">
-                <div class="flex-grow-1">
-                    <div class="claude-metric-value">{{ applications|length }}</div>
-                    <div class="claude-metric-label">总申请数</div>
+                    <div class="claude-metric-value">{{ batches|length }}</div>
+                    <div class="claude-metric-label">总申请批次</div>
                 </div>
                 <i class="bi bi-list-check" style="font-size: 2rem; color: var(--claude-primary); opacity: 0.7;"></i>
             </div>
@@ -71,15 +71,20 @@
                     <i class="bi bi-clock-history me-1"></i>
                     待审核
                 </a>
-                <a href="{{ url_for('admin_review', status='approved') }}" 
-                   class="claude-btn {{ 'claude-btn-success' if status_filter == 'approved' else 'claude-btn-secondary' }}">
-                    <i class="bi bi-check-circle me-1"></i>
-                    已通过
+                <a href="{{ url_for('admin_review', status='processing') }}" 
+                   class="claude-btn {{ 'claude-btn-info' if status_filter == 'processing' else 'claude-btn-secondary' }}">
+                    <i class="bi bi-gear me-1"></i>
+                    审核中
                 </a>
-                <a href="{{ url_for('admin_review', status='rejected') }}" 
-                   class="claude-btn {{ 'claude-btn-danger' if status_filter == 'rejected' else 'claude-btn-secondary' }}">
+                <a href="{{ url_for('admin_review', status='completed') }}" 
+                   class="claude-btn {{ 'claude-btn-success' if status_filter == 'completed' else 'claude-btn-secondary' }}">
+                    <i class="bi bi-check-circle me-1"></i>
+                    已完成
+                </a>
+                <a href="{{ url_for('admin_review', status='cancelled') }}" 
+                   class="claude-btn {{ 'claude-btn-secondary' if status_filter == 'cancelled' else 'claude-btn-secondary' }}">
                     <i class="bi bi-x-circle me-1"></i>
-                    已拒绝
+                    已撤销
                 </a>
                 <a href="{{ url_for('admin_review', status='all') }}" 
                    class="claude-btn {{ 'claude-btn-primary' if status_filter == 'all' else 'claude-btn-secondary' }}">
@@ -89,19 +94,20 @@
             </div>
             <div class="text-muted">
                 <i class="bi bi-info-circle me-1"></i>
-                共 <strong>{{ applications|length }}</strong> 条记录
+                共 <strong>{{ batches|length }}</strong> 个申请批次
             </div>
         </div>
     </div>
 </div>
 
-<!-- 申请列表 -->
-{% if applications %}
+<!-- 申请批次列表 -->
+{% if batches %}
 <div class="row">
-    {% for app in applications %}
+    {% for batch in batches %}
     <div class="col-xl-6 col-lg-12 col-md-6 col-sm-12 mb-4">
-        <div class="claude-card {{ 'border-warning' if app.status == 'pending' else 'border-success' if app.status == 'approved' else 'border-danger' if app.status == 'rejected' else '' }}" style="{{ 'border-left-width: 4px !important;' if app.status != 'all' else '' }}">
-            <!-- 申请卡片头部 -->
+        <div class="claude-card {{ 'border-warning' if batch.get_status_summary() == 'pending' else 'border-info' if batch.get_status_summary() == 'processing' else 'border-success' if batch.get_status_summary() == 'completed' else 'border-secondary' }}" 
+             style="border-left-width: 4px !important;">
+            <!-- 申请批次头部 -->
             <div class="claude-card-header">
                 <div class="d-flex justify-content-between align-items-center">
                     <div class="d-flex align-items-center">
@@ -111,13 +117,13 @@
                             </div>
                         </div>
                         <div>
-                            <h6 class="mb-1 fw-semibold">{{ app.user.username }}</h6>
-                            <small class="text-muted">申请时间: {{ app.created_at.strftime('%m-%d %H:%M') }}</small>
+                            <h6 class="mb-1 fw-semibold">{{ batch.user.username }}</h6>
+                            <small class="text-muted">申请时间: {{ batch.created_at.strftime('%m-%d %H:%M') }}</small>
                         </div>
                     </div>
-                    <span class="claude-badge claude-badge-{{ 'warning' if app.status == 'pending' else 'success' if app.status == 'approved' else 'danger' }}">
-                        <i class="bi bi-{{ 'clock-history' if app.status == 'pending' else 'check-circle' if app.status == 'approved' else 'x-circle' }}"></i>
-                        {{ '待审核' if app.status == 'pending' else '已通过' if app.status == 'approved' else '已拒绝' }}
+                    <span class="claude-badge claude-badge-{{ 'warning' if batch.get_status_summary() == 'pending' else 'info' if batch.get_status_summary() == 'processing' else 'success' if batch.get_status_summary() == 'completed' else 'secondary' }}">
+                        <i class="bi bi-{{ 'clock-history' if batch.get_status_summary() == 'pending' else 'gear' if batch.get_status_summary() == 'processing' else 'check-circle' if batch.get_status_summary() == 'completed' else 'x-circle' }}"></i>
+                        {{ '待审核' if batch.get_status_summary() == 'pending' else '审核中' if batch.get_status_summary() == 'processing' else '已完成' if batch.get_status_summary() == 'completed' else '已撤销' }}
                     </span>
                 </div>
             </div>
@@ -131,56 +137,54 @@
                             <div class="application-detail-value">
                                 <i class="bi bi-server me-2" style="color: var(--claude-primary);"></i>
                                 <div>
-                                    <strong>{{ app.server.name }}</strong>
-                                    <br><small class="text-muted">{{ app.server.host }}</small>
+                                    <strong>{{ batch.server.name }}</strong>
+                                    <br><small class="text-muted">{{ batch.server.host }}</small>
                                 </div>
                             </div>
                         </div>
                     </div>
                     <div class="col-6">
                         <div class="application-detail-item">
-                            <label>权限类型</label>
+                            <label>申请权限</label>
                             <div class="application-detail-value">
                                 <i class="bi bi-shield-check me-2" style="color: var(--claude-info);"></i>
                                 <div>
-                                    <strong>{{ app.permission_type.name }}</strong>
-                                    {% if app.permission_type.requires_reason %}
-                                    <br><span class="claude-badge claude-badge-warning claude-badge-sm">
-                                        <i class="bi bi-exclamation-triangle"></i>
-                                        需要理由
-                                    </span>
-                                    {% endif %}
+                                    <strong>{{ batch.applications.count() }} 个权限</strong>
+                                    <br><small class="text-muted">{% set app_list = batch.applications.all() %}{% for app in app_list[:2] %}{{ app.permission_type.name }}{% if not loop.last %}、{% endif %}{% endfor %}{% if app_list|length > 2 %}...{% endif %}</small>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
                 
-                {% if app.reason %}
+                <!-- 权限状态概览 -->
+                <div class="mb-3">
+                    <div class="application-detail-item">
+                        <label>权限状态</label>
+                        <div class="application-detail-value w-100">
+                            <div class="permissions-summary">
+                                {% for app in batch.applications %}
+                                <div class="permission-item d-flex justify-content-between align-items-center mb-1">
+                                    <span class="permission-name small">{{ app.permission_type.name }}</span>
+                                    <span class="claude-badge claude-badge-sm claude-badge-{{ 'success' if app.status == 'approved' else 'danger' if app.status == 'rejected' else 'secondary' }}">
+                                        <i class="bi bi-{{ 'check-circle' if app.status == 'approved' else 'x-circle' if app.status == 'rejected' else 'clock-history' }}"></i>
+                                        {{ '已通过' if app.status == 'approved' else '已拒绝' if app.status == 'rejected' else '待审核' }}
+                                    </span>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                {% if batch.reason %}
                 <div class="mb-3">
                     <div class="application-detail-item">
                         <label>申请理由</label>
                         <div class="application-detail-value">
                             <div class="alert alert-light border-0 mb-0" style="background: var(--claude-bg-secondary);">
                                 <i class="bi bi-chat-text me-2"></i>
-                                {{ app.reason }}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                {% endif %}
-                
-                {% if app.admin_comment %}
-                <div class="mb-3">
-                    <div class="application-detail-item">
-                        <label>审核意见</label>
-                        <div class="application-detail-value">
-                            <div class="alert alert-info border-0 mb-0">
-                                <i class="bi bi-person-badge me-2"></i>
-                                {{ app.admin_comment }}
-                                {% if app.reviewed_at %}
-                                <br><small class="text-muted">{{ app.reviewed_at.strftime('%Y-%m-%d %H:%M') }}</small>
-                                {% endif %}
+                                {{ batch.reason }}
                             </div>
                         </div>
                     </div>
@@ -192,30 +196,12 @@
             <div class="claude-card-footer">
                 <div class="d-flex gap-2">
                     <button class="claude-btn claude-btn-secondary flex-fill" 
-                            onclick="showReviewModal({{ app.id }})"
+                            onclick="showBatchReviewModal({{ batch.id }})"
                             data-bs-toggle="modal" 
-                            data-bs-target="#reviewModal">
+                            data-bs-target="#batchReviewModal">
                         <i class="bi bi-eye"></i>
-                        查看详情
+                        {% if batch.get_status_summary() == 'pending' %}审核申请{% else %}查看详情{% endif %}
                     </button>
-                    {% if app.status == 'pending' %}
-                    <button class="claude-btn claude-btn-success" 
-                            onclick="quickApprove({{ app.id }})">
-                        <i class="bi bi-check-circle"></i>
-                        通过
-                    </button>
-                    <button class="claude-btn claude-btn-danger" 
-                            onclick="quickReject({{ app.id }})">
-                        <i class="bi bi-x-circle"></i>
-                        拒绝
-                    </button>
-                    {% elif app.status == 'approved' %}
-                    <button class="claude-btn claude-btn-warning" 
-                            onclick="revokePermission({{ app.id }}, '{{ app.user.username }}', '{{ app.permission_type.name }}')">
-                        <i class="bi bi-shield-x"></i>
-                        撤销权限
-                    </button>
-                    {% endif %}
                 </div>
             </div>
         </div>
@@ -231,26 +217,26 @@
             {% if status_filter == 'pending' %}
                 当前没有待审核的申请
             {% else %}
-                没有找到相关的申请记录
+                没有找到相关的申请批次
             {% endif %}
         </p>
     </div>
 </div>
 {% endif %}
 
-<!-- 审核模态框 -->
-<div class="modal fade" id="reviewModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
+<!-- 批次审核模态框 -->
+<div class="modal fade" id="batchReviewModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
         <div class="modal-content" style="border: none; box-shadow: var(--claude-shadow-lg);">
             <div class="modal-header" style="background: var(--claude-bg-secondary); border-bottom: 1px solid var(--claude-border-light);">
                 <h5 class="modal-title" style="color: var(--claude-text-primary); font-weight: 600;">
-                    <i class="bi bi-eye me-2"></i>
-                    申请详情审核
+                    <i class="bi bi-clipboard-check me-2"></i>
+                    批次审核
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <form id="reviewForm" method="POST">
-                <div class="modal-body p-4" id="reviewDetails">
+            <form id="batchReviewForm" method="POST">
+                <div class="modal-body p-4" id="batchReviewDetails">
                     <div class="text-center py-4">
                         <div class="claude-loading">
                             <i class="bi bi-arrow-clockwise" style="font-size: 2rem; color: var(--claude-primary);"></i>
@@ -263,13 +249,9 @@
                         <i class="bi bi-x me-1"></i>
                         取消
                     </button>
-                    <button type="submit" name="action" value="approved" class="claude-btn claude-btn-success">
+                    <button type="submit" class="claude-btn claude-btn-primary" id="submitBatchReview">
                         <i class="bi bi-check-circle me-1"></i>
-                        通过申请
-                    </button>
-                    <button type="submit" name="action" value="rejected" class="claude-btn claude-btn-danger">
-                        <i class="bi bi-x-circle me-1"></i>
-                        拒绝申请
+                        提交审核
                     </button>
                 </div>
             </form>
@@ -332,59 +314,99 @@
 </style>
 
 <script>
-const applications = {{ applications_json | tojson }};
+const batches = {{ batches_json | tojson }};
 
-function showReviewModal(appId) {
-    const app = applications.find(a => a.id === appId);
-    if (!app) return;
+function showBatchReviewModal(batchId) {
+    const batch = batches.find(b => b.id === batchId);
+    if (!batch) return;
     
     let statusBadge = '';
-    if (app.status === 'pending') {
+    if (batch.status === 'pending') {
         statusBadge = '<span class="claude-badge claude-badge-warning"><i class="bi bi-clock-history me-1"></i>待审核</span>';
-    } else if (app.status === 'approved') {
-        statusBadge = '<span class="claude-badge claude-badge-success"><i class="bi bi-check-circle me-1"></i>已通过</span>';
-    } else if (app.status === 'rejected') {
-        statusBadge = '<span class="claude-badge claude-badge-danger"><i class="bi bi-x-circle me-1"></i>已拒绝</span>';
+    } else if (batch.status === 'processing') {
+        statusBadge = '<span class="claude-badge claude-badge-info"><i class="bi bi-gear me-1"></i>审核中</span>';
+    } else if (batch.status === 'completed') {
+        statusBadge = '<span class="claude-badge claude-badge-success"><i class="bi bi-check-circle me-1"></i>已完成</span>';
+    } else if (batch.status === 'cancelled') {
+        statusBadge = '<span class="claude-badge claude-badge-secondary"><i class="bi bi-x-circle me-1"></i>已撤销</span>';
     }
     
-    const reviewedInfo = app.reviewed_at ? 
-        `<div class="application-detail-item">
-            <label>审核信息</label>
-            <div class="application-detail-value">
-                <div class="alert alert-light border-0 w-100" style="background: var(--claude-bg-secondary);">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <strong>审核时间:</strong><br>
-                            <span class="text-muted">${new Date(app.reviewed_at).toLocaleString()}</span>
-                        </div>
-                        <div class="col-md-6">
-                            <strong>审核人:</strong><br>
-                            <span class="text-muted">${app.reviewer ? app.reviewer.username : '-'}</span>
-                        </div>
+    // 构造权限审核表单
+    let permissionsHtml = '';
+    batch.permissions.forEach(perm => {
+        const isEditable = perm.status === 'pending';
+        const approvedChecked = perm.status === 'approved' ? 'checked' : '';
+        const rejectedChecked = perm.status === 'rejected' ? 'checked' : '';
+        const pendingChecked = perm.status === 'pending' ? 'checked' : '';
+        
+        permissionsHtml += `
+            <div class="permission-review-item border rounded p-3 mb-3">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6 class="fw-semibold mb-2">${perm.permission_type.name}</h6>
+                        <p class="text-muted small mb-2">${perm.permission_type.description}</p>
+                        ${perm.reviewed_at ? `<small class="text-muted">审核时间: ${new Date(perm.reviewed_at).toLocaleString()}</small>` : ''}
+                    </div>
+                    <div class="col-md-6">
+                        ${isEditable ? `
+                        <div class="review-actions">
+                            <div class="mb-2">
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="action_${perm.id}" id="approve_${perm.id}" value="approved">
+                                    <label class="form-check-label text-success" for="approve_${perm.id}">
+                                        <i class="bi bi-check-circle me-1"></i>通过
+                                    </label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="action_${perm.id}" id="reject_${perm.id}" value="rejected">
+                                    <label class="form-check-label text-danger" for="reject_${perm.id}">
+                                        <i class="bi bi-x-circle me-1"></i>拒绝
+                                    </label>
+                                </div>
+                            </div>
+                            <textarea class="form-control form-control-sm" name="comment_${perm.id}" rows="2" 
+                                      placeholder="审核意见（可选）">${perm.admin_comment || ''}</textarea>
+                        </div>` : `
+                        <div class="review-result">
+                            <span class="claude-badge claude-badge-${
+                                perm.status === 'approved' ? 'success' : 
+                                perm.status === 'rejected' ? 'danger' : 'secondary'
+                            }">
+                                <i class="bi bi-${
+                                    perm.status === 'approved' ? 'check-circle' : 
+                                    perm.status === 'rejected' ? 'x-circle' : 'clock-history'
+                                } me-1"></i>
+                                ${perm.status === 'approved' ? '已通过' : 
+                                  perm.status === 'rejected' ? '已拒绝' : '待审核'}
+                            </span>
+                            ${perm.admin_comment ? `
+                            <div class="alert alert-info border-0 mt-2 small">
+                                <strong>审核意见:</strong> ${perm.admin_comment}
+                            </div>` : ''}
+                        </div>`}
                     </div>
                 </div>
             </div>
-        </div>` : '';
-    
-    const existingComment = app.admin_comment ? app.admin_comment : '';
+        `;
+    });
     
     const content = `
-        <div class="row">
+        <div class="row mb-3">
             <div class="col-md-6">
                 <div class="application-detail-item">
                     <label>申请人信息</label>
                     <div class="application-detail-value">
                         <i class="bi bi-person-circle me-2" style="color: var(--claude-primary);"></i>
                         <div>
-                            <strong>${app.user.username}</strong>
-                            <br><small class="text-muted">申请时间: ${new Date(app.created_at).toLocaleString()}</small>
+                            <strong>${batch.user.username}</strong>
+                            <br><small class="text-muted">申请时间: ${new Date(batch.created_at).toLocaleString()}</small>
                         </div>
                     </div>
                 </div>
             </div>
             <div class="col-md-6">
                 <div class="application-detail-item">
-                    <label>申请状态</label>
+                    <label>批次状态</label>
                     <div class="application-detail-value">
                         ${statusBadge}
                     </div>
@@ -392,79 +414,45 @@ function showReviewModal(appId) {
             </div>
         </div>
         
-        <div class="row">
-            <div class="col-md-6">
-                <div class="application-detail-item">
-                    <label>目标服务器</label>
-                    <div class="application-detail-value">
-                        <i class="bi bi-server me-2" style="color: var(--claude-primary);"></i>
-                        <div>
-                            <strong>${app.server.name}</strong>
-                            <br><small class="text-muted">${app.server.host}:${app.server.port}</small>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-6">
-                <div class="application-detail-item">
-                    <label>权限类型</label>
-                    <div class="application-detail-value">
-                        <i class="bi bi-shield-check me-2" style="color: var(--claude-info);"></i>
-                        <div>
-                            <strong>${app.permission_type.name}</strong>
-                            <br><small class="text-muted">${app.permission_type.description}</small>
-                            ${app.permission_type.requires_reason ? '<br><span class="claude-badge claude-badge-warning claude-badge-sm"><i class="bi bi-exclamation-triangle me-1"></i>需要理由</span>' : ''}
-                        </div>
-                    </div>
+        <div class="application-detail-item">
+            <label>目标服务器</label>
+            <div class="application-detail-value">
+                <i class="bi bi-server me-2" style="color: var(--claude-primary);"></i>
+                <div>
+                    <strong>${batch.server.name}</strong>
+                    <br><small class="text-muted">${batch.server.host}:${batch.server.port}</small>
                 </div>
             </div>
         </div>
         
-        ${app.reason ? `
+        ${batch.reason ? `
         <div class="application-detail-item">
             <label>申请理由</label>
             <div class="application-detail-value">
                 <div class="alert alert-light border-0 w-100" style="background: var(--claude-bg-secondary);">
                     <i class="bi bi-chat-text me-2"></i>
-                    ${app.reason}
+                    ${batch.reason}
                 </div>
             </div>
         </div>` : ''}
         
-        ${reviewedInfo}
-        
-        ${app.status === 'pending' ? `
         <div class="application-detail-item">
-            <label>审核意见</label>
+            <label>权限审核</label>
             <div class="application-detail-value w-100">
-                <textarea class="claude-form-control" name="admin_comment" rows="3" 
-                          placeholder="请输入审核意见（可选）...">${existingComment}</textarea>
-                <div class="form-text mt-2">
-                    <i class="bi bi-info-circle me-1"></i>
-                    审核意见将发送给申请人，请提供有建设性的反馈
-                </div>
+                ${permissionsHtml}
             </div>
-        </div>` : (app.admin_comment ? `
-        <div class="application-detail-item">
-            <label>审核意见</label>
-            <div class="application-detail-value">
-                <div class="alert alert-info border-0 w-100">
-                    <i class="bi bi-person-badge me-2"></i>
-                    ${app.admin_comment}
-                </div>
-            </div>
-        </div>` : '')}
+        </div>
     `;
     
-    document.getElementById('reviewDetails').innerHTML = content;
-    document.getElementById('reviewForm').setAttribute('action', `/admin/review_application/${appId}`);
+    document.getElementById('batchReviewDetails').innerHTML = content;
+    document.getElementById('batchReviewForm').setAttribute('action', `/admin/review_batch/${batchId}`);
     
-    // 如果已经审核过，隐藏操作按钮
-    const actionButtons = document.querySelectorAll('.modal-footer button[name="action"]');
-    if (app.status !== 'pending') {
-        actionButtons.forEach(btn => btn.style.display = 'none');
+    // 根据批次状态显示/隐藏提交按钮
+    const submitBtn = document.getElementById('submitBatchReview');
+    if (batch.status === 'pending') {
+        submitBtn.style.display = 'inline-flex';
     } else {
-        actionButtons.forEach(btn => btn.style.display = 'inline-flex');
+        submitBtn.style.display = 'none';
     }
 }
 

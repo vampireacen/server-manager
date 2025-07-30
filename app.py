@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify, flash
 from sqlalchemy.orm import joinedload
-from models import db, User, Server, Application, PermissionType, ServerMetric, Notification
+from models import db, User, Server, Application, ApplicationBatch, PermissionType, ServerMetric, Notification
 from server_monitor import collect_all_servers_metrics, get_server_latest_metrics, get_server_metrics_history
 from config import Config
 from datetime import datetime
@@ -141,7 +141,8 @@ def dashboard():
     if user.is_admin():
         # 管理员看到所有服务器
         servers = Server.query.all()
-        pending_applications = Application.query.filter_by(status='pending').count()
+        # 统计待处理的申请批次数量，而不是单个权限数量
+        pending_applications = ApplicationBatch.query.filter_by(status='pending').count()
         
         return render_template('dashboard.html', 
                              servers=servers, 
@@ -154,10 +155,12 @@ def dashboard():
             status='approved'
         ).join(Server).join(PermissionType).all()
         
-        # 最近的申请状态
-        recent_applications = Application.query.filter_by(
+        # 最近的申请批次状态
+        recent_batches = ApplicationBatch.query.filter_by(
             user_id=session['user_id']
-        ).order_by(Application.created_at.desc()).limit(5).all()
+        ).options(
+            db.joinedload(ApplicationBatch.server)
+        ).order_by(ApplicationBatch.created_at.desc()).limit(5).all()
         
         # 可申请的服务器（所有服务器）
         available_servers = Server.query.all()
@@ -165,7 +168,7 @@ def dashboard():
         return render_template('user_dashboard.html', 
                              user=user,
                              approved_applications=approved_applications,
-                             recent_applications=recent_applications,
+                             recent_batches=recent_batches,
                              available_servers=available_servers)
 
 @app.route('/api/server_metrics/<int:server_id>')
@@ -202,42 +205,47 @@ def apply():
             flash('请至少选择一个权限类型', 'error')
             return redirect(url_for('apply'))
         
-        # 检查每个权限类型是否已有待处理的申请
-        for permission_type_id in permission_type_ids:
-            existing = Application.query.filter_by(
-                user_id=session['user_id'],
-                server_id=server_id,
-                permission_type_id=permission_type_id,
-                status='pending'
-            ).first()
-            
-            if existing:
-                permission_type = PermissionType.query.get(permission_type_id)
-                flash(f'您已有一个 {permission_type.name} 的待处理申请，请等待审核', 'warning')
-                return redirect(url_for('apply'))
+        # 检查是否已有该服务器的待处理申请批次
+        existing_batch = ApplicationBatch.query.filter_by(
+            user_id=session['user_id'],
+            server_id=server_id,
+            status='pending'
+        ).first()
         
-        created_applications = []
-        server = Server.query.get(server_id)
-        user = User.query.get(session['user_id'])
+        if existing_batch:
+            server = Server.query.get(server_id)
+            flash(f'您已有一个针对服务器 {server.name} 的待处理申请，请等待审核或撤销后重新申请', 'warning')
+            return redirect(url_for('apply'))
+        
+        # 创建申请批次
+        batch = ApplicationBatch(
+            user_id=session['user_id'],
+            server_id=server_id,
+            reason=reason
+        )
+        db.session.add(batch)
+        db.session.flush()  # 获取batch ID
         
         # 为每个权限类型创建单独的申请
+        created_applications = []
         for permission_type_id in permission_type_ids:
             application = Application(
+                batch_id=batch.id,
                 user_id=session['user_id'],
                 server_id=server_id,
-                permission_type_id=permission_type_id,
-                reason=reason
+                permission_type_id=permission_type_id
             )
             db.session.add(application)
             created_applications.append(application)
         
-        # 提交应用记录
         db.session.flush()  # 获取application IDs
         
-        # 创建管理员通知
+        # 创建管理员通知（一个批次一个通知）
+        server = Server.query.get(server_id)
+        user = User.query.get(session['user_id'])
         permission_names = []
-        for app in created_applications:
-            permission_type = PermissionType.query.get(app.permission_type_id)
+        for permission_type_id in permission_type_ids:
+            permission_type = PermissionType.query.get(permission_type_id)
             permission_names.append(permission_type.name)
         
         permission_list = '、'.join(permission_names)
@@ -246,19 +254,15 @@ def apply():
         # 给所有管理员发送通知
         admins = User.query.filter_by(role='admin').all()
         for admin in admins:
-            # 为每个申请创建单独的通知
-            for app in created_applications:
-                permission_type = PermissionType.query.get(app.permission_type_id)
-                individual_message = f"用户 {user.username} 申请服务器 {server.name} 的 {permission_type.name}"
-                notification = Notification(
-                    admin_id=admin.id,
-                    message=individual_message,
-                    application_id=app.id
-                )
-                db.session.add(notification)
+            notification = Notification(
+                admin_id=admin.id,
+                message=message,
+                application_id=created_applications[0].id  # 关联到批次中的第一个申请
+            )
+            db.session.add(notification)
         
         db.session.commit()
-        flash(f'已成功提交 {len(permission_type_ids)} 个权限申请，请等待管理员审核', 'success')
+        flash(f'已成功提交申请批次（包含 {len(permission_type_ids)} 个权限），请等待管理员审核', 'success')
         return redirect(url_for('my_applications'))
     
     servers = Server.query.all()
@@ -269,118 +273,254 @@ def apply():
 @app.route('/my_applications')
 @login_required
 def my_applications():
-    """用户查看自己的申请"""
-    applications_query = Application.query.filter_by(user_id=session['user_id']).options(
-        db.joinedload(Application.server),
-        db.joinedload(Application.permission_type),
-        db.joinedload(Application.user),
-        db.joinedload(Application.reviewer)
-    ).order_by(Application.created_at.desc()).all()
+    """用户查看自己的申请批次"""
+    # 获取用户的申请批次
+    batches_query = ApplicationBatch.query.filter_by(user_id=session['user_id']).options(
+        db.joinedload(ApplicationBatch.server),
+        db.joinedload(ApplicationBatch.user)
+    ).order_by(ApplicationBatch.created_at.desc()).all()
     
     # 转换为字典格式以便JSON序列化
-    applications = []
-    for app in applications_query:
-        app_dict = {
-            'id': app.id,
+    batches_json = []
+    for batch in batches_query:
+        # 获取批次中的所有申请
+        applications = Application.query.filter_by(batch_id=batch.id).options(
+            db.joinedload(Application.permission_type),
+            db.joinedload(Application.reviewer)
+        ).all()
+        
+        # 构造权限列表
+        permissions = []
+        for app in applications:
+            perm_dict = {
+                'id': app.id,
+                'permission_type': {
+                    'id': app.permission_type.id,
+                    'name': app.permission_type.name,
+                    'description': app.permission_type.description
+                },
+                'status': app.status,
+                'reviewed_at': app.reviewed_at.isoformat() if app.reviewed_at else None,
+                'admin_comment': app.admin_comment
+            }
+            
+            if app.reviewer:
+                perm_dict['reviewer'] = {
+                    'id': app.reviewer.id,
+                    'username': app.reviewer.username
+                }
+            else:
+                perm_dict['reviewer'] = None
+                
+            permissions.append(perm_dict)
+        
+        batch_dict = {
+            'id': batch.id,
             'user': {
-                'id': app.user.id,
-                'username': app.user.username
+                'id': batch.user.id,
+                'username': batch.user.username
             },
             'server': {
-                'id': app.server.id,
-                'name': app.server.name,
-                'host': app.server.host,
-                'port': app.server.port
+                'id': batch.server.id,
+                'name': batch.server.name,
+                'host': batch.server.host,
+                'port': batch.server.port
             },
-            'permission_type': {
-                'id': app.permission_type.id,
-                'name': app.permission_type.name,
-                'description': app.permission_type.description
-            },
-            'status': app.status,
-            'created_at': app.created_at.isoformat() if app.created_at else None,
-            'reviewed_at': app.reviewed_at.isoformat() if app.reviewed_at else None,
-            'reason': app.reason,
-            'admin_comment': app.admin_comment
+            'reason': batch.reason,
+            'status': batch.get_status_summary(),
+            'can_be_cancelled': batch.can_be_cancelled(),
+            'created_at': batch.created_at.isoformat() if batch.created_at else None,
+            'permissions': permissions
         }
         
-        if app.reviewer:
-            app_dict['reviewer'] = {
-                'id': app.reviewer.id,
-                'username': app.reviewer.username
-            }
-        else:
-            app_dict['reviewer'] = None
-            
-        applications.append(app_dict)
+        batches_json.append(batch_dict)
     
-    return render_template('my_applications.html', applications=applications_query, applications_json=applications)
+    return render_template('my_applications.html', batches=batches_query, batches_json=batches_json)
+
+@app.route('/api/cancel_application_batch/<int:batch_id>', methods=['POST'])
+@login_required
+def cancel_application_batch(batch_id):
+    """用户撤销申请批次"""
+    batch = ApplicationBatch.query.get_or_404(batch_id)
+    
+    # 检查是否是当前用户的申请
+    if batch.user_id != session['user_id']:
+        return jsonify({'success': False, 'message': '无权限操作此申请'}), 403
+    
+    # 检查是否可以撤销
+    if not batch.can_be_cancelled():
+        return jsonify({'success': False, 'message': '此申请无法撤销，可能已被审核'}), 400
+    
+    try:
+        # 更新批次状态为已撤销
+        batch.status = 'cancelled'
+        
+        # 更新批次中所有申请的状态
+        Application.query.filter_by(batch_id=batch_id).update({'status': 'cancelled'})
+        
+        # 删除相关的通知（可选）
+        Notification.query.filter(
+            Notification.application_id.in_(
+                db.session.query(Application.id).filter_by(batch_id=batch_id)
+            )
+        ).delete(synchronize_session=False)
+        
+        db.session.commit()
+        
+        return jsonify({'success': True, 'message': '申请已成功撤销'})
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'撤销失败: {str(e)}'}), 500
 
 @app.route('/admin/review')
 @admin_required
 def admin_review():
-    """管理员审核页面"""
+    """管理员审核页面 - 按批次显示"""
     status_filter = request.args.get('status', 'pending')
     
-    query = Application.query
-    if status_filter != 'all':
-        query = query.filter_by(status=status_filter)
+    # 根据状态过滤批次
+    if status_filter == 'pending':
+        batches_query = ApplicationBatch.query.filter_by(status='pending')
+    elif status_filter == 'processing':
+        batches_query = ApplicationBatch.query.filter(ApplicationBatch.status.in_(['processing']))
+    elif status_filter == 'completed':
+        batches_query = ApplicationBatch.query.filter(ApplicationBatch.status.in_(['completed']))
+    elif status_filter == 'cancelled':
+        batches_query = ApplicationBatch.query.filter_by(status='cancelled')
+    else:  # all
+        batches_query = ApplicationBatch.query
     
-    applications_query = query.options(
-        db.joinedload(Application.server),
-        db.joinedload(Application.permission_type),
-        db.joinedload(Application.user),
-        db.joinedload(Application.reviewer)
-    ).order_by(Application.created_at.desc()).all()
+    batches = batches_query.options(
+        db.joinedload(ApplicationBatch.server),
+        db.joinedload(ApplicationBatch.user)
+    ).order_by(ApplicationBatch.created_at.desc()).all()
     
     # 转换为字典格式以便JSON序列化
-    applications_json = []
-    for app in applications_query:
-        app_dict = {
-            'id': app.id,
+    batches_json = []
+    for batch in batches:
+        # 获取批次中的所有申请
+        applications = Application.query.filter_by(batch_id=batch.id).options(
+            db.joinedload(Application.permission_type),
+            db.joinedload(Application.reviewer)
+        ).all()
+        
+        # 构造权限列表
+        permissions = []
+        for app in applications:
+            perm_dict = {
+                'id': app.id,
+                'permission_type': {
+                    'id': app.permission_type.id,
+                    'name': app.permission_type.name,
+                    'description': app.permission_type.description,
+                    'requires_reason': app.permission_type.requires_reason
+                },
+                'status': app.status,
+                'reviewed_at': app.reviewed_at.isoformat() if app.reviewed_at else None,
+                'admin_comment': app.admin_comment
+            }
+            
+            if app.reviewer:
+                perm_dict['reviewer'] = {
+                    'id': app.reviewer.id,
+                    'username': app.reviewer.username
+                }
+            else:
+                perm_dict['reviewer'] = None
+                
+            permissions.append(perm_dict)
+        
+        batch_dict = {
+            'id': batch.id,
             'user': {
-                'id': app.user.id,
-                'username': app.user.username
+                'id': batch.user.id,
+                'username': batch.user.username
             },
             'server': {
-                'id': app.server.id,
-                'name': app.server.name,
-                'host': app.server.host,
-                'port': app.server.port
+                'id': batch.server.id,
+                'name': batch.server.name,
+                'host': batch.server.host,
+                'port': batch.server.port
             },
-            'permission_type': {
-                'id': app.permission_type.id,
-                'name': app.permission_type.name,
-                'description': app.permission_type.description,
-                'requires_reason': app.permission_type.requires_reason
-            },
-            'status': app.status,
-            'created_at': app.created_at.isoformat() if app.created_at else None,
-            'reviewed_at': app.reviewed_at.isoformat() if app.reviewed_at else None,
-            'reason': app.reason,
-            'admin_comment': app.admin_comment
+            'reason': batch.reason,
+            'status': batch.get_status_summary(),
+            'created_at': batch.created_at.isoformat() if batch.created_at else None,
+            'permissions': permissions,
+            'permissions_count': len(permissions),
+            'permissions_preview': [p['permission_type']['name'] for p in permissions[:2]]
         }
         
-        if app.reviewer:
-            app_dict['reviewer'] = {
-                'id': app.reviewer.id,
-                'username': app.reviewer.username
-            }
-        else:
-            app_dict['reviewer'] = None
-            
-        applications_json.append(app_dict)
+        batches_json.append(batch_dict)
     
     # 标记通知为已读
     Notification.query.filter_by(admin_id=session['user_id'], is_read=False).update({'is_read': True})
     db.session.commit()
     
-    return render_template('admin_review.html', applications=applications_query, applications_json=applications_json, status_filter=status_filter)
+    return render_template('admin_review.html', batches=batches, batches_json=batches_json, status_filter=status_filter)
+
+@app.route('/admin/review_batch/<int:batch_id>', methods=['POST'])
+@admin_required
+def admin_review_batch(batch_id):
+    """管理员批次审核申请"""
+    batch = ApplicationBatch.query.get_or_404(batch_id)
+    
+    # 获取批次中的所有申请
+    applications = Application.query.filter_by(batch_id=batch_id).all()
+    
+    # 处理每个权限的审核结果
+    for app in applications:
+        action = request.form.get(f'action_{app.id}')
+        admin_comment = request.form.get(f'comment_{app.id}', '')
+        
+        if action in ['approved', 'rejected']:
+            # 更新申请状态
+            app.status = action
+            app.reviewed_by = session['user_id']
+            app.reviewed_at = datetime.utcnow()
+            app.admin_comment = admin_comment
+            
+            # 如果是批准状态，自动配置服务器权限
+            if action == 'approved':
+                try:
+                    from server_operations import configure_user_permissions
+                    
+                    # 尝试自动配置用户权限
+                    success, message = configure_user_permissions(app)
+                    
+                    if success:
+                        # 在管理员评论中记录自动化操作
+                        timestamp = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+                        auto_comment = f"\n[{timestamp}] 系统自动配置: {message}"
+                        app.admin_comment = (app.admin_comment or '') + auto_comment
+                        
+                    else:
+                        # 在管理员评论中记录错误信息
+                        timestamp = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+                        error_comment = f"\n[{timestamp}] 自动配置失败: {message}，需要手动处理"
+                        app.admin_comment = (app.admin_comment or '') + error_comment
+                        
+                except ImportError:
+                    pass  # 自动化模块未就绪
+                except Exception as e:
+                    # 记录异常信息
+                    timestamp = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+                    error_comment = f"\n[{timestamp}] 配置异常: {str(e)}"
+                    app.admin_comment = (app.admin_comment or '') + error_comment
+    
+    # 更新批次状态
+    batch.status = 'processing'  # 批次进入处理中状态
+    
+    # 提交数据库更改
+    db.session.commit()
+    
+    flash('批次审核已提交', 'success')
+    return redirect(url_for('admin_review'))
 
 @app.route('/admin/review_application/<int:app_id>', methods=['POST'])
 @admin_required
 def admin_review_application(app_id):
-    """管理员审核申请"""
+    """管理员审核单个申请 - 兼容旧版本"""
     application = Application.query.get_or_404(app_id)
     action = request.form['action']
     admin_comment = request.form.get('admin_comment', '')

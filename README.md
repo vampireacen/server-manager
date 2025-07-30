@@ -1,6 +1,31 @@
-# 🖥️ 服务器管理系统 (Server Management System)
+# Server Management System (服务器管理系统)
 
-一个基于Flask的Linux服务器管理平台，提供实时监控、用户权限管理和自动化服务器配置功能。
+[![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://python.org)
+[![Flask](https://img.shields.io/badge/Flask-2.0+-green.svg)](https://flask.palletsprojects.com)
+[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
+A comprehensive Flask-based server management system for monitoring Linux servers and managing user access permissions with automated server-side user provisioning.
+
+## 🌟 Key Features
+
+### Core Functionality
+- **Real-time Server Monitoring**: SSH-based monitoring with CPU, memory, disk usage metrics
+- **Batch Permission Management**: Apply for multiple server permissions in organized batches
+- **Automated User Provisioning**: Automatic Linux user creation and permission configuration
+- **Role-based Access Control**: Admin and user roles with secure interface restrictions
+- **Comprehensive Audit Trail**: Detailed logging of all server operations and user actions
+
+### Enhanced User Experience (v3.1)
+- **Personal Dashboard**: Enhanced metrics display with server access visualization
+- **Connection Management**: One-click SSH command copying with secure credential viewing
+- **Responsive Design**: Mobile-friendly interface with centered layout
+- **Real-time Status**: Live server connection monitoring with visual indicators
+
+### Advanced Admin Features
+- **Batch Review System**: Process entire permission batches with individual approval controls
+- **Modal-based Interface**: Detailed review modals with comprehensive permission management
+- **User Administration**: Password reset capabilities, application history tracking
+- **Automated Operations**: Server-side user creation and group configuration
 
 ## ✨ 功能特性
 
@@ -225,73 +250,276 @@ server-manage/
 - 检查数据库连接和表结构是否正确
 - 手动测试SSH连接验证凭据正确性
 
-## 🆕 最新功能 (v2.0)
+## 🚀 Installation & Quick Start
 
-### 🔐 账户信息管理
-用户可以通过顶部导航的"账户信息"访问：
+### Prerequisites
+- Python 3.8 or higher
+- SSH access to target Linux servers
+- Standard Linux command utilities on target servers
 
-**普通用户功能:**
-- ✅ **修改用户密码**: 当前密码验证 + 新密码确认，支持8位最低要求
-- ✅ **查看服务器连接信息**: 需要输入用户密码验证后查看服务器SSH密码
-- ✅ **复制SSH连接命令**: 一键复制完整的SSH连接命令到剪贴板
-- ✅ **密码安全显示**: 服务器密码默认隐藏，验证后显示5秒自动隐藏
+### Installation
 
-**管理员额外功能:**
-- ✅ **重置用户密码**: 管理员可在用户管理界面重置任意用户密码
-- ✅ **密码安全验证**: 新密码需要8位字符，支持两次确认输入
-- ✅ **操作安全控制**: 不能重置自己的密码，防止误操作
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/yourusername/server-manage.git
+   cd server-manage
+   ```
 
-### 🎨 界面优化
-- ✅ **页面居中修复**: 解决了页面整体偏右的布局问题，现在完全居中显示
-- ✅ **按钮样式统一**: 所有主要功能按钮统一为Claude橙色风格
-- ✅ **响应式设计**: 完美支持桌面端和移动端，自适应各种屏幕尺寸
+2. **Install dependencies**
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-### 🛡️ 安全增强
-- ✅ **密码验证API**: 新增`/api/verify_password`用于安全的密码验证
-- ✅ **前端实时验证**: 密码强度检查、重复密码验证
-- ✅ **操作权限控制**: 用户只能访问自己的数据，管理员可管理所有用户
+3. **Run the application**
+   ```bash
+   python app.py
+   ```
 
-## 🚀 扩展开发
+4. **Access the system**
+   - Open your browser to `http://localhost:8080`
+   - Login with default credentials:
+     - Username: `admin`
+     - Password: `admin123`
+   - **⚠️ Change default password immediately after first login**
 
-系统采用模块化设计，支持灵活扩展：
+## 📊 System Architecture
 
-### 功能扩展
-- **权限类型**: 在`models.py`中添加新的权限类型定义
-- **监控指标**: 扩展`server_monitor.py`增加新的监控数据采集
-- **认证方式**: 集成LDAP、AD或OAuth2认证系统
-- **通知渠道**: 添加邮件、短信、钉钉等通知方式
-- **API接口**: 提供RESTful API供第三方系统集成
+### Backend Components
+- **Flask Application** (`app.py`): Main application with routes and business logic
+- **Database Models** (`models.py`): SQLAlchemy ORM models with batch application support
+- **Server Monitor** (`server_monitor.py`): SSH-based monitoring with real-time metrics
+- **Server Operations** (`server_operations.py`): Automated user management and permission configuration
+- **Operation Logging** (`operation_log.py`): Comprehensive audit trail system
 
-### 安全增强
-- **SSH密钥**: 支持SSH公钥认证替代密码认证
-- **多因子认证**: 集成TOTP或短信验证码
-- **权限细化**: 实现更细粒度的权限控制
-- **审计增强**: 增加用户行为分析和异常检测
+### Database Schema
+```
+User -> ApplicationBatch -> Applications -> Server
+     -> Notifications           -> PermissionType
+Server -> ServerMetrics
+```
 
-### 性能优化
-- **数据库**: 迁移到PostgreSQL或MySQL
-- **缓存系统**: 集成Redis缓存监控数据
-- **异步处理**: 使用Celery处理耗时的SSH操作
-- **负载均衡**: 支持多实例部署和负载均衡
+### Key Relationships
+- Users create ApplicationBatches containing multiple permission Applications
+- Each Application links User + Server + PermissionType
+- Administrators receive Notifications for new ApplicationBatches
+- Servers store real-time ServerMetrics data
 
-### 开发指南
-1. 遵循现有的代码结构和命名规范
-2. 新功能需要添加相应的测试用例
-3. 数据库变更需要提供迁移脚本
-4. 更新CLAUDE.md文档指导AI助手
+## 🔧 Configuration
 
-## 📄 许可证
-MIT License - 详见LICENSE文件
+### Server Setup
+Add servers through the admin interface with the following details:
+- **Name**: Display name for identification
+- **Host**: IP address or hostname
+- **Port**: SSH port (default: 22)
+- **Username**: SSH username with sudo privileges
+- **Password**: SSH password (encrypted storage recommended)
 
-## 👥 贡献
-欢迎提交Issue和Pull Request来改进这个项目！
+### Permission Types
+The system includes 5 predefined permission categories:
+1. **普通用户** (Regular User): Basic SSH access with user account creation
+2. **管理员权限** (Admin Rights): sudo group membership for system administration
+3. **Docker权限** (Docker Access): docker group membership for container management
+4. **数据库权限** (Database Access): database group membership for DB operations
+5. **自定义权限** (Custom Rights): Flexible permissions requiring manual configuration
 
-### 贡献指南
-1. Fork项目到你的GitHub账户
-2. 创建功能分支 (`git checkout -b feature/AmazingFeature`)
-3. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
-4. 推送到分支 (`git push origin feature/AmazingFeature`)
-5. 开启Pull Request
+## 📖 Usage Guide
+
+### For End Users
+
+#### Requesting Permissions
+1. Navigate to "申请权限" (Apply for Permissions)
+2. Select target server and multiple permission types
+3. Submit batch application with reason
+4. Monitor status in "我的申请" (My Applications)
+
+#### Accessing Servers
+1. View approved servers in personal dashboard
+2. Use password visibility toggle to view credentials securely
+3. Copy SSH connection command with one click
+4. Connect using: `ssh username@host -p port`
+
+#### Account Management
+- Access "账户信息" to change password
+- View all server connections and credentials
+- Secure password verification for sensitive operations
+
+### For Administrators
+
+#### Reviewing Applications
+1. Access "审核申请" to view pending batches
+2. Use filter buttons to view different status categories
+3. Click on batch cards to open detailed review modal
+4. Approve/reject individual permissions with comments
+5. Automatic server configuration on approval
+
+#### Managing Infrastructure
+- **Server Management**: Add, edit, monitor server configurations
+- **User Administration**: Manage users, reset passwords, view histories
+- **Real-time Monitoring**: Dashboard with live server metrics
+- **Notification System**: Instant alerts for new requests
+
+## 🔒 Security Features
+
+### Authentication & Authorization
+- Session-based authentication with role-based access control
+- Secure password hashing with industry-standard algorithms
+- Protected API endpoints with authentication validation
+- Session timeout management
+
+### Data Protection
+- Input validation and sanitization for all forms
+- Command injection prevention with `shlex.quote()`
+- SQL injection protection via SQLAlchemy ORM
+- Secure credential storage (encryption recommended)
+
+### Server Security
+- SSH connection timeouts and error handling
+- Automated user creation with secure password generation
+- Group-based permission management
+- Comprehensive audit logging for all operations
+
+### Known Security Considerations
+1. **Server Password Storage**: Currently stored in plain text (encryption recommended)
+2. **CSRF Protection**: Missing CSRF tokens (flask-wtf CSRFProtect recommended)
+3. **XSS Prevention**: HTML escaping needed for user inputs
+
+## 🔍 Monitoring & Troubleshooting
+
+### System Monitoring
+- Real-time metrics collection every 30 seconds
+- Historical data visualization with Chart.js
+- Server status indicators (online/offline/unknown)
+- Automated error detection and logging
+
+### Log Management
+- **Application Logs**: Console output for Flask application
+- **Operation Logs**: `logs/server_operations.log` for all server operations
+- **Error Logs**: `logs/server_operations_error.log` for failures
+- **Automatic Rotation**: 30-day log retention with archival
+
+### Common Issues & Solutions
+
+1. **SSH Connection Failures**
+   - Verify server credentials and network connectivity
+   - Check SSH service status and firewall rules
+   - Review error logs for specific connection issues
+
+2. **Permission Configuration Errors**
+   - Ensure SSH user has sudo privileges
+   - Verify target server compatibility
+   - Check group existence and permissions
+
+3. **Database Issues**
+   - Verify SQLite file permissions
+   - Check available disk space
+   - Review schema migration logs
+
+## 🚀 Deployment
+
+### Production Setup
+1. Configure environment variables for production
+2. Set up reverse proxy (nginx/Apache)
+3. Configure SSL certificates
+4. Set up database backups
+5. Configure log rotation
+
+### Docker Deployment
+```dockerfile
+FROM python:3.9-slim
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+COPY . .
+EXPOSE 8080
+CMD ["python", "app.py"]
+```
+
+## 🔄 Version History
+
+### Version 3.1 (Current) - Enhanced Dashboard & Interface
+- Enhanced user dashboard with comprehensive metrics
+- Advanced admin review interface with batch processing
+- Improved security and UX enhancements
+- Responsive design for mobile devices
+
+### Version 3.0 - Batch Application System
+- Complete redesign of permission request workflow
+- Batch-based application system with individual approvals
+- Enhanced admin interface with bulk management
+- Database schema improvements
+
+### Version 2.0 - Account Management
+- User account management interface
+- Password change functionality with validation
+- Server credential viewing with authentication
+- Admin user management enhancements
+
+## 🛠️ Development & Extension
+
+The system uses a modular design that supports flexible extensions:
+
+### Feature Extensions
+- **Permission Types**: Add new permission definitions in `models.py`
+- **Monitoring Metrics**: Extend `server_monitor.py` for additional data collection
+- **Authentication**: Integrate LDAP, AD, or OAuth2 authentication systems
+- **Notifications**: Add email, SMS, or webhook notification channels
+- **API Integration**: Provide RESTful APIs for third-party systems
+
+### Security Enhancements
+- **SSH Key Authentication**: Support SSH public key authentication
+- **Multi-Factor Authentication**: Integrate TOTP or SMS verification
+- **Fine-grained Permissions**: Implement more detailed access control
+- **Enhanced Auditing**: Add user behavior analysis and anomaly detection
+
+### Performance Optimizations
+- **Database Migration**: Move to PostgreSQL or MySQL for better performance
+- **Caching System**: Integrate Redis for monitoring data caching
+- **Async Processing**: Use Celery for time-consuming SSH operations
+- **Load Balancing**: Support multi-instance deployment
+
+### Development Guidelines
+1. Follow existing code structure and naming conventions
+2. Add appropriate test cases for new functionality
+3. Provide migration scripts for database changes
+4. Update CLAUDE.md documentation for AI assistant guidance
+
+## 🤝 Contributing
+
+We welcome contributions to improve this project!
+
+### How to Contribute
+1. Fork the repository to your GitHub account
+2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+### Development Setup
+1. Clone your fork and set up the development environment
+2. Install dependencies: `pip install -r requirements.txt`
+3. Run tests to ensure everything works
+4. Make your changes and test thoroughly
+5. Update documentation as needed
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- Flask framework and its ecosystem
+- Bootstrap for responsive UI components
+- Chart.js for data visualization
+- Paramiko for SSH connectivity
+- SQLAlchemy for database ORM
+
+## 📞 Support
+
+For support and questions:
+- Create an issue in the repository
+- Review the documentation in `CLAUDE.md`
+- Check the troubleshooting guide in this README
 
 ---
-📧 如有问题或建议，请创建Issue或联系项目维护者。
+
+**Built with ❤️ for efficient server management**

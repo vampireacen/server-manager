@@ -3,7 +3,8 @@
 CLAUDE.md
 
 # 数据库文件
-instance/*.db
+instance/*.db*
+*.db*
 
 # Python 相关
 __pycache__/

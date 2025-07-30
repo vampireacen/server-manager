@@ -46,14 +46,50 @@ class PermissionType(db.Model):
     description = db.Column(db.String(200))
     requires_reason = db.Column(db.Boolean, default=False)  # 是否需要填写申请理由
 
-class Application(db.Model):
-    __tablename__ = 'applications'
+class ApplicationBatch(db.Model):
+    """申请批次模型 - 一次申请的集合"""
+    __tablename__ = 'application_batches'
     
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     server_id = db.Column(db.Integer, db.ForeignKey('servers.id'), nullable=False)
-    permission_type_id = db.Column(db.Integer, db.ForeignKey('permission_types.id'), nullable=False)
     reason = db.Column(db.Text)  # 申请理由
+    status = db.Column(db.String(20), default='pending')  # pending, processing, completed, cancelled
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # 关系
+    user = db.relationship('User', backref='application_batches')
+    server = db.relationship('Server', backref='application_batches')
+    applications = db.relationship('Application', backref='batch', lazy='dynamic')
+    
+    def get_status_summary(self):
+        """获取批次状态摘要"""
+        apps = self.applications.all()
+        if not apps:
+            return 'pending'
+        
+        statuses = [app.status for app in apps]
+        if self.status == 'cancelled':
+            return 'cancelled'
+        elif all(s in ['approved', 'rejected'] for s in statuses):
+            return 'completed'
+        elif any(s in ['approved', 'rejected'] for s in statuses):
+            return 'processing'
+        else:
+            return 'pending'
+    
+    def can_be_cancelled(self):
+        """检查是否可以撤销"""
+        return self.status == 'pending' and all(app.status == 'pending' for app in self.applications)
+
+class Application(db.Model):
+    __tablename__ = 'applications'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    batch_id = db.Column(db.Integer, db.ForeignKey('application_batches.id'), nullable=False)  # 关联到申请批次
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    server_id = db.Column(db.Integer, db.ForeignKey('servers.id'), nullable=False)
+    permission_type_id = db.Column(db.Integer, db.ForeignKey('permission_types.id'), nullable=False)
     status = db.Column(db.String(20), default='pending')  # pending, approved, rejected
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     reviewed_at = db.Column(db.DateTime)
