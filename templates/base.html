@@ -2,123 +2,290 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="format-detection" content="telephone=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="theme-color" content="#ff6b35">
     <title>{% block title %}服务器管理系统{% endblock %}</title>
+    
+    <!-- 字体 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Bootstrap和图标 -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css" rel="stylesheet">
+    
+    <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        .notification-badge {
-            position: absolute;
-            top: -5px;
-            right: -5px;
-            background: #dc3545;
-            color: white;
-            border-radius: 50%;
-            width: 20px;
-            height: 20px;
-            font-size: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .status-online { color: #28a745; }
-        .status-offline { color: #dc3545; }
-        .status-unknown { color: #6c757d; }
-        .metric-card { transition: transform 0.2s; }
-        .metric-card:hover { transform: translateY(-2px); }
-    </style>
+    
+    <!-- 自定义Claude风格样式 -->
+    <link href="{{ url_for('static', filename='css/claude-style.css') }}" rel="stylesheet">
 </head>
 <body>
     {% if session.user_id %}
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-        <div class="container">
-            <a class="navbar-brand" href="{{ url_for('dashboard') }}">
-                <i class="bi bi-server"></i> 服务器管理
-            </a>
+    <!-- 顶部导航栏 -->
+    <nav class="claude-topbar" id="topbar">
+        <div class="claude-topbar-container">
+            <!-- 左侧品牌区域 -->
+            <div class="claude-topbar-brand">
+                <a href="{{ url_for('dashboard') }}" class="claude-brand-link">
+                    <i class="bi bi-server"></i>
+                    <span>服务器管理系统</span>
+                </a>
+            </div>
             
-            <div class="navbar-nav ms-auto">
-                <a class="nav-link" href="{{ url_for('dashboard') }}">
-                    <i class="bi bi-speedometer2"></i> 控制台
-                </a>
-                
-                <a class="nav-link" href="{{ url_for('apply') }}">
-                    <i class="bi bi-plus-circle"></i> 申请权限
-                </a>
-                
-                <a class="nav-link" href="{{ url_for('my_applications') }}">
-                    <i class="bi bi-list-check"></i> 我的申请
-                </a>
-                
-                {% if session.role == 'admin' %}
-                <div class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle position-relative" href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown">
-                        <i class="bi bi-gear"></i> 管理
-                        <span id="notification-badge" class="notification-badge d-none">0</span>
-                    </a>
-                    <ul class="dropdown-menu">
-                        <li><a class="dropdown-item" href="{{ url_for('admin_review') }}">
-                            <i class="bi bi-check-circle"></i> 审核申请
-                        </a></li>
-                        <li><a class="dropdown-item" href="{{ url_for('admin_servers') }}">
-                            <i class="bi bi-server"></i> 服务器管理
-                        </a></li>
-                        <li><a class="dropdown-item" href="{{ url_for('admin_users') }}">
-                            <i class="bi bi-people"></i> 用户管理
-                        </a></li>
-                    </ul>
-                </div>
-                {% endif %}
-                
-                <div class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown">
-                        <i class="bi bi-person"></i> {{ session.username }}
-                    </a>
-                    <ul class="dropdown-menu">
-                        <li><a class="dropdown-item" href="{{ url_for('logout') }}">
-                            <i class="bi bi-box-arrow-right"></i> 退出登录
+            <!-- 中间导航菜单 -->
+            <div class="claude-topbar-nav">
+                <ul class="claude-nav-list">
+                    <li class="claude-nav-item">
+                        <a href="{{ url_for('dashboard') }}" class="claude-nav-link {{ 'active' if request.endpoint == 'dashboard' else '' }}">
+                            <i class="bi bi-speedometer2"></i>
+                            <span>控制台</span>
+                        </a>
+                    </li>
+                    
+                    <li class="claude-nav-item dropdown">
+                        <a href="#" class="claude-nav-link dropdown-toggle" id="userMenuDropdown" role="button" data-bs-toggle="dropdown">
+                            <i class="bi bi-person"></i>
+                            <span>用户功能</span>
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{{ url_for('apply') }}">
+                                <i class="bi bi-plus-circle me-2"></i>申请权限
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('my_applications') }}">
+                                <i class="bi bi-list-check me-2"></i>我的申请
+                            </a></li>
+                        </ul>
+                    </li>
+                    
+                    {% if session.role == 'admin' %}
+                    <li class="claude-nav-item dropdown">
+                        <a href="#" class="claude-nav-link dropdown-toggle" id="adminMenuDropdown" role="button" data-bs-toggle="dropdown">
+                            <i class="bi bi-gear"></i>
+                            <span>管理功能</span>
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{{ url_for('admin_review') }}">
+                                <i class="bi bi-check-circle me-2 position-relative">
+                                    <span id="notification-badge" class="claude-notification-badge d-none">0</span>
+                                </i>审核申请
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('admin_servers') }}">
+                                <i class="bi bi-server me-2"></i>服务器管理
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('admin_users') }}">
+                                <i class="bi bi-people me-2"></i>用户管理
+                            </a></li>
+                        </ul>
+                    </li>
+                    {% endif %}
+                </ul>
+            </div>
+            
+            <!-- 右侧用户区域 -->
+            <div class="claude-topbar-user">
+                <div class="dropdown">
+                    <button class="claude-user-btn dropdown-toggle" type="button" id="userDropdown" data-bs-toggle="dropdown">
+                        <i class="bi bi-person-circle"></i>
+                        <span class="claude-user-name">{{ session.username }}</span>
+                        <span class="claude-user-badge claude-badge-{{ 'primary' if session.role == 'admin' else 'info' }}">
+                            {{ '管理员' if session.role == 'admin' else '用户' }}
+                        </span>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li><span class="dropdown-header">{{ session.username }}</span></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item text-danger" href="{{ url_for('logout') }}">
+                            <i class="bi bi-box-arrow-right me-2"></i>退出登录
                         </a></li>
                     </ul>
                 </div>
             </div>
+            
+            <!-- 移动端菜单按钮 -->
+            <button class="claude-mobile-menu-btn d-md-none" type="button" id="mobileMenuBtn">
+                <i class="bi bi-list"></i>
+            </button>
         </div>
     </nav>
-    {% endif %}
     
-    <div class="container mt-4">
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, message in messages %}
-                    <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
-                        {{ message }}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                    </div>
-                {% endfor %}
-            {% endif %}
-        {% endwith %}
-        
-        {% block content %}{% endblock %}
+    <!-- 移动端导航菜单 -->
+    <div class="claude-mobile-nav d-md-none" id="mobileNav">
+        <div class="claude-mobile-nav-content">
+            <ul class="claude-mobile-nav-list">
+                <li><a href="{{ url_for('dashboard') }}" class="claude-mobile-nav-link {{ 'active' if request.endpoint == 'dashboard' else '' }}">
+                    <i class="bi bi-speedometer2"></i>控制台
+                </a></li>
+                <li><hr class="claude-mobile-divider"></li>
+                <li class="claude-mobile-section-title">用户功能</li>
+                <li><a href="{{ url_for('apply') }}" class="claude-mobile-nav-link">
+                    <i class="bi bi-plus-circle"></i>申请权限
+                </a></li>
+                <li><a href="{{ url_for('my_applications') }}" class="claude-mobile-nav-link">
+                    <i class="bi bi-list-check"></i>我的申请
+                </a></li>
+                
+                {% if session.role == 'admin' %}
+                <li><hr class="claude-mobile-divider"></li>
+                <li class="claude-mobile-section-title">管理功能</li>
+                <li><a href="{{ url_for('admin_review') }}" class="claude-mobile-nav-link">
+                    <i class="bi bi-check-circle position-relative">
+                        <span id="mobile-notification-badge" class="claude-notification-badge d-none">0</span>
+                    </i>审核申请
+                </a></li>
+                <li><a href="{{ url_for('admin_servers') }}" class="claude-mobile-nav-link">
+                    <i class="bi bi-server"></i>服务器管理
+                </a></li>
+                <li><a href="{{ url_for('admin_users') }}" class="claude-mobile-nav-link">
+                    <i class="bi bi-people"></i>用户管理
+                </a></li>
+                {% endif %}
+            </ul>
+        </div>
     </div>
     
+    <!-- 移动端遮罩层 -->
+    <div class="claude-mobile-overlay d-md-none" id="mobileOverlay"></div>
+    
+    <!-- 主内容区域 -->
+    <div class="claude-main-content" id="mainContent">
+        <div class="claude-content-wrapper">
+            <!-- 消息提示 -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ 'danger' if category == 'error' else 'success' if category == 'success' else 'warning' if category == 'warning' else 'info' }} alert-dismissible fade show mb-4" role="alert">
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-{{ 'exclamation-triangle' if category == 'error' else 'check-circle' if category == 'success' else 'info-circle' }} me-2"></i>
+                                {{ message }}
+                            </div>
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+            
+            <!-- 页面内容 -->
+            {% block content %}{% endblock %}
+        </div>
+    </div>
+    
+    {% else %}
+    <!-- 登录页面布局 -->
+    <div class="container-fluid">
+        <div class="row justify-content-center align-items-center min-vh-100" style="background: #ffffff;">
+            <div class="col-md-6 col-lg-4">
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ 'danger' if category == 'error' else 'success' if category == 'success' else 'warning' if category == 'warning' else 'info' }} alert-dismissible fade show mb-4" role="alert">
+                                <div class="d-flex align-items-center">
+                                    <i class="bi bi-{{ 'exclamation-triangle' if category == 'error' else 'check-circle' if category == 'success' else 'info-circle' }} me-2"></i>
+                                    {{ message }}
+                                </div>
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+                {% block login_content %}{% endblock %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- JavaScript -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     
+    <!-- 顶部导航栏交互脚本 -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+            const mobileNav = document.getElementById('mobileNav');
+            const mobileOverlay = document.getElementById('mobileOverlay');
+            
+            // 移动端菜单切换
+            function toggleMobileMenu(e) {
+                if (e) e.preventDefault();
+                
+                mobileNav.classList.toggle('show');
+                mobileOverlay.classList.toggle('show');
+                
+                // 更新菜单按钮图标
+                const icon = mobileMenuBtn.querySelector('i');
+                if (mobileNav.classList.contains('show')) {
+                    icon.className = 'bi bi-x';
+                } else {
+                    icon.className = 'bi bi-list';
+                }
+            }
+            
+            // 绑定移动端菜单按钮事件
+            if (mobileMenuBtn) {
+                mobileMenuBtn.addEventListener('click', toggleMobileMenu);
+            }
+            
+            // 点击遮罩层关闭移动端菜单
+            if (mobileOverlay) {
+                mobileOverlay.addEventListener('click', function() {
+                    mobileNav.classList.remove('show');
+                    mobileOverlay.classList.remove('show');
+                    const icon = mobileMenuBtn.querySelector('i');
+                    icon.className = 'bi bi-list';
+                });
+            }
+            
+            // 点击移动端导航链接后自动关闭菜单
+            const mobileNavLinks = document.querySelectorAll('.claude-mobile-nav-link');
+            mobileNavLinks.forEach(link => {
+                link.addEventListener('click', function() {
+                    mobileNav.classList.remove('show');
+                    mobileOverlay.classList.remove('show');
+                    const icon = mobileMenuBtn.querySelector('i');
+                    icon.className = 'bi bi-list';
+                });
+            });
+        });
+    </script>
+    
     {% if session.role == 'admin' %}
     <script>
-        // 定期检查未读通知
+        // 管理员通知检查
         function updateNotificationBadge() {
-            $.get('/api/notifications', function(data) {
-                const badge = $('#notification-badge');
-                if (data.unread_count > 0) {
-                    badge.text(data.unread_count).removeClass('d-none');
-                } else {
-                    badge.addClass('d-none');
-                }
-            });
+            fetch('/api/notifications')
+                .then(response => response.json())
+                .then(data => {
+                    const badge = document.getElementById('notification-badge');
+                    const mobileBadge = document.getElementById('mobile-notification-badge');
+                    
+                    if (data.unread_count > 0) {
+                        if (badge) {
+                            badge.textContent = data.unread_count;
+                            badge.classList.remove('d-none');
+                        }
+                        if (mobileBadge) {
+                            mobileBadge.textContent = data.unread_count;
+                            mobileBadge.classList.remove('d-none');
+                        }
+                    } else {
+                        if (badge) {
+                            badge.classList.add('d-none');
+                        }
+                        if (mobileBadge) {
+                            mobileBadge.classList.add('d-none');
+                        }
+                    }
+                })
+                .catch(error => console.error('Error fetching notifications:', error));
         }
         
         // 页面加载时检查通知
-        $(document).ready(function() {
+        document.addEventListener('DOMContentLoaded', function() {
             updateNotificationBadge();
             // 每30秒检查一次通知
             setInterval(updateNotificationBadge, 30000);
@@ -127,5 +294,254 @@
     {% endif %}
     
     {% block scripts %}{% endblock %}
+    
+    <style>
+        /* 顶部导航栏样式 */
+        .claude-topbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 64px;
+            background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+            border-bottom: 1px solid #e2e8f0;
+            z-index: 1000;
+            backdrop-filter: blur(12px);
+        }
+        
+        .claude-topbar-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            height: 100%;
+            padding: 0 24px;
+            max-width: 100%;
+        }
+        
+        .claude-topbar-brand .claude-brand-link {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: #1e293b;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 1.1rem;
+        }
+        
+        .claude-topbar-brand .claude-brand-link:hover {
+            color: #0369a1;
+        }
+        
+        .claude-topbar-nav {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+        }
+        
+        .claude-nav-list {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+        
+        .claude-nav-link {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            color: #64748b;
+            text-decoration: none;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+            font-weight: 500;
+        }
+        
+        .claude-nav-link:hover,
+        .claude-nav-link.active {
+            background: rgba(255, 107, 53, 0.1);
+            color: #ff6b35;
+        }
+        
+        .claude-topbar-user {
+            display: flex;
+            align-items: center;
+        }
+        
+        .claude-user-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            background: transparent;
+            border: none;
+            border-radius: 8px;
+            color: #64748b;
+            transition: all 0.2s ease;
+        }
+        
+        .claude-user-btn:hover {
+            background: rgba(255, 107, 53, 0.1);
+            color: #ff6b35;
+        }
+        
+        .claude-user-badge {
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+        
+        .claude-badge-primary {
+            background: #ff6b35;
+            color: white;
+        }
+        
+        .claude-badge-info {
+            background: #3b82f6;
+            color: white;
+        }
+        
+        .claude-mobile-menu-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            background: transparent;
+            border: none;
+            border-radius: 8px;
+            color: #64748b;
+            transition: all 0.2s ease;
+        }
+        
+        .claude-mobile-menu-btn:hover {
+            background: rgba(255, 107, 53, 0.1);
+            color: #ff6b35;
+        }
+        
+        .claude-mobile-nav {
+            position: fixed;
+            top: 64px;
+            left: 0;
+            right: 0;
+            background: white;
+            border-bottom: 1px solid #e2e8f0;
+            transform: translateY(-100%);
+            transition: transform 0.3s ease;
+            z-index: 999;
+            max-height: calc(100vh - 64px);
+            overflow-y: auto;
+        }
+        
+        .claude-mobile-nav.show {
+            transform: translateY(0);
+        }
+        
+        .claude-mobile-nav-content {
+            padding: 16px;
+        }
+        
+        .claude-mobile-nav-list {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+        
+        .claude-mobile-nav-link {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            color: #64748b;
+            text-decoration: none;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+            font-weight: 500;
+        }
+        
+        .claude-mobile-nav-link:hover,
+        .claude-mobile-nav-link.active {
+            background: rgba(255, 107, 53, 0.1);
+            color: #ff6b35;
+        }
+        
+        .claude-mobile-section-title {
+            padding: 8px 16px;
+            margin-top: 16px;
+            margin-bottom: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #94a3b8;
+        }
+        
+        .claude-mobile-divider {
+            margin: 16px 0;
+            border-color: #e2e8f0;
+        }
+        
+        .claude-mobile-overlay {
+            position: fixed;
+            top: 64px;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 998;
+            display: none;
+        }
+        
+        .claude-mobile-overlay.show {
+            display: block;
+        }
+        
+        .claude-main-content {
+            margin-top: 64px;
+            min-height: calc(100vh - 64px);
+        }
+        
+        .claude-content-wrapper {
+            padding: 24px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .claude-notification-badge {
+            position: absolute;
+            top: -4px;
+            right: -4px;
+            background: #ef4444;
+            color: white;
+            font-size: 0.6rem;
+            font-weight: 600;
+            min-width: 16px;
+            height: 16px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+        }
+        
+        @media (max-width: 991px) {
+            .claude-topbar-nav {
+                display: none;
+            }
+            
+            .claude-topbar-container {
+                padding: 0 16px;
+            }
+        }
+        
+        @media (min-width: 992px) {
+            .claude-mobile-menu-btn {
+                display: none;
+            }
+        }
+    </style>
 </body>
 </html>

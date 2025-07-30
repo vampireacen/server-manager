@@ -3,61 +3,126 @@
 {% block title %}用户管理 - 服务器管理系统{% endblock %}
 
 {% block content %}
-<div class="row">
-    <div class="col">
-        <h2><i class="bi bi-people"></i> 用户管理</h2>
-        <p class="text-muted">管理系统用户和权限</p>
+<!-- 页面头部 -->
+<div class="d-flex justify-content-between align-items-start mb-4">
+    <div>
+        <h1 class="h3 mb-2" style="color: var(--claude-text-primary); font-weight: 600;">
+            <i class="bi bi-people me-2" style="color: var(--claude-primary);"></i>
+            用户管理
+        </h1>
+        <p class="text-muted mb-0">管理系统用户账户和权限角色</p>
     </div>
-    <div class="col-auto">
-        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addUserModal">
-            <i class="bi bi-person-plus"></i> 添加用户
+    <div class="d-flex align-items-center gap-2">
+        <button class="claude-btn claude-btn-primary" data-bs-toggle="modal" data-bs-target="#addUserModal">
+            <i class="bi bi-person-plus"></i>
+            <span class="d-none d-md-inline ms-2">添加用户</span>
         </button>
     </div>
 </div>
 
-<div class="card">
-    <div class="card-body">
+<!-- 用户统计 -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="claude-metric-card">
+            <div class="d-flex align-items-center">
+                <div class="flex-grow-1">
+                    <div class="claude-metric-value">{{ users|length }}</div>
+                    <div class="claude-metric-label">总用户数</div>
+                </div>
+                <i class="bi bi-people" style="font-size: 2rem; color: var(--claude-primary); opacity: 0.7;"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="claude-metric-card">
+            <div class="d-flex align-items-center">
+                <div class="flex-grow-1">
+                    <div class="claude-metric-value" style="color: var(--claude-danger);">
+                        {{ users|selectattr('role', 'equalto', 'admin')|list|length }}
+                    </div>
+                    <div class="claude-metric-label">管理员</div>
+                </div>
+                <i class="bi bi-shield-check" style="font-size: 2rem; color: var(--claude-danger); opacity: 0.7;"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="claude-metric-card">
+            <div class="d-flex align-items-center">
+                <div class="flex-grow-1">
+                    <div class="claude-metric-value" style="color: var(--claude-info);">
+                        {{ users|selectattr('role', 'equalto', 'user')|list|length }}
+                    </div>
+                    <div class="claude-metric-label">普通用户</div>
+                </div>
+                <i class="bi bi-person" style="font-size: 2rem; color: var(--claude-info); opacity: 0.7;"></i>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 用户列表 -->
+<div class="claude-card">
+    <div class="claude-card-header">
+        <h5 class="mb-0" style="color: var(--claude-text-primary); font-weight: 600;">
+            <i class="bi bi-list me-2" style="color: var(--claude-primary);"></i>
+            用户列表
+        </h5>
+    </div>
+    <div class="claude-card-body">
         <div class="table-responsive">
-            <table class="table table-hover">
-                <thead>
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
                     <tr>
-                        <th>用户名</th>
-                        <th>角色</th>
-                        <th>注册时间</th>
-                        <th>申请数量</th>
-                        <th>操作</th>
+                        <th style="color: var(--claude-text-secondary); font-weight: 600;">用户信息</th>
+                        <th style="color: var(--claude-text-secondary); font-weight: 600;">角色</th>
+                        <th style="color: var(--claude-text-secondary); font-weight: 600;">注册时间</th>
+                        <th style="color: var(--claude-text-secondary); font-weight: 600;">申请统计</th>
+                        <th style="color: var(--claude-text-secondary); font-weight: 600;">操作</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for user in users %}
                     <tr>
                         <td>
-                            <strong>{{ user.username }}</strong>
-                            {% if user.id == session.user_id %}
-                                <span class="badge bg-primary ms-1">当前用户</span>
-                            {% endif %}
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-person-circle me-3" style="color: var(--claude-primary); font-size: 1.2rem;"></i>
+                                <div>
+                                    <div class="fw-semibold" style="color: var(--claude-text-primary);">{{ user.username }}</div>
+                                    {% if user.id == session.user_id %}
+                                        <span class="claude-badge claude-badge-primary">当前用户</span>
+                                    {% endif %}
+                                </div>
+                            </div>
                         </td>
                         <td>
-                            <span class="badge bg-{{ 'danger' if user.role == 'admin' else 'secondary' }}">
+                            <span class="claude-badge claude-badge-{{ 'danger' if user.role == 'admin' else 'info' }}">
+                                <i class="bi bi-{{ 'shield-check' if user.role == 'admin' else 'person' }}"></i>
                                 {{ '管理员' if user.role == 'admin' else '普通用户' }}
                             </span>
                         </td>
-                        <td>{{ user.created_at.strftime('%Y-%m-%d') }}</td>
                         <td>
-                            <span class="badge bg-light text-dark">{{ user.applications|length }}</span>
+                            <small class="text-muted">{{ user.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
                         </td>
                         <td>
-                            <div class="btn-group btn-group-sm">
-                                <button class="btn btn-outline-primary" onclick="viewUserApplications({{ user.id }})">
-                                    <i class="bi bi-list-ul"></i> 申请记录
+                            <div class="user-stats">
+                                <span class="claude-stat-item">
+                                    <i class="bi bi-list-check me-1"></i>
+                                    {{ user_applications_count[user.id] if user.id in user_applications_count else 0 }}
+                                </span>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="btn-group">
+                                <button class="claude-btn claude-btn-sm claude-btn-secondary" onclick="viewUserApplications({{ user.id }}, '{{ user.username }}')" title="查看申请记录">
+                                    <i class="bi bi-list-ul"></i>
                                 </button>
                                 {% if user.id != session.user_id %}
-                                <button class="btn btn-outline-warning" onclick="toggleUserRole({{ user.id }}, '{{ user.role }}')">
-                                    <i class="bi bi-arrow-up-down"></i> 
-                                    {{ '降为普通用户' if user.role == 'admin' else '提升为管理员' }}
+                                <button class="claude-btn claude-btn-sm claude-btn-primary" onclick="toggleUserRole({{ user.id }}, '{{ user.role }}', '{{ user.username }}')" title="{{ '降为普通用户' if user.role == 'admin' else '提升为管理员' }}">
+                                    <i class="bi bi-{{ 'arrow-down-circle' if user.role == 'admin' else 'arrow-up-circle' }}"></i>
                                 </button>
-                                <button class="btn btn-outline-danger" onclick="deleteUser({{ user.id }})">
-                                    <i class="bi bi-trash"></i> 删除
+                                <button class="claude-btn claude-btn-sm claude-btn-danger" onclick="deleteUser({{ user.id }}, '{{ user.username }}')" title="删除用户">
+                                    <i class="bi bi-trash"></i>
                                 </button>
                                 {% endif %}
                             </div>
@@ -73,42 +138,46 @@
 <!-- 添加用户模态框 -->
 <div class="modal fade" id="addUserModal" tabindex="-1">
     <div class="modal-dialog">
-        <div class="modal-content">
+        <div class="modal-content claude-modal">
             <div class="modal-header">
-                <h5 class="modal-title">添加用户</h5>
+                <h5 class="modal-title" style="color: var(--claude-text-primary); font-weight: 600;">
+                    <i class="bi bi-person-plus me-2" style="color: var(--claude-primary);"></i>
+                    添加用户
+                </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <form id="addUserForm">
+            <form method="POST" id="addUserForm">
+                <input type="hidden" name="action" value="add">
                 <div class="modal-body">
                     <div class="mb-3">
                         <label for="new_username" class="form-label">用户名 <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="new_username" name="username" required>
+                        <input type="text" class="form-control claude-input" id="new_username" name="username" required>
                         <div class="form-text">用户名必须唯一</div>
                     </div>
                     
                     <div class="mb-3">
                         <label for="new_password" class="form-label">密码 <span class="text-danger">*</span></label>
-                        <input type="password" class="form-control" id="new_password" name="password" required>
+                        <input type="password" class="form-control claude-input" id="new_password" name="password" required>
                         <div class="form-text">密码长度至少6位</div>
                     </div>
                     
                     <div class="mb-3">
                         <label for="confirm_password" class="form-label">确认密码 <span class="text-danger">*</span></label>
-                        <input type="password" class="form-control" id="confirm_password" name="confirm_password" required>
+                        <input type="password" class="form-control claude-input" id="confirm_password" name="confirm_password" required>
                     </div>
                     
                     <div class="mb-3">
                         <label for="new_role" class="form-label">角色</label>
-                        <select class="form-select" id="new_role" name="role">
+                        <select class="form-select claude-input" id="new_role" name="role">
                             <option value="user">普通用户</option>
                             <option value="admin">管理员</option>
                         </select>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-                    <button type="submit" class="btn btn-primary">
-                        <i class="bi bi-person-plus"></i> 添加
+                    <button type="button" class="claude-btn claude-btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="claude-btn claude-btn-primary">
+                        <i class="bi bi-person-plus"></i> 添加用户
                     </button>
                 </div>
             </form>
@@ -119,13 +188,21 @@
 <!-- 用户申请记录模态框 -->
 <div class="modal fade" id="userApplicationsModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
-        <div class="modal-content">
+        <div class="modal-content claude-modal">
             <div class="modal-header">
-                <h5 class="modal-title">用户申请记录</h5>
+                <h5 class="modal-title" style="color: var(--claude-text-primary); font-weight: 600;">
+                    <i class="bi bi-list-ul me-2" style="color: var(--claude-info);"></i>
+                    用户申请记录
+                </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body" id="userApplicationsContent">
-                <!-- 动态内容 -->
+                <div class="text-center py-4">
+                    <div class="claude-loading">
+                        <i class="bi bi-arrow-clockwise" style="font-size: 2rem; color: var(--claude-primary);"></i>
+                        <p class="mt-2 text-muted">加载申请记录中...</p>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -133,116 +210,377 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
-const users = {{ users | tojson }};
-
-function viewUserApplications(userId) {
-    const user = users.find(u => u.id === userId);
-    if (!user) return;
-    
-    let content = `<h6>用户: ${user.username}</h6>`;
-    
-    if (user.applications && user.applications.length > 0) {
-        content += `
-            <div class="table-responsive">
-                <table class="table table-sm">
-                    <thead>
-                        <tr>
-                            <th>服务器</th>
-                            <th>权限类型</th>
-                            <th>申请时间</th>
-                            <th>状态</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-        `;
-        
-        user.applications.forEach(app => {
-            let statusBadge = '';
-            if (app.status === 'pending') {
-                statusBadge = '<span class="badge bg-warning">待审核</span>';
-            } else if (app.status === 'approved') {
-                statusBadge = '<span class="badge bg-success">已通过</span>';
-            } else if (app.status === 'rejected') {
-                statusBadge = '<span class="badge bg-danger">已拒绝</span>';
-            }
-            
-            content += `
-                <tr>
-                    <td>${app.server.name}</td>
-                    <td>${app.permission_type.name}</td>
-                    <td>${new Date(app.created_at).toLocaleString()}</td>
-                    <td>${statusBadge}</td>
-                </tr>
-            `;
-        });
-        
-        content += `
-                    </tbody>
-                </table>
-            </div>
-        `;
-    } else {
-        content += '<div class="alert alert-info">该用户还没有提交任何申请</div>';
-    }
-    
-    $('#userApplicationsContent').html(content);
-    $('#userApplicationsModal').modal('show');
+<style>
+.claude-metric-card {
+    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 24px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+    transition: all 0.2s ease;
 }
 
-function toggleUserRole(userId, currentRole) {
+.claude-metric-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    border-color: #cbd5e1;
+}
+
+.claude-metric-value {
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: 4px;
+    line-height: 1;
+}
+
+.claude-metric-label {
+    font-size: 0.875rem;
+    color: var(--claude-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+    font-weight: 500;
+}
+
+.user-stats {
+    font-size: 0.875rem;
+}
+
+.claude-stat-item {
+    display: inline-flex;
+    align-items: center;
+    color: var(--claude-text-muted);
+}
+
+.claude-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.claude-badge-primary {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.claude-badge-danger {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.claude-badge-info {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.claude-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.claude-btn-primary {
+    background: linear-gradient(135deg, #0369a1 0%, #0284c7 100%);
+    color: white;
+    box-shadow: 0 2px 4px rgba(3, 105, 161, 0.2);
+}
+
+.claude-btn-primary:hover {
+    background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(3, 105, 161, 0.3);
+    color: white;
+}
+
+.claude-btn-secondary {
+    background: #f8fafc;
+    color: #64748b;
+    border: 1px solid #e2e8f0;
+}
+
+.claude-btn-secondary:hover {
+    background: #f1f5f9;
+    color: #475569;
+    border-color: #cbd5e1;
+}
+
+.claude-btn-warning {
+    background: linear-gradient(135deg, var(--claude-primary) 0%, var(--claude-primary-dark) 100%);
+    color: white;
+    box-shadow: 0 2px 4px rgba(255, 107, 53, 0.2);
+}
+
+.claude-btn-warning:hover {
+    background: linear-gradient(135deg, var(--claude-primary-dark) 0%, #d44a21 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(255, 107, 53, 0.3);
+    color: white;
+}
+
+.claude-btn-danger {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    color: white;
+    box-shadow: 0 2px 4px rgba(239, 68, 68, 0.2);
+}
+
+.claude-btn-danger:hover {
+    background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(239, 68, 68, 0.3);
+    color: white;
+}
+
+.claude-btn-sm {
+    padding: 6px 12px;
+    font-size: 0.8rem;
+}
+
+.claude-modal {
+    border: none;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+}
+
+.claude-modal .modal-header {
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    border-bottom: 1px solid #e2e8f0;
+    border-radius: 12px 12px 0 0;
+}
+
+.claude-input {
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+}
+
+.claude-input:focus {
+    border-color: #0369a1;
+    box-shadow: 0 0 0 3px rgba(3, 105, 161, 0.1);
+}
+
+.table th {
+    border-bottom: 2px solid #e2e8f0;
+    padding: 12px 8px;
+}
+
+.table td {
+    padding: 12px 8px;
+    vertical-align: middle;
+}
+
+.table-hover tbody tr:hover {
+    background-color: rgba(3, 105, 161, 0.02);
+}
+
+.claude-loading i {
+    animation: spin 2s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+</style>
+
+<script>
+function viewUserApplications(userId, username) {
+    // 显示模态框
+    const modal = new bootstrap.Modal(document.getElementById('userApplicationsModal'));
+    modal.show();
+    
+    // 获取用户申请记录
+    fetch(`/api/user_applications/${userId}`)
+        .then(response => response.json())
+        .then(data => {
+            let content = `<h6 class="mb-3">用户: ${username}</h6>`;
+            
+            if (data.applications && data.applications.length > 0) {
+                content += `
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>服务器</th>
+                                    <th>权限类型</th>
+                                    <th>申请时间</th>
+                                    <th>状态</th>
+                                    <th>审核时间</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+                
+                data.applications.forEach(app => {
+                    let statusBadge = '';
+                    let statusColor = '';
+                    if (app.status === 'pending') {
+                        statusBadge = '待审核';
+                        statusColor = 'warning';
+                    } else if (app.status === 'approved') {
+                        statusBadge = '已批准';
+                        statusColor = 'success';
+                    } else if (app.status === 'rejected') {
+                        statusBadge = '已拒绝';
+                        statusColor = 'danger';
+                    }
+                    
+                    const reviewedAt = app.reviewed_at ? new Date(app.reviewed_at).toLocaleString() : '--';
+                    
+                    content += `
+                        <tr>
+                            <td><strong>${app.server_name}</strong></td>
+                            <td><span class="claude-badge claude-badge-info">${app.permission_type_name}</span></td>
+                            <td><small class="text-muted">${new Date(app.created_at).toLocaleString()}</small></td>
+                            <td><span class="claude-badge claude-badge-${statusColor}">${statusBadge}</span></td>
+                            <td><small class="text-muted">${reviewedAt}</small></td>
+                        </tr>
+                    `;
+                });
+                
+                content += `
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+            } else {
+                content += `
+                    <div class="text-center py-4">
+                        <i class="bi bi-list-check" style="font-size: 3rem; color: var(--claude-text-muted); opacity: 0.5;"></i>
+                        <h5 class="mt-3 mb-2" style="color: var(--claude-text-secondary);">暂无申请记录</h5>
+                        <p class="text-muted">该用户还没有提交任何申请</p>
+                    </div>
+                `;
+            }
+            
+            document.getElementById('userApplicationsContent').innerHTML = content;
+        })
+        .catch(error => {
+            console.error('Error loading applications:', error);
+            document.getElementById('userApplicationsContent').innerHTML = `
+                <div class="text-center py-4">
+                    <i class="bi bi-exclamation-triangle text-warning" style="font-size: 2rem;"></i>
+                    <p class="mt-2 text-muted">加载申请记录失败</p>
+                </div>
+            `;
+        });
+}
+
+function toggleUserRole(userId, currentRole, username) {
     const newRole = currentRole === 'admin' ? 'user' : 'admin';
     const action = newRole === 'admin' ? '提升为管理员' : '降为普通用户';
     
-    if (confirm(`确定要将该用户${action}吗？`)) {
-        // 这里应该调用API来更新用户角色
-        alert('角色更改功能待实现');
+    if (confirm(`确定要将用户 "${username}" ${action}吗？`)) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.style.display = 'none';
+        
+        const userIdInput = document.createElement('input');
+        userIdInput.type = 'hidden';
+        userIdInput.name = 'user_id';
+        userIdInput.value = userId;
+        form.appendChild(userIdInput);
+        
+        const roleInput = document.createElement('input');
+        roleInput.type = 'hidden';
+        roleInput.name = 'role';
+        roleInput.value = newRole;
+        form.appendChild(roleInput);
+        
+        const actionInput = document.createElement('input');
+        actionInput.type = 'hidden';
+        actionInput.name = 'action';
+        actionInput.value = 'toggle_role';
+        form.appendChild(actionInput);
+        
+        document.body.appendChild(form);
+        form.submit();
     }
 }
 
-function deleteUser(userId) {
-    if (confirm('确定要删除这个用户吗？\n\n注意：删除后该用户的所有申请记录也将被删除。')) {
-        // 这里应该调用API来删除用户
-        alert('删除用户功能待实现');
+function deleteUser(userId, username) {
+    if (confirm(`确定要删除用户 "${username}" 吗？\n\n注意：删除后该用户的所有申请记录也将被删除。`)) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.style.display = 'none';
+        
+        const userIdInput = document.createElement('input');
+        userIdInput.type = 'hidden';
+        userIdInput.name = 'user_id';
+        userIdInput.value = userId;
+        form.appendChild(userIdInput);
+        
+        const actionInput = document.createElement('input');
+        actionInput.type = 'hidden';
+        actionInput.name = 'action';
+        actionInput.value = 'delete';
+        form.appendChild(actionInput);
+        
+        document.body.appendChild(form);
+        form.submit();
     }
 }
 
-// 添加用户表单验证
-$('#addUserForm').submit(function(e) {
-    e.preventDefault();
+function showToast(message, type) {
+    const toast = document.createElement('div');
+    toast.className = `alert alert-${type === 'success' ? 'success' : 'danger'} alert-dismissible fade show position-fixed`;
+    toast.style.cssText = 'top: 80px; right: 20px; z-index: 1050; min-width: 300px;';
+    toast.innerHTML = `
+        <div class="d-flex align-items-center">
+            <i class="bi bi-${type === 'success' ? 'check-circle' : 'exclamation-triangle'} me-2"></i>
+            ${message}
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
     
-    const username = $('#new_username').val().trim();
-    const password = $('#new_password').val();
-    const confirmPassword = $('#confirm_password').val();
+    document.body.appendChild(toast);
     
-    if (!username || !password || !confirmPassword) {
-        alert('请填写所有必填字段');
-        return false;
-    }
+    setTimeout(() => {
+        if (toast.parentNode) {
+            toast.parentNode.removeChild(toast);
+        }
+    }, 3000);
+}
+
+// 表单验证
+document.addEventListener('DOMContentLoaded', function() {
+    const addUserForm = document.getElementById('addUserForm');
     
-    if (password !== confirmPassword) {
-        alert('两次输入的密码不一致');
-        $('#confirm_password').focus();
-        return false;
-    }
-    
-    if (password.length < 6) {
-        alert('密码长度至少6位');
-        $('#new_password').focus();
-        return false;
-    }
-    
-    // 检查用户名是否已存在
-    const existingUser = users.find(u => u.username.toLowerCase() === username.toLowerCase());
-    if (existingUser) {
-        alert('用户名已存在，请选择其他用户名');
-        $('#new_username').focus();
-        return false;
-    }
-    
-    // 这里应该提交表单到后端
-    alert('添加用户功能待实现');
-    $('#addUserModal').modal('hide');
+    addUserForm.addEventListener('submit', function(e) {
+        const username = document.getElementById('new_username').value.trim();
+        const password = document.getElementById('new_password').value;
+        const confirmPassword = document.getElementById('confirm_password').value;
+        
+        if (!username || !password || !confirmPassword) {
+            e.preventDefault();
+            showToast('请填写所有必填字段', 'error');
+            return false;
+        }
+        
+        if (password !== confirmPassword) {
+            e.preventDefault();
+            showToast('两次输入的密码不一致', 'error');
+            document.getElementById('confirm_password').focus();
+            return false;
+        }
+        
+        if (password.length < 6) {
+            e.preventDefault();
+            showToast('密码长度至少6位', 'error');
+            document.getElementById('new_password').focus();
+            return false;
+        }
+    });
 });
 </script>
 {% endblock %}

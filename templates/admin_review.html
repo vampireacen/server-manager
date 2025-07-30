@@ -3,143 +3,273 @@
 {% block title %}审核申请 - 服务器管理系统{% endblock %}
 
 {% block content %}
-<div class="row">
-    <div class="col">
-        <h2><i class="bi bi-check-circle"></i> 审核申请</h2>
-        <p class="text-muted">管理用户的权限申请</p>
+<!-- 页面头部 -->
+<div class="mb-4">
+    <h1 class="h3 mb-2" style="color: var(--claude-text-primary); font-weight: 600;">
+        <i class="bi bi-check-circle me-2" style="color: var(--claude-primary);"></i>
+        <span class="d-none d-sm-inline">审核权限申请</span>
+        <span class="d-sm-none">审核申请</span>
+    </h1>
+    <p class="text-muted mb-0">管理和审核用户的服务器权限申请</p>
+</div>
+
+<!-- 统计概览 -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="claude-metric-card">
+            <div class="d-flex align-items-center">
+                <div class="flex-grow-1">
+                    <div class="claude-metric-value" style="color: var(--claude-warning);">{{ applications|selectattr('status', 'equalto', 'pending')|list|length }}</div>
+                    <div class="claude-metric-label">待审核</div>
+                </div>
+                <i class="bi bi-clock-history" style="font-size: 2rem; color: var(--claude-warning); opacity: 0.7;"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="claude-metric-card">
+            <div class="d-flex align-items-center">
+                <div class="flex-grow-1">
+                    <div class="claude-metric-value" style="color: var(--claude-success);">{{ applications|selectattr('status', 'equalto', 'approved')|list|length }}</div>
+                    <div class="claude-metric-label">已通过</div>
+                </div>
+                <i class="bi bi-check-circle" style="font-size: 2rem; color: var(--claude-success); opacity: 0.7;"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="claude-metric-card">
+            <div class="d-flex align-items-center">
+                <div class="flex-grow-1">
+                    <div class="claude-metric-value" style="color: var(--claude-danger);">{{ applications|selectattr('status', 'equalto', 'rejected')|list|length }}</div>
+                    <div class="claude-metric-label">已拒绝</div>
+                </div>
+                <i class="bi bi-x-circle" style="font-size: 2rem; color: var(--claude-danger); opacity: 0.7;"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="claude-metric-card">
+            <div class="d-flex align-items-center">
+                <div class="flex-grow-1">
+                    <div class="claude-metric-value">{{ applications|length }}</div>
+                    <div class="claude-metric-label">总申请数</div>
+                </div>
+                <i class="bi bi-list-check" style="font-size: 2rem; color: var(--claude-primary); opacity: 0.7;"></i>
+            </div>
+        </div>
     </div>
 </div>
 
-<div class="card mb-3">
-    <div class="card-body">
-        <div class="row align-items-center">
-            <div class="col">
-                <div class="btn-group" role="group">
-                    <a href="{{ url_for('admin_review', status='pending') }}" 
-                       class="btn btn-{{ 'primary' if status_filter == 'pending' else 'outline-primary' }}">
-                        待审核
-                    </a>
-                    <a href="{{ url_for('admin_review', status='approved') }}" 
-                       class="btn btn-{{ 'success' if status_filter == 'approved' else 'outline-success' }}">
-                        已通过
-                    </a>
-                    <a href="{{ url_for('admin_review', status='rejected') }}" 
-                       class="btn btn-{{ 'danger' if status_filter == 'rejected' else 'outline-danger' }}">
-                        已拒绝
-                    </a>
-                    <a href="{{ url_for('admin_review', status='all') }}" 
-                       class="btn btn-{{ 'secondary' if status_filter == 'all' else 'outline-secondary' }}">
-                        全部
-                    </a>
+<!-- 筛选器 -->
+<div class="claude-card mb-4">
+    <div class="claude-card-body">
+        <div class="d-flex justify-content-between align-items-center">
+            <div class="d-flex gap-2">
+                <a href="{{ url_for('admin_review', status='pending') }}" 
+                   class="claude-btn {{ 'claude-btn-primary' if status_filter == 'pending' else 'claude-btn-secondary' }}">
+                    <i class="bi bi-clock-history me-1"></i>
+                    待审核
+                </a>
+                <a href="{{ url_for('admin_review', status='approved') }}" 
+                   class="claude-btn {{ 'claude-btn-success' if status_filter == 'approved' else 'claude-btn-secondary' }}">
+                    <i class="bi bi-check-circle me-1"></i>
+                    已通过
+                </a>
+                <a href="{{ url_for('admin_review', status='rejected') }}" 
+                   class="claude-btn {{ 'claude-btn-danger' if status_filter == 'rejected' else 'claude-btn-secondary' }}">
+                    <i class="bi bi-x-circle me-1"></i>
+                    已拒绝
+                </a>
+                <a href="{{ url_for('admin_review', status='all') }}" 
+                   class="claude-btn {{ 'claude-btn-primary' if status_filter == 'all' else 'claude-btn-secondary' }}">
+                    <i class="bi bi-list me-1"></i>
+                    全部
+                </a>
+            </div>
+            <div class="text-muted">
+                <i class="bi bi-info-circle me-1"></i>
+                共 <strong>{{ applications|length }}</strong> 条记录
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 申请列表 -->
+{% if applications %}
+<div class="row">
+    {% for app in applications %}
+    <div class="col-xl-6 col-lg-12 col-md-6 col-sm-12 mb-4">
+        <div class="claude-card {{ 'border-warning' if app.status == 'pending' else 'border-success' if app.status == 'approved' else 'border-danger' if app.status == 'rejected' else '' }}" style="{{ 'border-left-width: 4px !important;' if app.status != 'all' else '' }}">
+            <!-- 申请卡片头部 -->
+            <div class="claude-card-header">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="d-flex align-items-center">
+                        <div class="me-3">
+                            <div class="bg-light rounded-circle d-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
+                                <i class="bi bi-person-circle" style="font-size: 1.5rem; color: var(--claude-primary);"></i>
+                            </div>
+                        </div>
+                        <div>
+                            <h6 class="mb-1 fw-semibold">{{ app.user.username }}</h6>
+                            <small class="text-muted">申请时间: {{ app.created_at.strftime('%m-%d %H:%M') }}</small>
+                        </div>
+                    </div>
+                    <span class="claude-badge claude-badge-{{ 'warning' if app.status == 'pending' else 'success' if app.status == 'approved' else 'danger' }}">
+                        <i class="bi bi-{{ 'clock-history' if app.status == 'pending' else 'check-circle' if app.status == 'approved' else 'x-circle' }}"></i>
+                        {{ '待审核' if app.status == 'pending' else '已通过' if app.status == 'approved' else '已拒绝' }}
+                    </span>
                 </div>
             </div>
-            <div class="col-auto">
-                <span class="text-muted">共 {{ applications|length }} 条记录</span>
+            
+            <!-- 申请详情 -->
+            <div class="claude-card-body">
+                <div class="row mb-3">
+                    <div class="col-6">
+                        <div class="application-detail-item">
+                            <label>目标服务器</label>
+                            <div class="application-detail-value">
+                                <i class="bi bi-server me-2" style="color: var(--claude-primary);"></i>
+                                <div>
+                                    <strong>{{ app.server.name }}</strong>
+                                    <br><small class="text-muted">{{ app.server.host }}</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="application-detail-item">
+                            <label>权限类型</label>
+                            <div class="application-detail-value">
+                                <i class="bi bi-shield-check me-2" style="color: var(--claude-info);"></i>
+                                <div>
+                                    <strong>{{ app.permission_type.name }}</strong>
+                                    {% if app.permission_type.requires_reason %}
+                                    <br><span class="claude-badge claude-badge-warning claude-badge-sm">
+                                        <i class="bi bi-exclamation-triangle"></i>
+                                        需要理由
+                                    </span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                {% if app.reason %}
+                <div class="mb-3">
+                    <div class="application-detail-item">
+                        <label>申请理由</label>
+                        <div class="application-detail-value">
+                            <div class="alert alert-light border-0 mb-0" style="background: var(--claude-bg-secondary);">
+                                <i class="bi bi-chat-text me-2"></i>
+                                {{ app.reason }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+                
+                {% if app.admin_comment %}
+                <div class="mb-3">
+                    <div class="application-detail-item">
+                        <label>审核意见</label>
+                        <div class="application-detail-value">
+                            <div class="alert alert-info border-0 mb-0">
+                                <i class="bi bi-person-badge me-2"></i>
+                                {{ app.admin_comment }}
+                                {% if app.reviewed_at %}
+                                <br><small class="text-muted">{{ app.reviewed_at.strftime('%Y-%m-%d %H:%M') }}</small>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            
+            <!-- 操作按钮 -->
+            <div class="claude-card-footer">
+                <div class="d-flex gap-2">
+                    <button class="claude-btn claude-btn-secondary flex-fill" 
+                            onclick="showReviewModal({{ app.id }})"
+                            data-bs-toggle="modal" 
+                            data-bs-target="#reviewModal">
+                        <i class="bi bi-eye"></i>
+                        查看详情
+                    </button>
+                    {% if app.status == 'pending' %}
+                    <button class="claude-btn claude-btn-success" 
+                            onclick="quickApprove({{ app.id }})">
+                        <i class="bi bi-check-circle"></i>
+                        通过
+                    </button>
+                    <button class="claude-btn claude-btn-danger" 
+                            onclick="quickReject({{ app.id }})">
+                        <i class="bi bi-x-circle"></i>
+                        拒绝
+                    </button>
+                    {% elif app.status == 'approved' %}
+                    <button class="claude-btn claude-btn-warning" 
+                            onclick="revokePermission({{ app.id }}, '{{ app.user.username }}', '{{ app.permission_type.name }}')">
+                        <i class="bi bi-shield-x"></i>
+                        撤销权限
+                    </button>
+                    {% endif %}
+                </div>
             </div>
         </div>
     </div>
-</div>
-
-{% if applications %}
-<div class="card">
-    <div class="card-body">
-        <div class="table-responsive">
-            <table class="table table-hover">
-                <thead>
-                    <tr>
-                        <th>申请人</th>
-                        <th>服务器</th>
-                        <th>权限类型</th>
-                        <th>申请时间</th>
-                        <th>状态</th>
-                        <th>操作</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for app in applications %}
-                    <tr class="{{ 'table-warning' if app.status == 'pending' else '' }}">
-                        <td>
-                            <strong>{{ app.user.username }}</strong>
-                        </td>
-                        <td>
-                            <strong>{{ app.server.name }}</strong><br>
-                            <small class="text-muted">{{ app.server.host }}</small>
-                        </td>
-                        <td>
-                            <span class="badge bg-light text-dark">{{ app.permission_type.name }}</span>
-                            {% if app.reason %}
-                            <br><small class="text-muted">有申请理由</small>
-                            {% endif %}
-                        </td>
-                        <td>
-                            {{ app.created_at.strftime('%Y-%m-%d %H:%M') }}
-                        </td>
-                        <td>
-                            {% if app.status == 'pending' %}
-                                <span class="badge bg-warning">待审核</span>
-                            {% elif app.status == 'approved' %}
-                                <span class="badge bg-success">已通过</span>
-                            {% elif app.status == 'rejected' %}
-                                <span class="badge bg-danger">已拒绝</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            <div class="btn-group btn-group-sm">
-                                <button class="btn btn-outline-primary" 
-                                        onclick="showReviewModal({{ app.id }})"
-                                        data-bs-toggle="modal" 
-                                        data-bs-target="#reviewModal">
-                                    <i class="bi bi-eye"></i> 查看
-                                </button>
-                                {% if app.status == 'pending' %}
-                                <button class="btn btn-outline-success" 
-                                        onclick="quickApprove({{ app.id }})">
-                                    <i class="bi bi-check"></i> 通过
-                                </button>
-                                <button class="btn btn-outline-danger" 
-                                        onclick="quickReject({{ app.id }})">
-                                    <i class="bi bi-x"></i> 拒绝
-                                </button>
-                                {% endif %}
-                            </div>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
+    {% endfor %}
 </div>
 {% else %}
-<div class="alert alert-info text-center">
-    <i class="bi bi-info-circle"></i>
-    {% if status_filter == 'pending' %}
-        暂无待审核的申请
-    {% else %}
-        没有找到相关的申请记录
-    {% endif %}
+<div class="claude-card text-center py-5">
+    <div class="claude-card-body">
+        <i class="bi bi-inbox" style="font-size: 4rem; color: var(--claude-text-muted); opacity: 0.5;"></i>
+        <h4 class="mt-3 mb-2" style="color: var(--claude-text-secondary);">暂无申请记录</h4>
+        <p class="text-muted mb-0">
+            {% if status_filter == 'pending' %}
+                当前没有待审核的申请
+            {% else %}
+                没有找到相关的申请记录
+            {% endif %}
+        </p>
+    </div>
 </div>
 {% endif %}
 
 <!-- 审核模态框 -->
 <div class="modal fade" id="reviewModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">审核申请</h5>
+        <div class="modal-content" style="border: none; box-shadow: var(--claude-shadow-lg);">
+            <div class="modal-header" style="background: var(--claude-bg-secondary); border-bottom: 1px solid var(--claude-border-light);">
+                <h5 class="modal-title" style="color: var(--claude-text-primary); font-weight: 600;">
+                    <i class="bi bi-eye me-2"></i>
+                    申请详情审核
+                </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form id="reviewForm" method="POST">
-                <div class="modal-body" id="reviewDetails">
-                    <!-- 动态内容 -->
+                <div class="modal-body p-4" id="reviewDetails">
+                    <div class="text-center py-4">
+                        <div class="claude-loading">
+                            <i class="bi bi-arrow-clockwise" style="font-size: 2rem; color: var(--claude-primary);"></i>
+                            <p class="mt-2 text-muted">加载申请详情中...</p>
+                        </div>
+                    </div>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-                    <button type="submit" name="action" value="approved" class="btn btn-success">
-                        <i class="bi bi-check-circle"></i> 通过
+                <div class="modal-footer" style="background: var(--claude-bg-secondary); border-top: 1px solid var(--claude-border-light);">
+                    <button type="button" class="claude-btn claude-btn-secondary" data-bs-dismiss="modal">
+                        <i class="bi bi-x me-1"></i>
+                        取消
                     </button>
-                    <button type="submit" name="action" value="rejected" class="btn btn-danger">
-                        <i class="bi bi-x-circle"></i> 拒绝
+                    <button type="submit" name="action" value="approved" class="claude-btn claude-btn-success">
+                        <i class="bi bi-check-circle me-1"></i>
+                        通过申请
+                    </button>
+                    <button type="submit" name="action" value="rejected" class="claude-btn claude-btn-danger">
+                        <i class="bi bi-x-circle me-1"></i>
+                        拒绝申请
                     </button>
                 </div>
             </form>
@@ -149,6 +279,58 @@
 {% endblock %}
 
 {% block scripts %}
+<style>
+/* 申请详情样式 */
+.application-detail-item {
+    margin-bottom: 16px;
+}
+
+.application-detail-item label {
+    font-size: 0.875rem;
+    color: var(--claude-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+    font-weight: 600;
+    margin-bottom: 8px;
+    display: block;
+}
+
+.application-detail-value {
+    display: flex;
+    align-items: flex-start;
+    font-weight: 500;
+    color: var(--claude-text-primary);
+}
+
+.claude-badge-sm {
+    font-size: 0.6875rem;
+    padding: 2px 6px;
+}
+
+/* 模态框加载动画 */
+@keyframes modal-loading {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.claude-loading i {
+    animation: modal-loading 2s linear infinite;
+}
+
+/* 申请卡片样式优化 */
+.claude-card.border-warning {
+    border-left-color: var(--claude-warning) !important;
+}
+
+.claude-card.border-success {
+    border-left-color: var(--claude-success) !important;
+}
+
+.claude-card.border-danger {
+    border-left-color: var(--claude-danger) !important;
+}
+</style>
+
 <script>
 const applications = {{ applications | tojson }};
 
@@ -158,131 +340,231 @@ function showReviewModal(appId) {
     
     let statusBadge = '';
     if (app.status === 'pending') {
-        statusBadge = '<span class="badge bg-warning">待审核</span>';
+        statusBadge = '<span class="claude-badge claude-badge-warning"><i class="bi bi-clock-history me-1"></i>待审核</span>';
     } else if (app.status === 'approved') {
-        statusBadge = '<span class="badge bg-success">已通过</span>';
+        statusBadge = '<span class="claude-badge claude-badge-success"><i class="bi bi-check-circle me-1"></i>已通过</span>';
     } else if (app.status === 'rejected') {
-        statusBadge = '<span class="badge bg-danger">已拒绝</span>';
+        statusBadge = '<span class="claude-badge claude-badge-danger"><i class="bi bi-x-circle me-1"></i>已拒绝</span>';
     }
     
     const reviewedInfo = app.reviewed_at ? 
-        `<div class="row mb-3">
-            <div class="col-3"><strong>审核时间:</strong></div>
-            <div class="col-9">${new Date(app.reviewed_at).toLocaleString()}</div>
-        </div>
-        <div class="row mb-3">
-            <div class="col-3"><strong>审核人:</strong></div>
-            <div class="col-9">${app.reviewer ? app.reviewer.username : '-'}</div>
+        `<div class="application-detail-item">
+            <label>审核信息</label>
+            <div class="application-detail-value">
+                <div class="alert alert-light border-0 w-100" style="background: var(--claude-bg-secondary);">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <strong>审核时间:</strong><br>
+                            <span class="text-muted">${new Date(app.reviewed_at).toLocaleString()}</span>
+                        </div>
+                        <div class="col-md-6">
+                            <strong>审核人:</strong><br>
+                            <span class="text-muted">${app.reviewer ? app.reviewer.username : '-'}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>` : '';
     
     const existingComment = app.admin_comment ? app.admin_comment : '';
     
     const content = `
-        <div class="row mb-3">
-            <div class="col-3"><strong>申请人:</strong></div>
-            <div class="col-9">${app.user.username}</div>
-        </div>
-        <div class="row mb-3">
-            <div class="col-3"><strong>服务器:</strong></div>
-            <div class="col-9">${app.server.name} (${app.server.host})</div>
-        </div>
-        <div class="row mb-3">
-            <div class="col-3"><strong>权限类型:</strong></div>
-            <div class="col-9">
-                ${app.permission_type.name}
-                <br><small class="text-muted">${app.permission_type.description}</small>
+        <div class="row">
+            <div class="col-md-6">
+                <div class="application-detail-item">
+                    <label>申请人信息</label>
+                    <div class="application-detail-value">
+                        <i class="bi bi-person-circle me-2" style="color: var(--claude-primary);"></i>
+                        <div>
+                            <strong>${app.user.username}</strong>
+                            <br><small class="text-muted">申请时间: ${new Date(app.created_at).toLocaleString()}</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="application-detail-item">
+                    <label>申请状态</label>
+                    <div class="application-detail-value">
+                        ${statusBadge}
+                    </div>
+                </div>
             </div>
         </div>
-        <div class="row mb-3">
-            <div class="col-3"><strong>申请时间:</strong></div>
-            <div class="col-9">${new Date(app.created_at).toLocaleString()}</div>
+        
+        <div class="row">
+            <div class="col-md-6">
+                <div class="application-detail-item">
+                    <label>目标服务器</label>
+                    <div class="application-detail-value">
+                        <i class="bi bi-server me-2" style="color: var(--claude-primary);"></i>
+                        <div>
+                            <strong>${app.server.name}</strong>
+                            <br><small class="text-muted">${app.server.host}:${app.server.port}</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="application-detail-item">
+                    <label>权限类型</label>
+                    <div class="application-detail-value">
+                        <i class="bi bi-shield-check me-2" style="color: var(--claude-info);"></i>
+                        <div>
+                            <strong>${app.permission_type.name}</strong>
+                            <br><small class="text-muted">${app.permission_type.description}</small>
+                            ${app.permission_type.requires_reason ? '<br><span class="claude-badge claude-badge-warning claude-badge-sm"><i class="bi bi-exclamation-triangle me-1"></i>需要理由</span>' : ''}
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
-        <div class="row mb-3">
-            <div class="col-3"><strong>状态:</strong></div>
-            <div class="col-9">${statusBadge}</div>
-        </div>
+        
         ${app.reason ? `
-        <div class="row mb-3">
-            <div class="col-3"><strong>申请理由:</strong></div>
-            <div class="col-9">
-                <div class="alert alert-light mb-0">
+        <div class="application-detail-item">
+            <label>申请理由</label>
+            <div class="application-detail-value">
+                <div class="alert alert-light border-0 w-100" style="background: var(--claude-bg-secondary);">
+                    <i class="bi bi-chat-text me-2"></i>
                     ${app.reason}
                 </div>
             </div>
         </div>` : ''}
+        
         ${reviewedInfo}
+        
         ${app.status === 'pending' ? `
-        <div class="row mb-3">
-            <div class="col-3"><strong>审核意见:</strong></div>
-            <div class="col-9">
-                <textarea class="form-control" name="admin_comment" rows="3" 
-                          placeholder="请输入审核意见（可选）">${existingComment}</textarea>
+        <div class="application-detail-item">
+            <label>审核意见</label>
+            <div class="application-detail-value w-100">
+                <textarea class="claude-form-control" name="admin_comment" rows="3" 
+                          placeholder="请输入审核意见（可选）...">${existingComment}</textarea>
+                <div class="form-text mt-2">
+                    <i class="bi bi-info-circle me-1"></i>
+                    审核意见将发送给申请人，请提供有建设性的反馈
+                </div>
             </div>
         </div>` : (app.admin_comment ? `
-        <div class="row mb-3">
-            <div class="col-3"><strong>审核意见:</strong></div>
-            <div class="col-9">
-                <div class="alert alert-info mb-0">
+        <div class="application-detail-item">
+            <label>审核意见</label>
+            <div class="application-detail-value">
+                <div class="alert alert-info border-0 w-100">
+                    <i class="bi bi-person-badge me-2"></i>
                     ${app.admin_comment}
                 </div>
             </div>
         </div>` : '')}
     `;
     
-    $('#reviewDetails').html(content);
-    $('#reviewForm').attr('action', `/admin/review_application/${appId}`);
+    document.getElementById('reviewDetails').innerHTML = content;
+    document.getElementById('reviewForm').setAttribute('action', `/admin/review_application/${appId}`);
     
     // 如果已经审核过，隐藏操作按钮
+    const actionButtons = document.querySelectorAll('.modal-footer button[name="action"]');
     if (app.status !== 'pending') {
-        $('.modal-footer button[name="action"]').hide();
+        actionButtons.forEach(btn => btn.style.display = 'none');
     } else {
-        $('.modal-footer button[name="action"]').show();
+        actionButtons.forEach(btn => btn.style.display = 'inline-flex');
     }
 }
 
 function quickApprove(appId) {
-    if (confirm('确定要通过这个申请吗？')) {
-        const form = $('<form>', {
-            method: 'POST',
-            action: `/admin/review_application/${appId}`
-        });
+    // 显示确认对话框
+    if (confirm('确定要通过这个申请吗？\n\n通过后申请人将获得相应的服务器权限。')) {
+        const btn = event.target.closest('button');
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="bi bi-arrow-clockwise"></i> 处理中...';
+        btn.disabled = true;
         
-        form.append($('<input>', {
-            type: 'hidden',
-            name: 'action',
-            value: 'approved'
-        }));
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `/admin/review_application/${appId}`;
         
-        $('body').append(form);
+        const actionInput = document.createElement('input');
+        actionInput.type = 'hidden';
+        actionInput.name = 'action';
+        actionInput.value = 'approved';
+        form.appendChild(actionInput);
+        
+        document.body.appendChild(form);
         form.submit();
     }
 }
 
 function quickReject(appId) {
-    const reason = prompt('请输入拒绝理由（可选）:');
+    // 显示输入对话框
+    const reason = prompt('请输入拒绝理由（推荐填写）:\n\n拒绝理由将发送给申请人，有助于改进后续申请。');
     if (reason !== null) {
-        const form = $('<form>', {
-            method: 'POST',
-            action: `/admin/review_application/${appId}`
-        });
+        const btn = event.target.closest('button');
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="bi bi-arrow-clockwise"></i> 处理中...';
+        btn.disabled = true;
         
-        form.append($('<input>', {
-            type: 'hidden',
-            name: 'action',
-            value: 'rejected'
-        }));
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `/admin/review_application/${appId}`;
+        
+        const actionInput = document.createElement('input');
+        actionInput.type = 'hidden';
+        actionInput.name = 'action';
+        actionInput.value = 'rejected';
+        form.appendChild(actionInput);
         
         if (reason.trim()) {
-            form.append($('<input>', {
-                type: 'hidden',
-                name: 'admin_comment',
-                value: reason.trim()
-            }));
+            const commentInput = document.createElement('input');
+            commentInput.type = 'hidden';
+            commentInput.name = 'admin_comment';
+            commentInput.value = reason.trim();
+            form.appendChild(commentInput);
         }
         
-        $('body').append(form);
+        document.body.appendChild(form);
         form.submit();
     }
 }
+
+// 撤销权限函数
+function revokePermission(appId, username, permissionType) {
+    if (confirm(`确定要撤销用户 "${username}" 的 "${permissionType}" 权限吗？\n\n注意：此操作将立即在服务器上撤销相关权限，并且不可撤销。`)) {
+        // 创建一个临时的加载提示
+        const loadingToast = document.createElement('div');
+        loadingToast.className = 'alert alert-info alert-dismissible fade show position-fixed';
+        loadingToast.style.cssText = 'top: 80px; right: 20px; z-index: 1050; min-width: 300px;';
+        loadingToast.innerHTML = `
+            <div class="d-flex align-items-center">
+                <div class="spinner-border spinner-border-sm me-2" role="status">
+                    <span class="visually-hidden">加载中...</span>
+                </div>
+                正在撤销权限，请稍候...
+            </div>
+        `;
+        document.body.appendChild(loadingToast);
+        
+        // 创建表单并提交
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `/admin/revoke_permission/${appId}`;
+        form.style.display = 'none';
+        
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+
+// 页面加载完成后的初始化
+document.addEventListener('DOMContentLoaded', function() {
+    // 为表单提交添加加载状态
+    const reviewForm = document.getElementById('reviewForm');
+    if (reviewForm) {
+        reviewForm.addEventListener('submit', function(e) {
+            const submitBtns = this.querySelectorAll('button[type="submit"]');
+            submitBtns.forEach(btn => {
+                const originalText = btn.innerHTML;
+                btn.innerHTML = '<i class="bi bi-arrow-clockwise"></i> 处理中...';
+                btn.disabled = true;
+            });
+        });
+    }
+});
 </script>
 {% endblock %}

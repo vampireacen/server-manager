@@ -3,92 +3,324 @@
 {% block title %}申请权限 - 服务器管理系统{% endblock %}
 
 {% block content %}
-<div class="row">
-    <div class="col-md-8">
-        <h2><i class="bi bi-plus-circle"></i> 申请服务器权限</h2>
-        <p class="text-muted">选择服务器和权限类型，提交申请等待审核</p>
-        
-        <div class="card">
-            <div class="card-body">
-                <form method="POST" id="applicationForm">
-                    <div class="mb-3">
-                        <label for="server_id" class="form-label">选择服务器 <span class="text-danger">*</span></label>
-                        <select class="form-select" id="server_id" name="server_id" required>
-                            <option value="">请选择服务器</option>
-                            {% for server in servers %}
-                            <option value="{{ server.id }}">{{ server.name }} ({{ server.host }})</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="permission_type_id" class="form-label">权限类型 <span class="text-danger">*</span></label>
-                        <select class="form-select" id="permission_type_id" name="permission_type_id" required>
-                            <option value="">请选择权限类型</option>
-                            {% for ptype in permission_types %}
-                            <option value="{{ ptype.id }}" data-requires-reason="{{ ptype.requires_reason }}">
-                                {{ ptype.name }} - {{ ptype.description }}
-                            </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    
-                    <div class="mb-3" id="reasonContainer" style="display: none;">
-                        <label for="reason" class="form-label">申请理由 <span class="text-danger">*</span></label>
-                        <textarea class="form-control" id="reason" name="reason" rows="4" 
-                                placeholder="请详细说明您申请此权限的理由和用途"></textarea>
-                        <div class="form-text">申请特殊权限时必须提供详细理由</div>
-                    </div>
-                    
-                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                        <button type="button" class="btn btn-secondary" onclick="history.back()">取消</button>
-                        <button type="submit" class="btn btn-primary">
-                            <i class="bi bi-send"></i> 提交申请
-                        </button>
-                    </div>
-                </form>
+<!-- 页面头部 -->
+<div class="mb-4">
+    <h1 class="h3 mb-2" style="color: var(--claude-text-primary); font-weight: 600;">
+        <i class="bi bi-plus-circle me-2" style="color: var(--claude-primary);"></i>
+        申请服务器权限
+    </h1>
+    <p class="text-muted mb-0">选择服务器和权限类型，提交申请等待管理员审核</p>
+</div>
+
+<!-- 申请步骤指示器 -->
+<div class="claude-card mb-4">
+    <div class="claude-card-body">
+        <div class="row">
+            <div class="col-md-3 text-center">
+                <div class="step-item active" id="step1">
+                    <div class="step-number">1</div>
+                    <div class="step-title">选择服务器</div>
+                </div>
+            </div>
+            <div class="col-md-3 text-center">
+                <div class="step-item" id="step2">
+                    <div class="step-number">2</div>
+                    <div class="step-title">选择权限</div>
+                </div>
+            </div>
+            <div class="col-md-3 text-center">
+                <div class="step-item" id="step3">
+                    <div class="step-number">3</div>
+                    <div class="step-title">填写信息</div>
+                </div>
+            </div>
+            <div class="col-md-3 text-center">
+                <div class="step-item" id="step4">
+                    <div class="step-number">4</div>
+                    <div class="step-title">提交申请</div>
+                </div>
             </div>
         </div>
     </div>
-    
-    <div class="col-md-4">
-        <div class="card">
-            <div class="card-header">
-                <h5><i class="bi bi-info-circle"></i> 申请须知</h5>
-            </div>
-            <div class="card-body">
-                <ul class="list-unstyled">
-                    <li class="mb-2">
-                        <i class="bi bi-check-circle text-success"></i>
-                        普通用户权限通常会快速审核通过
-                    </li>
-                    <li class="mb-2">
-                        <i class="bi bi-exclamation-triangle text-warning"></i>
-                        特殊权限需要详细说明使用理由
-                    </li>
-                    <li class="mb-2">
-                        <i class="bi bi-clock text-info"></i>
-                        管理员将在1-3个工作日内处理申请
-                    </li>
-                    <li class="mb-2">
-                        <i class="bi bi-shield-check text-primary"></i>
-                        请确保申请的权限符合公司安全政策
-                    </li>
-                </ul>
-            </div>
-        </div>
-        
-        <div class="card mt-3">
-            <div class="card-header">
-                <h6><i class="bi bi-list-ul"></i> 权限说明</h6>
-            </div>
-            <div class="card-body">
-                {% for ptype in permission_types %}
-                <div class="mb-2">
-                    <strong>{{ ptype.name }}</strong>
-                    <p class="text-muted small mb-0">{{ ptype.description }}</p>
+</div>
+
+<!-- 申请表单 -->
+<div class="row">
+    <div class="col-lg-8 col-md-12">
+        <form method="POST" id="applicationForm">
+            <!-- 步骤1: 选择服务器 -->
+            <div class="claude-card form-step active" id="form-step-1">
+                <div class="claude-card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-server me-2"></i>
+                        步骤 1: 选择服务器
+                    </h5>
                 </div>
-                {% endfor %}
+                <div class="claude-card-body">
+                    {% if servers %}
+                    <div class="row">
+                        {% for server in servers %}
+                        <div class="col-lg-6 col-md-12 col-sm-6 mb-3">
+                            <div class="server-option" data-server-id="{{ server.id }}">
+                                <input type="radio" name="server_id" value="{{ server.id }}" id="server-{{ server.id }}" class="d-none">
+                                <label for="server-{{ server.id }}" class="server-card">
+                                    <div class="d-flex align-items-center">
+                                        <div class="server-icon me-3">
+                                            <i class="bi bi-server"></i>
+                                        </div>
+                                        <div class="flex-grow-1">
+                                            <h6 class="mb-1">{{ server.name }}</h6>
+                                            <p class="text-muted mb-0 small">{{ server.host }}:{{ server.port }}</p>
+                                            <span class="claude-badge claude-badge-{{ 'success' if server.status == 'online' else 'danger' if server.status == 'offline' else 'info' }} mt-1">
+                                                {{ server.status }}
+                                            </span>
+                                        </div>
+                                        <div class="check-icon">
+                                            <i class="bi bi-check-circle"></i>
+                                        </div>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="bi bi-server" style="font-size: 3rem; color: var(--claude-text-muted); opacity: 0.5;"></i>
+                        <h5 class="mt-3 text-muted">暂无可用服务器</h5>
+                        <p class="text-muted">管理员还没有添加任何服务器</p>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="claude-card-footer text-end">
+                    <button type="button" class="claude-btn claude-btn-primary" onclick="nextStep(2)" disabled id="step1-next">
+                        下一步
+                        <i class="bi bi-arrow-right ms-1"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 步骤2: 选择权限类型 -->
+            <div class="claude-card form-step" id="form-step-2">
+                <div class="claude-card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-shield-check me-2"></i>
+                        步骤 2: 选择权限类型
+                    </h5>
+                </div>
+                <div class="claude-card-body">
+                    <div class="row">
+                        {% for ptype in permission_types %}
+                        <div class="col-lg-6 col-md-12 col-sm-6 mb-3">
+                            <div class="permission-option" data-permission-id="{{ ptype.id }}" data-requires-reason="{{ ptype.requires_reason }}">
+                                <input type="checkbox" name="permission_type_ids" value="{{ ptype.id }}" id="permission-{{ ptype.id }}" class="d-none">
+                                <label for="permission-{{ ptype.id }}" class="permission-card">
+                                    <div class="permission-header">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <h6 class="mb-0">{{ ptype.name }}</h6>
+                                            <div class="check-icon">
+                                                <i class="bi bi-check-circle"></i>
+                                            </div>
+                                        </div>
+                                        <div class="permission-badge-container">
+                                            {% if ptype.requires_reason %}
+                                            <span class="claude-badge claude-badge-warning mt-2">
+                                                <i class="bi bi-exclamation-triangle me-1"></i>
+                                                需要说明理由
+                                            </span>
+                                            {% else %}
+                                            <div class="permission-badge-placeholder"></div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    <div class="permission-description">
+                                        <p class="text-muted mb-0 small">{{ ptype.description }}</p>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="claude-card-footer d-flex justify-content-between">
+                    <button type="button" class="claude-btn claude-btn-secondary" onclick="prevStep(1)">
+                        <i class="bi bi-arrow-left me-1"></i>
+                        上一步
+                    </button>
+                    <button type="button" class="claude-btn claude-btn-primary" onclick="nextStep(3)" disabled id="step2-next">
+                        下一步
+                        <i class="bi bi-arrow-right ms-1"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 步骤3: 填写申请信息 -->
+            <div class="claude-card form-step" id="form-step-3">
+                <div class="claude-card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-pencil-square me-2"></i>
+                        步骤 3: 填写申请信息
+                    </h5>
+                </div>
+                <div class="claude-card-body">
+                    <!-- 申请摘要 -->
+                    <div class="alert alert-light border-0 mb-4" style="background: var(--claude-bg-secondary);">
+                        <h6 class="mb-2">申请摘要</h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <strong>服务器:</strong> <span id="summary-server">请先选择服务器</span>
+                            </div>
+                            <div class="col-md-6">
+                                <strong>权限类型:</strong> <span id="summary-permission">请先选择权限</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 申请理由 -->
+                    <div id="reason-container" style="display: none;">
+                        <label for="reason" class="claude-form-label">
+                            申请理由 <span class="text-danger">*</span>
+                        </label>
+                        <textarea class="claude-form-control" id="reason" name="reason" rows="4" 
+                                placeholder="请详细说明您申请此权限的理由和用途..."></textarea>
+                        <div class="form-text mt-2">
+                            <i class="bi bi-info-circle me-1"></i>
+                            申请特殊权限时必须提供详细理由，包括使用目的、预期时间等
+                        </div>
+                    </div>
+
+                    <div id="no-reason-info" class="text-center py-4">
+                        <i class="bi bi-check-circle text-success" style="font-size: 2rem;"></i>
+                        <h6 class="mt-2 mb-1">申请信息已完整</h6>
+                        <p class="text-muted mb-0">该权限类型无需额外说明理由</p>
+                    </div>
+                </div>
+                <div class="claude-card-footer d-flex justify-content-between">
+                    <button type="button" class="claude-btn claude-btn-secondary" onclick="prevStep(2)">
+                        <i class="bi bi-arrow-left me-1"></i>
+                        上一步
+                    </button>
+                    <button type="button" class="claude-btn claude-btn-primary" onclick="nextStep(4)" id="step3-next">
+                        下一步
+                        <i class="bi bi-arrow-right ms-1"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 步骤4: 确认提交 -->
+            <div class="claude-card form-step" id="form-step-4">
+                <div class="claude-card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-check-circle me-2"></i>
+                        步骤 4: 确认并提交申请
+                    </h5>
+                </div>
+                <div class="claude-card-body">
+                    <!-- 最终确认信息 -->
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="confirmation-item">
+                                <label>申请服务器</label>
+                                <div class="confirmation-value" id="confirm-server">
+                                    <i class="bi bi-server me-2"></i>
+                                    <span>未选择</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="confirmation-item">
+                                <label>权限类型</label>
+                                <div class="confirmation-value" id="confirm-permission">
+                                    <i class="bi bi-shield-check me-2"></i>
+                                    <span>未选择</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="confirmation-item" id="confirm-reason-container" style="display: none;">
+                        <label>申请理由</label>
+                        <div class="confirmation-value">
+                            <div class="alert alert-light border-0" style="background: var(--claude-bg-secondary);">
+                                <span id="confirm-reason">无</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 申请须知 -->
+                    <div class="alert alert-info border-0 mt-4">
+                        <h6 class="mb-2">
+                            <i class="bi bi-info-circle me-2"></i>
+                            申请须知
+                        </h6>
+                        <ul class="mb-0 ps-3">
+                            <li>提交申请后，管理员将在1-3个工作日内进行审核</li>
+                            <li>您可以在"我的申请"页面查看申请状态和审核结果</li>
+                            <li>如有疑问，请联系系统管理员</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="claude-card-footer d-flex justify-content-between">
+                    <button type="button" class="claude-btn claude-btn-secondary" onclick="prevStep(3)">
+                        <i class="bi bi-arrow-left me-1"></i>
+                        上一步
+                    </button>
+                    <button type="submit" class="claude-btn claude-btn-success">
+                        <i class="bi bi-send me-1"></i>
+                        提交申请
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- 右侧帮助面板 -->
+    <div class="col-lg-4 col-md-12 mt-4 mt-lg-0">
+        <div class="claude-card position-relative position-lg-sticky" style="top: 20px;">
+            <div class="claude-card-header">
+                <h6 class="mb-0">
+                    <i class="bi bi-question-circle me-2"></i>
+                    申请指南
+                </h6>
+            </div>
+            <div class="claude-card-body">
+                <div class="help-section" id="help-step-1">
+                    <h6 class="text-primary">选择服务器</h6>
+                    <ul class="small text-muted">
+                        <li>选择您需要访问的目标服务器</li>
+                        <li>只能同时申请一台服务器的权限</li>
+                        <li>确认服务器状态为在线</li>
+                    </ul>
+                </div>
+                
+                <div class="help-section d-none" id="help-step-2">
+                    <h6 class="text-primary">选择权限类型</h6>
+                    <ul class="small text-muted">
+                        <li><strong>普通用户</strong>: 基本SSH访问权限</li>
+                        <li><strong>管理员权限</strong>: sudo权限，需要详细理由</li>
+                        <li><strong>Docker权限</strong>: 容器管理权限</li>
+                        <li><strong>数据库权限</strong>: 数据库访问权限</li>
+                    </ul>
+                </div>
+                
+                <div class="help-section d-none" id="help-step-3">
+                    <h6 class="text-primary">填写申请理由</h6>
+                    <ul class="small text-muted">
+                        <li>清楚说明使用目的和需求</li>
+                        <li>预期使用时间和频率</li>
+                        <li>相关项目或任务背景</li>
+                        <li>理由越详细，审核通过率越高</li>
+                    </ul>
+                </div>
+                
+                <div class="help-section d-none" id="help-step-4">
+                    <h6 class="text-primary">提交申请</h6>
+                    <ul class="small text-muted">
+                        <li>仔细检查申请信息是否正确</li>
+                        <li>提交后无法修改，请谨慎操作</li>
+                        <li>等待管理员审核通知</li>
+                    </ul>
+                </div>
             </div>
         </div>
     </div>
@@ -96,41 +328,422 @@
 {% endblock %}
 
 {% block scripts %}
+<style>
+/* 步骤指示器样式 */
+.step-item {
+    padding: 20px 10px;
+    position: relative;
+    transition: var(--claude-transition-fast);
+}
+
+.step-item:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    top: 35px;
+    right: -50%;
+    width: 100%;
+    height: 2px;
+    background: var(--claude-border-light);
+    z-index: 1;
+}
+
+.step-item.active:not(:last-child)::after,
+.step-item.completed:not(:last-child)::after {
+    background: var(--claude-primary);
+}
+
+.step-number {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--claude-bg-secondary);
+    border: 2px solid var(--claude-border-medium);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 8px;
+    font-weight: 600;
+    color: var(--claude-text-muted);
+    transition: var(--claude-transition-fast);
+    position: relative;
+    z-index: 2;
+}
+
+.step-item.active .step-number {
+    background: var(--claude-primary);
+    border-color: var(--claude-primary);
+    color: white;
+}
+
+.step-item.completed .step-number {
+    background: var(--claude-success);
+    border-color: var(--claude-success);
+    color: white;
+}
+
+.step-title {
+    font-size: 0.875rem;
+    color: var(--claude-text-muted);
+    font-weight: 500;
+}
+
+.step-item.active .step-title {
+    color: var(--claude-primary);
+    font-weight: 600;
+}
+
+.step-item.completed .step-title {
+    color: var(--claude-success);
+}
+
+/* 表单步骤样式 */
+.form-step {
+    display: none;
+}
+
+.form-step.active {
+    display: block;
+    animation: fadeInUp 0.3s ease-out;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* 服务器选择卡片 */
+.server-card {
+    display: block;
+    padding: 20px;
+    border: 2px solid var(--claude-border-light);
+    border-radius: var(--claude-radius-md);
+    background: white;
+    cursor: pointer;
+    transition: var(--claude-transition-fast);
+    text-decoration: none;
+    color: inherit;
+}
+
+.server-card:hover {
+    border-color: var(--claude-primary);
+    box-shadow: var(--claude-shadow-md);
+    transform: translateY(-2px);
+}
+
+.server-option input:checked + .server-card {
+    border-color: var(--claude-primary);
+    background: rgba(255, 107, 53, 0.05);
+}
+
+.server-icon {
+    width: 50px;
+    height: 50px;
+    background: var(--claude-bg-secondary);
+    border-radius: var(--claude-radius);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    color: var(--claude-primary);
+}
+
+.check-icon {
+    color: var(--claude-primary);
+    font-size: 1.25rem;
+    opacity: 0;
+    transition: var(--claude-transition-fast);
+}
+
+.server-option input:checked + .server-card .check-icon {
+    opacity: 1;
+}
+
+/* 权限选择卡片 */
+.permission-card {
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+    border: 2px solid var(--claude-border-light);
+    border-radius: var(--claude-radius-md);
+    background: white;
+    cursor: pointer;
+    transition: var(--claude-transition-fast);
+    text-decoration: none;
+    color: inherit;
+    height: 100%;
+    min-height: 140px;
+}
+
+.permission-header {
+    flex-grow: 0;
+    margin-bottom: 16px;
+}
+
+.permission-badge-container {
+    height: 32px;
+    display: flex;
+    align-items: flex-start;
+}
+
+.permission-badge-placeholder {
+    height: 28px;
+    margin-top: 8px;
+}
+
+.permission-description {
+    flex-grow: 1;
+    display: flex;
+    align-items: center;
+}
+
+.permission-card:hover {
+    border-color: var(--claude-primary);
+    box-shadow: var(--claude-shadow-md);
+    transform: translateY(-2px);
+}
+
+.permission-option input:checked + .permission-card {
+    border-color: var(--claude-primary);
+    background: rgba(255, 107, 53, 0.05);
+}
+
+.permission-option input:checked + .permission-card .check-icon {
+    opacity: 1;
+}
+
+/* 确认页面样式 */
+.confirmation-item {
+    margin-bottom: 20px;
+}
+
+.confirmation-item label {
+    font-size: 0.875rem;
+    color: var(--claude-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+    font-weight: 600;
+    margin-bottom: 8px;
+    display: block;
+}
+
+.confirmation-value {
+    display: flex;
+    align-items: center;
+    font-weight: 500;
+    color: var(--claude-text-primary);
+}
+
+/* 帮助面板样式 */
+.help-section h6 {
+    margin-bottom: 12px;
+}
+
+.help-section ul {
+    margin-bottom: 0;
+    padding-left: 16px;
+}
+
+.help-section li {
+    margin-bottom: 6px;
+}
+</style>
+
 <script>
-$(document).ready(function() {
-    $('#permission_type_id').change(function() {
-        const selectedOption = $(this).find('option:selected');
-        const requiresReason = selectedOption.data('requires-reason');
-        
-        if (requiresReason) {
-            $('#reasonContainer').show();
-            $('#reason').prop('required', true);
-        } else {
-            $('#reasonContainer').hide();
-            $('#reason').prop('required', false);
-        }
+let currentStep = 1;
+let selectedServer = null;
+let selectedPermissions = [];
+let selectedPermissionData = [];
+
+// 步骤控制函数
+function nextStep(step) {
+    if (validateCurrentStep()) {
+        showStep(step);
+    }
+}
+
+function prevStep(step) {
+    showStep(step);
+}
+
+function showStep(step) {
+    // 隐藏所有步骤
+    document.querySelectorAll('.form-step').forEach(el => {
+        el.classList.remove('active');
     });
     
-    $('#applicationForm').submit(function(e) {
-        const permissionTypeId = $('#permission_type_id').val();
-        const selectedOption = $('#permission_type_id').find('option:selected');
-        const requiresReason = selectedOption.data('requires-reason');
-        const reason = $('#reason').val().trim();
+    // 显示当前步骤
+    document.getElementById(`form-step-${step}`).classList.add('active');
+    
+    // 更新步骤指示器
+    updateStepIndicator(step);
+    
+    // 更新帮助面板
+    updateHelpPanel(step);
+    
+    currentStep = step;
+    
+    // 滚动到顶部
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function updateStepIndicator(activeStep) {
+    for (let i = 1; i <= 4; i++) {
+        const stepEl = document.getElementById(`step${i}`);
+        stepEl.classList.remove('active', 'completed');
         
-        if (requiresReason && !reason) {
-            e.preventDefault();
-            alert('申请此权限需要填写详细理由');
-            $('#reason').focus();
-            return false;
+        if (i < activeStep) {
+            stepEl.classList.add('completed');
+        } else if (i === activeStep) {
+            stepEl.classList.add('active');
         }
-        
-        if (reason.length > 0 && reason.length < 10) {
-            e.preventDefault();
-            alert('申请理由至少需要10个字符');
-            $('#reason').focus();
-            return false;
+    }
+}
+
+function updateHelpPanel(step) {
+    document.querySelectorAll('.help-section').forEach(el => {
+        el.classList.add('d-none');
+    });
+    document.getElementById(`help-step-${step}`).classList.remove('d-none');
+}
+
+function validateCurrentStep() {
+    switch (currentStep) {
+        case 1:
+            return selectedServer !== null;
+        case 2:
+            return selectedPermissions.length > 0;
+        case 3:
+            // 检查是否有需要理由的权限类型
+            const hasRequiredReason = selectedPermissionData.some(p => p.requires_reason);
+            if (hasRequiredReason) {
+                const reason = document.getElementById('reason').value.trim();
+                if (!reason || reason.length < 10) {
+                    alert('申请包含需要理由的权限，请填写详细理由（至少10个字符）');
+                    return false;
+                }
+            }
+            return true;
+        default:
+            return true;
+    }
+}
+
+// 初始化事件监听器
+document.addEventListener('DOMContentLoaded', function() {
+    // 服务器选择
+    document.querySelectorAll('input[name="server_id"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            selectedServer = {
+                id: this.value,
+                name: this.closest('.server-option').querySelector('h6').textContent,
+                host: this.closest('.server-option').querySelector('.text-muted').textContent
+            };
+            
+            document.getElementById('step1-next').disabled = false;
+            updateSummary();
+        });
+    });
+    
+    // 权限类型选择
+    document.querySelectorAll('input[name="permission_type_ids"]').forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            const option = this.closest('.permission-option');
+            const permissionInfo = {
+                id: this.value,
+                name: option.querySelector('h6').textContent,
+                description: option.querySelector('.text-muted').textContent,
+                requires_reason: option.dataset.requiresReason === 'True'
+            };
+            
+            if (this.checked) {
+                // 添加到选中列表
+                selectedPermissions.push(permissionInfo);
+                selectedPermissionData.push({
+                    requires_reason: option.dataset.requiresReason === 'True'
+                });
+            } else {
+                // 从选中列表移除
+                selectedPermissions = selectedPermissions.filter(p => p.id !== this.value);
+                selectedPermissionData = selectedPermissionData.filter((p, index) => {
+                    return selectedPermissions[index] && selectedPermissions[index].id !== this.value;
+                });
+            }
+            
+            document.getElementById('step2-next').disabled = selectedPermissions.length === 0;
+            updateSummary();
+            updateReasonSection();
+        });
+    });
+    
+    // 表单提交
+    document.getElementById('applicationForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        if (validateCurrentStep()) {
+            this.submit();
         }
     });
 });
+
+function updateSummary() {
+    // 更新步骤3的摘要信息
+    document.getElementById('summary-server').textContent = 
+        selectedServer ? selectedServer.name : '请先选择服务器';
+    
+    if (selectedPermissions.length > 0) {
+        const permissionNames = selectedPermissions.map(p => p.name).join(', ');
+        document.getElementById('summary-permission').textContent = permissionNames;
+    } else {
+        document.getElementById('summary-permission').textContent = '请先选择权限';
+    }
+    
+    // 更新步骤4的确认信息
+    if (selectedServer) {
+        document.getElementById('confirm-server').innerHTML = 
+            `<i class="bi bi-server me-2"></i><span>${selectedServer.name}<br><small class="text-muted">${selectedServer.host}</small></span>`;
+    }
+    
+    if (selectedPermissions.length > 0) {
+        const permissionHtml = selectedPermissions.map(p => 
+            `<span class="claude-badge claude-badge-info me-1 mb-1">${p.name}</span>`
+        ).join('');
+        document.getElementById('confirm-permission').innerHTML = 
+            `<i class="bi bi-shield-check me-2"></i><div>${permissionHtml}</div>`;
+    }
+}
+
+function updateReasonSection() {
+    const reasonContainer = document.getElementById('reason-container');
+    const noReasonInfo = document.getElementById('no-reason-info');
+    
+    // 检查是否有需要理由的权限类型
+    const hasRequiredReason = selectedPermissionData.some(p => p.requires_reason);
+    
+    if (hasRequiredReason) {
+        reasonContainer.style.display = 'block';
+        noReasonInfo.style.display = 'none';
+        document.getElementById('confirm-reason-container').style.display = 'block';
+        
+        // 更新标签显示需要理由的权限类型
+        const requiredPermissions = selectedPermissions.filter(p => p.requires_reason);
+        const permissionNames = requiredPermissions.map(p => p.name).join('、');
+        const reasonLabel = document.querySelector('label[for="reason"]');
+        reasonLabel.innerHTML = `申请理由 <span class="text-danger">*</span><small class="text-muted ms-2">(${permissionNames})</small>`;
+        
+        // 监听理由输入
+        document.getElementById('reason').addEventListener('input', function() {
+            document.getElementById('confirm-reason').textContent = this.value || '无';
+        });
+    } else {
+        reasonContainer.style.display = 'none';
+        noReasonInfo.style.display = 'block';
+        document.getElementById('confirm-reason-container').style.display = 'none';
+    }
+}
 </script>
 {% endblock %}

@@ -3,86 +3,180 @@
 {% block title %}控制台 - 服务器管理系统{% endblock %}
 
 {% block content %}
-<div class="row mb-4">
-    <div class="col">
-        <h2><i class="bi bi-speedometer2"></i> 服务器监控控制台</h2>
-        <p class="text-muted">实时监控您的服务器状态</p>
+<!-- 页面头部 -->
+<div class="d-flex justify-content-between align-items-start mb-4">
+    <div>
+        <h1 class="h3 mb-2" style="color: var(--claude-text-primary); font-weight: 600;">
+            <i class="bi bi-speedometer2 me-2" style="color: var(--claude-primary);"></i>
+            服务器监控控制台
+        </h1>
+        <p class="text-muted mb-0">实时监控您的服务器状态和性能指标</p>
     </div>
     {% if user.is_admin() %}
-    <div class="col-auto">
-        <button class="btn btn-primary" onclick="collectMetrics()">
-            <i class="bi bi-arrow-clockwise"></i> 刷新监控数据
+    <div class="d-flex align-items-center gap-2">
+        <button class="claude-refresh-btn" onclick="collectMetrics()" title="刷新监控数据">
+            <i class="bi bi-arrow-clockwise"></i>
+            <span class="d-none d-md-inline ms-2">刷新监控</span>
         </button>
     </div>
     {% endif %}
 </div>
 
+<!-- 管理员通知提醒 -->
 {% if user.is_admin() and pending_applications > 0 %}
-<div class="alert alert-warning" role="alert">
-    <i class="bi bi-exclamation-triangle"></i>
-    您有 <strong>{{ pending_applications }}</strong> 个待审核的申请。
-    <a href="{{ url_for('admin_review') }}" class="alert-link">立即查看</a>
+<div class="claude-card mb-4" style="border-left: 4px solid var(--claude-warning);">
+    <div class="claude-card-body">
+        <div class="d-flex align-items-center">
+            <i class="bi bi-exclamation-triangle text-warning me-3" style="font-size: 1.5rem;"></i>
+            <div>
+                <h6 class="mb-1" style="color: var(--claude-text-primary);">待处理申请</h6>
+                <p class="mb-0 text-muted">
+                    您有 <strong class="text-warning">{{ pending_applications }}</strong> 个待审核的申请需要处理
+                </p>
+            </div>
+            <div class="ms-auto">
+                <a href="{{ url_for('admin_review') }}" class="claude-btn claude-btn-secondary">
+                    <i class="bi bi-eye"></i>
+                    立即查看
+                </a>
+            </div>
+        </div>
+    </div>
 </div>
 {% endif %}
 
+<!-- 服务器概览统计 -->
+{% if servers %}
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="claude-metric-card">
+            <div class="d-flex align-items-center">
+                <div class="flex-grow-1">
+                    <div class="claude-metric-value">{{ servers|length }}</div>
+                    <div class="claude-metric-label">总服务器数</div>
+                </div>
+                <i class="bi bi-server" style="font-size: 2rem; color: var(--claude-primary); opacity: 0.7;"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="claude-metric-card">
+            <div class="d-flex align-items-center">
+                <div class="flex-grow-1">
+                    <div class="claude-metric-value" style="color: var(--claude-success);">
+                        {{ servers|selectattr('status', 'equalto', 'online')|list|length }}
+                    </div>
+                    <div class="claude-metric-label">在线服务器</div>
+                </div>
+                <i class="bi bi-check-circle" style="font-size: 2rem; color: var(--claude-success); opacity: 0.7;"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="claude-metric-card">
+            <div class="d-flex align-items-center">
+                <div class="flex-grow-1">
+                    <div class="claude-metric-value" style="color: var(--claude-danger);">
+                        {{ servers|selectattr('status', 'equalto', 'offline')|list|length }}
+                    </div>
+                    <div class="claude-metric-label">离线服务器</div>
+                </div>
+                <i class="bi bi-x-circle" style="font-size: 2rem; color: var(--claude-danger); opacity: 0.7;"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="claude-metric-card">
+            <div class="d-flex align-items-center">
+                <div class="flex-grow-1">
+                    <div class="claude-metric-value" style="color: var(--claude-text-muted);">
+                        {{ servers|selectattr('status', 'equalto', 'unknown')|list|length }}
+                    </div>
+                    <div class="claude-metric-label">状态未知</div>
+                </div>
+                <i class="bi bi-question-circle" style="font-size: 2rem; color: var(--claude-text-muted); opacity: 0.7;"></i>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- 服务器监控卡片 -->
 <div class="row">
     {% for server in servers %}
-    <div class="col-md-6 col-lg-4 mb-4">
-        <div class="card metric-card h-100">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">
-                    <i class="bi bi-server"></i> {{ server.name }}
-                </h5>
-                <span class="badge bg-{{ 'success' if server.status == 'online' else 'danger' if server.status == 'offline' else 'secondary' }}">
-                    {{ server.status }}
-                </span>
-            </div>
-            <div class="card-body">
-                <div class="server-info mb-3">
-                    <small class="text-muted">{{ server.host }}:{{ server.port }}</small>
+    <div class="col-xl-4 col-lg-6 col-md-6 col-sm-12 mb-4">
+        <div class="claude-card h-100">
+            <!-- 服务器卡片头部 -->
+            <div class="claude-card-header">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-server me-2" style="color: var(--claude-primary);"></i>
+                        <div>
+                            <h6 class="mb-0 fw-semibold">{{ server.name }}</h6>
+                            <small class="text-muted">{{ server.host }}:{{ server.port }}</small>
+                        </div>
+                    </div>
+                    <span class="claude-badge claude-badge-{{ 'success' if server.status == 'online' else 'danger' if server.status == 'offline' else 'info' }}">
+                        <i class="bi bi-{{ 'check-circle' if server.status == 'online' else 'x-circle' if server.status == 'offline' else 'question-circle' }}"></i>
+                        {{ server.status }}
+                    </span>
                 </div>
-                
-                <div id="metrics-{{ server.id }}" class="metrics-container">
-                    <div class="row text-center">
-                        <div class="col-4">
-                            <div class="metric-item">
-                                <div class="metric-value" id="cpu-{{ server.id }}">--</div>
-                                <div class="metric-label">CPU</div>
-                            </div>
+            </div>
+            
+            <!-- 服务器指标 -->
+            <div class="claude-card-body">
+                <!-- 实时指标显示 -->
+                <div class="row mb-3" id="metrics-{{ server.id }}">
+                    <div class="col-4 text-center">
+                        <div class="claude-metric-item">
+                            <div class="claude-metric-value-sm" id="cpu-{{ server.id }}" style="color: var(--claude-danger);">--</div>
+                            <div class="claude-metric-label-sm">CPU使用率</div>
                         </div>
-                        <div class="col-4">
-                            <div class="metric-item">
-                                <div class="metric-value" id="memory-{{ server.id }}">--</div>
-                                <div class="metric-label">内存</div>
-                            </div>
+                    </div>
+                    <div class="col-4 text-center">
+                        <div class="claude-metric-item">
+                            <div class="claude-metric-value-sm" id="memory-{{ server.id }}" style="color: var(--claude-warning);">--</div>
+                            <div class="claude-metric-label-sm">内存使用率</div>
                         </div>
-                        <div class="col-4">
-                            <div class="metric-item">
-                                <div class="metric-value" id="disk-{{ server.id }}">--</div>
-                                <div class="metric-label">磁盘</div>
-                            </div>
+                    </div>
+                    <div class="col-4 text-center">
+                        <div class="claude-metric-item">
+                            <div class="claude-metric-value-sm" id="disk-{{ server.id }}" style="color: var(--claude-info);">--</div>
+                            <div class="claude-metric-label-sm">磁盘使用率</div>
                         </div>
                     </div>
                 </div>
                 
-                <div class="mt-3">
-                    <canvas id="chart-{{ server.id }}" width="300" height="200"></canvas>
+                <!-- 实时图表 -->
+                <div class="mb-3">
+                    <canvas id="chart-{{ server.id }}" style="max-height: 200px;"></canvas>
                 </div>
                 
-                <div class="mt-3">
-                    <small class="text-muted">
-                        <i class="bi bi-clock"></i> 
-                        负载: <span id="load-{{ server.id }}">--</span>
+                <!-- 系统负载信息 -->
+                <div class="d-flex align-items-center justify-content-between text-muted">
+                    <small>
+                        <i class="bi bi-clock me-1"></i>
+                        系统负载: <span id="load-{{ server.id }}">--</span>
+                    </small>
+                    <small>
+                        <i class="bi bi-arrow-clockwise me-1"></i>
+                        <span id="last-update-{{ server.id }}">--</span>
                     </small>
                 </div>
             </div>
-            <div class="card-footer">
-                <div class="d-grid gap-2 d-md-flex">
-                    <button class="btn btn-sm btn-outline-primary flex-fill" onclick="showServerDetails({{ server.id }})">
-                        <i class="bi bi-info-circle"></i> 详情
+            
+            <!-- 服务器操作 -->
+            <div class="claude-card-footer">
+                <div class="d-flex flex-column flex-sm-row gap-2">
+                    <button class="claude-btn claude-btn-secondary flex-fill" onclick="showServerDetails({{ server.id }})">
+                        <i class="bi bi-bar-chart"></i>
+                        <span class="d-none d-sm-inline">历史数据</span>
+                        <span class="d-sm-none">历史</span>
                     </button>
-                    <button class="btn btn-sm btn-outline-success flex-fill" onclick="refreshServerMetrics({{ server.id }})">
-                        <i class="bi bi-arrow-clockwise"></i> 刷新
+                    <button class="claude-btn claude-btn-primary flex-fill" onclick="refreshServerMetrics({{ server.id }})">
+                        <i class="bi bi-arrow-clockwise"></i>
+                        <span class="d-none d-sm-inline">刷新数据</span>
+                        <span class="d-sm-none">刷新</span>
                     </button>
                 </div>
             </div>
@@ -92,13 +186,24 @@
     
     {% if not servers %}
     <div class="col-12">
-        <div class="alert alert-info text-center">
-            <i class="bi bi-info-circle"></i>
-            {% if user.is_admin() %}
-                还没有添加任何服务器。<a href="{{ url_for('admin_servers') }}" class="alert-link">立即添加</a>
-            {% else %}
-                管理员还没有添加任何服务器。
-            {% endif %}
+        <div class="claude-card text-center py-5">
+            <div class="claude-card-body">
+                <i class="bi bi-server" style="font-size: 4rem; color: var(--claude-text-muted); opacity: 0.5;"></i>
+                <h4 class="mt-3 mb-2" style="color: var(--claude-text-secondary);">暂无服务器</h4>
+                <p class="text-muted mb-3">
+                    {% if user.is_admin() %}
+                        还没有添加任何服务器，请先添加服务器以开始监控。
+                    {% else %}
+                        管理员还没有添加任何服务器。
+                    {% endif %}
+                </p>
+                {% if user.is_admin() %}
+                <a href="{{ url_for('admin_servers') }}" class="claude-btn claude-btn-primary">
+                    <i class="bi bi-plus-circle"></i>
+                    添加服务器
+                </a>
+                {% endif %}
+            </div>
         </div>
     </div>
     {% endif %}
@@ -106,17 +211,21 @@
 
 <!-- 服务器详情模态框 -->
 <div class="modal fade" id="serverDetailsModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">服务器详情</h5>
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content" style="border: none; box-shadow: var(--claude-shadow-lg);">
+            <div class="modal-header" style="background: var(--claude-bg-secondary); border-bottom: 1px solid var(--claude-border-light);">
+                <h5 class="modal-title" style="color: var(--claude-text-primary); font-weight: 600;">
+                    <i class="bi bi-bar-chart me-2"></i>
+                    服务器详细监控
+                </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body">
+            <div class="modal-body p-4">
                 <div id="server-details-content">
-                    <div class="text-center">
-                        <div class="spinner-border" role="status">
-                            <span class="visually-hidden">加载中...</span>
+                    <div class="text-center py-4">
+                        <div class="claude-loading">
+                            <i class="bi bi-arrow-clockwise" style="font-size: 2rem; color: var(--claude-primary);"></i>
+                            <p class="mt-2 text-muted">加载历史数据中...</p>
                         </div>
                     </div>
                 </div>
@@ -124,69 +233,187 @@
         </div>
     </div>
 </div>
-
-<style>
-.metric-item {
-    padding: 10px;
-}
-.metric-value {
-    font-size: 1.5rem;
-    font-weight: bold;
-    color: #0d6efd;
-}
-.metric-label {
-    font-size: 0.8rem;
-    color: #6c757d;
-    text-transform: uppercase;
-}
-.metrics-container {
-    min-height: 80px;
-}
-</style>
 {% endblock %}
 
 {% block scripts %}
+<style>
+.claude-refresh-btn {
+    display: flex;
+    align-items: center;
+    padding: 8px 16px;
+    background: linear-gradient(135deg, var(--claude-primary) 0%, var(--claude-primary-dark) 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 4px rgba(255, 107, 53, 0.2);
+}
+
+.claude-refresh-btn:hover {
+    background: linear-gradient(135deg, var(--claude-primary-dark) 0%, #d44a21 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(255, 107, 53, 0.3);
+    color: white;
+}
+
+.claude-refresh-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 4px rgba(3, 105, 161, 0.2);
+}
+
+.claude-refresh-btn:disabled {
+    opacity: 0.6;
+    transform: none;
+    cursor: not-allowed;
+}
+
+.claude-refresh-btn i {
+    transition: transform 0.3s ease;
+}
+
+.claude-refresh-btn:hover i {
+    transform: rotate(90deg);
+}
+
+.claude-metric-item {
+    padding: 8px;
+}
+
+.claude-metric-value-sm {
+    font-size: 1.25rem;
+    font-weight: 700;
+    margin-bottom: 4px;
+}
+
+.claude-metric-label-sm {
+    font-size: 0.75rem;
+    color: var(--claude-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+    font-weight: 500;
+}
+
+.claude-metric-item:hover .claude-metric-value-sm {
+    transform: scale(1.05);
+    transition: var(--claude-transition-fast);
+}
+
+@keyframes loading {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.claude-loading i {
+    animation: loading 2s linear infinite;
+}
+
+@keyframes refreshSpin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.claude-refresh-btn.spinning i {
+    animation: refreshSpin 1s linear infinite;
+}
+</style>
+
 <script>
 const serverCharts = {};
 
 function initChart(serverId) {
-    const ctx = document.getElementById(`chart-${serverId}`).getContext('2d');
-    serverCharts[serverId] = new Chart(ctx, {
+    const ctx = document.getElementById(`chart-${serverId}`);
+    if (!ctx) return;
+    
+    serverCharts[serverId] = new Chart(ctx.getContext('2d'), {
         type: 'line',
         data: {
             labels: [],
             datasets: [{
                 label: 'CPU %',
                 data: [],
-                borderColor: 'rgb(255, 99, 132)',
-                backgroundColor: 'rgba(255, 99, 132, 0.1)',
-                tension: 0.1
+                borderColor: '#ef4444',
+                backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                tension: 0.4,
+                borderWidth: 2,
+                pointRadius: 3,
+                pointHoverRadius: 5
             }, {
                 label: '内存 %',
                 data: [],
-                borderColor: 'rgb(54, 162, 235)',
-                backgroundColor: 'rgba(54, 162, 235, 0.1)',
-                tension: 0.1
+                borderColor: '#f59e0b',
+                backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                tension: 0.4,
+                borderWidth: 2,
+                pointRadius: 3,
+                pointHoverRadius: 5
             }, {
                 label: '磁盘 %',
                 data: [],
-                borderColor: 'rgb(255, 205, 86)',
-                backgroundColor: 'rgba(255, 205, 86, 0.1)',
-                tension: 0.1
+                borderColor: '#3b82f6',
+                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                tension: 0.4,
+                borderWidth: 2,
+                pointRadius: 3,
+                pointHoverRadius: 5
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            interaction: {
+                intersect: false,
+                mode: 'index'
+            },
             scales: {
                 y: {
                     beginAtZero: true,
-                    max: 100
+                    max: 100,
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.05)'
+                    },
+                    ticks: {
+                        callback: function(value) {
+                            return value + '%';
+                        },
+                        color: '#6b7280',
+                        font: {
+                            size: 11
+                        }
+                    }
+                },
+                x: {
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.05)'
+                    },
+                    ticks: {
+                        color: '#6b7280',
+                        font: {
+                            size: 11
+                        }
+                    }
                 }
             },
             plugins: {
                 legend: {
-                    display: false
+                    position: 'bottom',
+                    labels: {
+                        usePointStyle: true,
+                        padding: 15,
+                        font: {
+                            size: 12
+                        }
+                    }
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    titleColor: '#fff',
+                    bodyColor: '#fff',
+                    borderColor: '#ff6b35',
+                    borderWidth: 1,
+                    cornerRadius: 8,
+                    displayColors: true
                 }
             }
         }
@@ -194,107 +421,192 @@ function initChart(serverId) {
 }
 
 function updateServerMetrics(serverId) {
-    $.get(`/api/server_metrics/${serverId}`, function(data) {
-        if (data && data.cpu_usage !== undefined) {
-            $(`#cpu-${serverId}`).text(data.cpu_usage.toFixed(1) + '%');
-            $(`#memory-${serverId}`).text(data.memory_usage.toFixed(1) + '%');
-            $(`#disk-${serverId}`).text(data.disk_usage.toFixed(1) + '%');
-            $(`#load-${serverId}`).text(data.load_average);
-            
-            // 更新图表
-            if (serverCharts[serverId]) {
-                const chart = serverCharts[serverId];
-                const time = new Date(data.timestamp).toLocaleTimeString();
+    fetch(`/api/server_metrics/${serverId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data && data.cpu_usage !== undefined) {
+                // 更新指标显示
+                document.getElementById(`cpu-${serverId}`).textContent = data.cpu_usage.toFixed(1) + '%';
+                document.getElementById(`memory-${serverId}`).textContent = data.memory_usage.toFixed(1) + '%';
+                document.getElementById(`disk-${serverId}`).textContent = data.disk_usage.toFixed(1) + '%';
+                document.getElementById(`load-${serverId}`).textContent = data.load_average;
                 
-                chart.data.labels.push(time);
-                chart.data.datasets[0].data.push(data.cpu_usage);
-                chart.data.datasets[1].data.push(data.memory_usage);
-                chart.data.datasets[2].data.push(data.disk_usage);
+                // 更新时间戳
+                const now = new Date().toLocaleTimeString();
+                document.getElementById(`last-update-${serverId}`).textContent = now;
                 
-                // 只保留最近10个数据点
-                if (chart.data.labels.length > 10) {
-                    chart.data.labels.shift();
-                    chart.data.datasets.forEach(dataset => dataset.data.shift());
+                // 更新图表
+                if (serverCharts[serverId]) {
+                    const chart = serverCharts[serverId];
+                    const time = new Date(data.timestamp).toLocaleTimeString();
+                    
+                    chart.data.labels.push(time);
+                    chart.data.datasets[0].data.push(data.cpu_usage);
+                    chart.data.datasets[1].data.push(data.memory_usage);
+                    chart.data.datasets[2].data.push(data.disk_usage);
+                    
+                    // 只保留最近10个数据点
+                    if (chart.data.labels.length > 10) {
+                        chart.data.labels.shift();
+                        chart.data.datasets.forEach(dataset => dataset.data.shift());
+                    }
+                    
+                    chart.update('none'); // 无动画更新，提高性能
                 }
-                
-                chart.update();
             }
-        }
-    }).fail(function() {
-        $(`#cpu-${serverId}, #memory-${serverId}, #disk-${serverId}`).text('--');
-        $(`#load-${serverId}`).text('--');
-    });
+        })
+        .catch(error => {
+            console.error('Error fetching metrics:', error);
+            // 错误时显示占位符
+            document.getElementById(`cpu-${serverId}`).textContent = '--';
+            document.getElementById(`memory-${serverId}`).textContent = '--';
+            document.getElementById(`disk-${serverId}`).textContent = '--';
+            document.getElementById(`load-${serverId}`).textContent = '--';
+            document.getElementById(`last-update-${serverId}`).textContent = '更新失败';
+        });
 }
 
 function refreshServerMetrics(serverId) {
+    // 显示加载状态
+    const btn = event.target.closest('button');
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="bi bi-arrow-clockwise"></i> 刷新中...';
+    btn.disabled = true;
+    
     updateServerMetrics(serverId);
+    
+    // 恢复按钮状态
+    setTimeout(() => {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    }, 1000);
 }
 
 function collectMetrics() {
-    $('#collect-btn').prop('disabled', true).html('<i class="bi bi-arrow-clockwise spin"></i> 收集中...');
+    const btn = event.target.closest('button');
+    const originalText = btn.innerHTML;
     
-    $.get('/api/collect_metrics', function(data) {
-        // 刷新所有服务器数据
-        {% for server in servers %}
-        updateServerMetrics({{ server.id }});
-        {% endfor %}
-    }).always(function() {
-        $('#collect-btn').prop('disabled', false).html('<i class="bi bi-arrow-clockwise"></i> 刷新监控数据');
-    });
+    // 添加旋转动画效果
+    btn.classList.add('spinning');
+    btn.innerHTML = '<i class="bi bi-arrow-clockwise"></i><span class="d-none d-md-inline ms-2">收集中...</span>';
+    btn.disabled = true;
+    
+    fetch('/api/collect_metrics')
+        .then(response => response.json())
+        .then(data => {
+            // 刷新所有服务器数据
+            {% for server in servers %}
+            updateServerMetrics({{ server.id }});
+            {% endfor %}
+        })
+        .catch(error => {
+            console.error('Error collecting metrics:', error);
+        })
+        .finally(() => {
+            setTimeout(() => {
+                btn.classList.remove('spinning');
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }, 1000);
+        });
 }
 
 function showServerDetails(serverId) {
-    $('#serverDetailsModal').modal('show');
+    const modal = new bootstrap.Modal(document.getElementById('serverDetailsModal'));
+    modal.show();
     
-    // 加载服务器历史数据
-    $.get(`/api/server_metrics_history/${serverId}?hours=6`, function(data) {
-        // 创建历史数据图表
-        const content = `
-            <div class="row">
-                <div class="col-12">
-                    <canvas id="history-chart" width="400" height="200"></canvas>
+    // 加载历史数据
+    fetch(`/api/server_metrics_history/${serverId}?hours=12`)
+        .then(response => response.json())
+        .then(data => {
+            const content = `
+                <div class="row">
+                    <div class="col-12">
+                        <h6 class="mb-3" style="color: var(--claude-text-secondary);">过去12小时监控数据</h6>
+                        <canvas id="history-chart" style="max-height: 400px;"></canvas>
+                    </div>
                 </div>
-            </div>
-        `;
-        $('#server-details-content').html(content);
-        
-        const ctx = document.getElementById('history-chart').getContext('2d');
-        new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: data.map(d => new Date(d.timestamp).toLocaleTimeString()),
-                datasets: [{
-                    label: 'CPU使用率 %',
-                    data: data.map(d => d.cpu_usage),
-                    borderColor: 'rgb(255, 99, 132)',
-                    tension: 0.1
-                }, {
-                    label: '内存使用率 %',
-                    data: data.map(d => d.memory_usage),
-                    borderColor: 'rgb(54, 162, 235)',
-                    tension: 0.1
-                }, {
-                    label: '磁盘使用率 %',
-                    data: data.map(d => d.disk_usage),
-                    borderColor: 'rgb(255, 205, 86)',
-                    tension: 0.1
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        max: 100
+            `;
+            document.getElementById('server-details-content').innerHTML = content;
+            
+            // 创建历史数据图表
+            const ctx = document.getElementById('history-chart').getContext('2d');
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.map(d => new Date(d.timestamp).toLocaleString()),
+                    datasets: [{
+                        label: 'CPU使用率 %',
+                        data: data.map(d => d.cpu_usage),
+                        borderColor: '#ef4444',
+                        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }, {
+                        label: '内存使用率 %',
+                        data: data.map(d => d.memory_usage),
+                        borderColor: '#f59e0b',
+                        backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }, {
+                        label: '磁盘使用率 %',
+                        data: data.map(d => d.disk_usage),
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        intersect: false,
+                        mode: 'index'
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.05)'
+                            }
+                        },
+                        x: {
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.05)'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top'
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            titleColor: '#fff',
+                            bodyColor: '#fff',
+                            borderColor: '#ff6b35',
+                            borderWidth: 1,
+                            cornerRadius: 8
+                        }
                     }
                 }
-            }
+            });
+        })
+        .catch(error => {
+            console.error('Error loading history:', error);
+            document.getElementById('server-details-content').innerHTML = `
+                <div class="text-center py-4">
+                    <i class="bi bi-exclamation-triangle text-warning" style="font-size: 2rem;"></i>
+                    <p class="mt-2 text-muted">加载历史数据失败</p>
+                </div>
+            `;
         });
-    });
 }
 
-$(document).ready(function() {
+document.addEventListener('DOMContentLoaded', function() {
     // 初始化所有服务器的图表
     {% for server in servers %}
     initChart({{ server.id }});

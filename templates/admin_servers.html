@@ -3,57 +3,135 @@
 {% block title %}服务器管理 - 服务器管理系统{% endblock %}
 
 {% block content %}
-<div class="row">
-    <div class="col">
-        <h2><i class="bi bi-server"></i> 服务器管理</h2>
-        <p class="text-muted">添加和管理服务器</p>
+<!-- 页面头部 -->
+<div class="d-flex justify-content-between align-items-start mb-4">
+    <div>
+        <h1 class="h3 mb-2" style="color: var(--claude-text-primary); font-weight: 600;">
+            <i class="bi bi-server me-2" style="color: var(--claude-primary);"></i>
+            服务器管理
+        </h1>
+        <p class="text-muted mb-0">添加、编辑和管理服务器连接信息</p>
     </div>
-    <div class="col-auto">
-        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addServerModal">
-            <i class="bi bi-plus-circle"></i> 添加服务器
+    <div class="d-flex align-items-center gap-2">
+        <button class="claude-btn claude-btn-primary" data-bs-toggle="modal" data-bs-target="#addServerModal">
+            <i class="bi bi-plus-circle"></i>
+            <span class="d-none d-md-inline ms-2">添加服务器</span>
         </button>
     </div>
 </div>
 
+<!-- 服务器统计 -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="claude-metric-card">
+            <div class="d-flex align-items-center">
+                <div class="flex-grow-1">
+                    <div class="claude-metric-value">{{ servers|length }}</div>
+                    <div class="claude-metric-label">总服务器</div>
+                </div>
+                <i class="bi bi-server" style="font-size: 2rem; color: var(--claude-primary); opacity: 0.7;"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="claude-metric-card">
+            <div class="d-flex align-items-center">
+                <div class="flex-grow-1">
+                    <div class="claude-metric-value" style="color: var(--claude-success);">
+                        {{ servers|selectattr('status', 'equalto', 'online')|list|length }}
+                    </div>
+                    <div class="claude-metric-label">在线</div>
+                </div>
+                <i class="bi bi-check-circle" style="font-size: 2rem; color: var(--claude-success); opacity: 0.7;"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="claude-metric-card">
+            <div class="d-flex align-items-center">
+                <div class="flex-grow-1">
+                    <div class="claude-metric-value" style="color: var(--claude-danger);">
+                        {{ servers|selectattr('status', 'equalto', 'offline')|list|length }}
+                    </div>
+                    <div class="claude-metric-label">离线</div>
+                </div>
+                <i class="bi bi-x-circle" style="font-size: 2rem; color: var(--claude-danger); opacity: 0.7;"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="claude-metric-card">
+            <div class="d-flex align-items-center">
+                <div class="flex-grow-1">
+                    <div class="claude-metric-value" style="color: var(--claude-text-muted);">
+                        {{ servers|selectattr('status', 'equalto', 'unknown')|list|length }}
+                    </div>
+                    <div class="claude-metric-label">未知</div>
+                </div>
+                <i class="bi bi-question-circle" style="font-size: 2rem; color: var(--claude-text-muted); opacity: 0.7;"></i>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% if servers %}
-<div class="card">
-    <div class="card-body">
+<!-- 服务器列表 -->
+<div class="claude-card">
+    <div class="claude-card-header">
+        <h5 class="mb-0" style="color: var(--claude-text-primary); font-weight: 600;">
+            <i class="bi bi-list me-2" style="color: var(--claude-primary);"></i>
+            服务器列表
+        </h5>
+    </div>
+    <div class="claude-card-body">
         <div class="table-responsive">
-            <table class="table table-hover">
-                <thead>
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
                     <tr>
-                        <th>服务器名称</th>
-                        <th>主机地址</th>
-                        <th>端口</th>
-                        <th>用户名</th>
-                        <th>状态</th>
-                        <th>添加时间</th>
-                        <th>操作</th>
+                        <th style="color: var(--claude-text-secondary); font-weight: 600;">服务器信息</th>
+                        <th style="color: var(--claude-text-secondary); font-weight: 600;">连接配置</th>
+                        <th style="color: var(--claude-text-secondary); font-weight: 600;">状态</th>
+                        <th style="color: var(--claude-text-secondary); font-weight: 600;">添加时间</th>
+                        <th style="color: var(--claude-text-secondary); font-weight: 600;">操作</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for server in servers %}
                     <tr>
-                        <td><strong>{{ server.name }}</strong></td>
-                        <td>{{ server.host }}</td>
-                        <td>{{ server.port }}</td>
-                        <td>{{ server.username }}</td>
                         <td>
-                            <span class="badge bg-{{ 'success' if server.status == 'online' else 'danger' if server.status == 'offline' else 'secondary' }}">
-                                {{ server.status }}
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-server me-3" style="color: var(--claude-primary); font-size: 1.2rem;"></i>
+                                <div>
+                                    <div class="fw-semibold" style="color: var(--claude-text-primary);">{{ server.name }}</div>
+                                    <small class="text-muted">{{ server.host }}</small>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="server-config-info">
+                                <div><strong>端口:</strong> <code class="claude-code">{{ server.port }}</code></div>
+                                <div class="mt-1"><strong>用户:</strong> <code class="claude-code">{{ server.username }}</code></div>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="claude-badge claude-badge-{{ 'success' if server.status == 'online' else 'danger' if server.status == 'offline' else 'secondary' }}">
+                                <i class="bi bi-{{ 'check-circle' if server.status == 'online' else 'x-circle' if server.status == 'offline' else 'question-circle' }}"></i>
+                                {{ '在线' if server.status == 'online' else '离线' if server.status == 'offline' else '未知' }}
                             </span>
                         </td>
-                        <td>{{ server.created_at.strftime('%Y-%m-%d') }}</td>
                         <td>
-                            <div class="btn-group btn-group-sm">
-                                <button class="btn btn-outline-primary" onclick="testConnection({{ server.id }})">
-                                    <i class="bi bi-wifi"></i> 测试
+                            <small class="text-muted">{{ server.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
+                        </td>
+                        <td>
+                            <div class="btn-group">
+                                <button class="claude-btn claude-btn-sm claude-btn-secondary" onclick="testConnection({{ server.id }})" title="测试连接">
+                                    <i class="bi bi-wifi"></i>
                                 </button>
-                                <button class="btn btn-outline-secondary" onclick="editServer({{ server.id }})">
-                                    <i class="bi bi-pencil"></i> 编辑
+                                <button class="claude-btn claude-btn-sm claude-btn-secondary" onclick="editServer({{ server.id }}, '{{ server.name }}', '{{ server.host }}', {{ server.port }}, '{{ server.username }}', '{{ server.password }}')" title="编辑服务器">
+                                    <i class="bi bi-pencil"></i>
                                 </button>
-                                <button class="btn btn-outline-danger" onclick="deleteServer({{ server.id }})">
-                                    <i class="bi bi-trash"></i> 删除
+                                <button class="claude-btn claude-btn-sm claude-btn-danger" onclick="deleteServer({{ server.id }}, '{{ server.name }}')" title="删除服务器">
+                                    <i class="bi bi-trash"></i>
                                 </button>
                             </div>
                         </td>
@@ -65,54 +143,119 @@
     </div>
 </div>
 {% else %}
-<div class="alert alert-info text-center">
-    <i class="bi bi-info-circle"></i>
-    还没有添加任何服务器。<button class="btn btn-link p-0" data-bs-toggle="modal" data-bs-target="#addServerModal">立即添加</button>
+<!-- 空状态 -->
+<div class="claude-card text-center py-5">
+    <div class="claude-card-body">
+        <i class="bi bi-server" style="font-size: 4rem; color: var(--claude-text-muted); opacity: 0.5;"></i>
+        <h4 class="mt-3 mb-2" style="color: var(--claude-text-secondary);">暂无服务器</h4>
+        <p class="text-muted mb-3">还没有添加任何服务器，立即添加第一台服务器开始管理。</p>
+        <button class="claude-btn claude-btn-primary" data-bs-toggle="modal" data-bs-target="#addServerModal">
+            <i class="bi bi-plus-circle"></i>
+            添加服务器
+        </button>
+    </div>
 </div>
 {% endif %}
 
 <!-- 添加服务器模态框 -->
 <div class="modal fade" id="addServerModal" tabindex="-1">
     <div class="modal-dialog">
-        <div class="modal-content">
+        <div class="modal-content claude-modal">
             <div class="modal-header">
-                <h5 class="modal-title">添加服务器</h5>
+                <h5 class="modal-title" style="color: var(--claude-text-primary); font-weight: 600;">
+                    <i class="bi bi-plus-circle me-2" style="color: var(--claude-primary);"></i>
+                    添加服务器
+                </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <form method="POST">
+            <form method="POST" id="addServerForm">
                 <div class="modal-body">
                     <div class="mb-3">
                         <label for="name" class="form-label">服务器名称 <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="name" name="name" required>
+                        <input type="text" class="form-control claude-input" id="name" name="name" required>
                         <div class="form-text">给服务器一个易识别的名称</div>
                     </div>
                     
                     <div class="mb-3">
                         <label for="host" class="form-label">主机地址 <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="host" name="host" 
+                        <input type="text" class="form-control claude-input" id="host" name="host" 
                                placeholder="192.168.1.100 或 server.example.com" required>
                     </div>
                     
                     <div class="mb-3">
                         <label for="port" class="form-label">SSH端口</label>
-                        <input type="number" class="form-control" id="port" name="port" value="22" min="1" max="65535">
+                        <input type="number" class="form-control claude-input" id="port" name="port" value="22" min="1" max="65535">
                     </div>
                     
                     <div class="mb-3">
                         <label for="username" class="form-label">用户名 <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="username" name="username" required>
+                        <input type="text" class="form-control claude-input" id="username" name="username" required>
                     </div>
                     
                     <div class="mb-3">
                         <label for="password" class="form-label">密码</label>
-                        <input type="password" class="form-control" id="password" name="password">
+                        <input type="password" class="form-control claude-input" id="password" name="password">
                         <div class="form-text">暂只支持密码认证，留空表示使用密钥认证</div>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-                    <button type="submit" class="btn btn-primary">
-                        <i class="bi bi-plus-circle"></i> 添加
+                    <button type="button" class="claude-btn claude-btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="claude-btn claude-btn-primary">
+                        <i class="bi bi-plus-circle"></i> 添加服务器
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- 编辑服务器模态框 -->
+<div class="modal fade" id="editServerModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content claude-modal">
+            <div class="modal-header">
+                <h5 class="modal-title" style="color: var(--claude-text-primary); font-weight: 600;">
+                    <i class="bi bi-pencil me-2" style="color: var(--claude-warning);"></i>
+                    编辑服务器
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" id="editServerForm">
+                <input type="hidden" id="edit_server_id" name="server_id">
+                <input type="hidden" name="action" value="edit">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="edit_name" class="form-label">服务器名称 <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control claude-input" id="edit_name" name="name" required>
+                        <div class="form-text">给服务器一个易识别的名称</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="edit_host" class="form-label">主机地址 <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control claude-input" id="edit_host" name="host" 
+                               placeholder="192.168.1.100 或 server.example.com" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="edit_port" class="form-label">SSH端口</label>
+                        <input type="number" class="form-control claude-input" id="edit_port" name="port" value="22" min="1" max="65535">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="edit_username" class="form-label">用户名 <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control claude-input" id="edit_username" name="username" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="edit_password" class="form-label">密码</label>
+                        <input type="password" class="form-control claude-input" id="edit_password" name="password">
+                        <div class="form-text">留空表示不修改密码</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="claude-btn claude-btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="claude-btn claude-btn-warning">
+                        <i class="bi bi-check-circle"></i> 保存修改
                     </button>
                 </div>
             </form>
@@ -122,77 +265,326 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
-function testConnection(serverId) {
-    const btn = event.target.closest('button');
-    const originalText = btn.innerHTML;
-    btn.innerHTML = '<i class="bi bi-arrow-clockwise spin"></i> 测试中...';
-    btn.disabled = true;
-    
-    // 这里可以调用测试连接的API
-    setTimeout(() => {
-        alert('连接测试功能待实现');
-        btn.innerHTML = originalText;
-        btn.disabled = false;
-    }, 2000);
-}
-
-function editServer(serverId) {
-    alert('编辑功能待实现');
-}
-
-function deleteServer(serverId) {
-    if (confirm('确定要删除这个服务器吗？\n\n注意：删除后相关的申请记录将无法访问。')) {
-        // 创建删除表单
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = `/admin/servers/${serverId}/delete`;
-        
-        // 添加CSRF令牌等必要字段
-        const input = document.createElement('input');
-        input.type = 'hidden';
-        input.name = 'action';
-        input.value = 'delete';
-        form.appendChild(input);
-        
-        document.body.appendChild(form);
-        form.submit();
-    }
-}
-
-// 表单验证
-$(document).ready(function() {
-    $('form').submit(function(e) {
-        const name = $('#name').val().trim();
-        const host = $('#host').val().trim();
-        const username = $('#username').val().trim();
-        
-        if (!name || !host || !username) {
-            e.preventDefault();
-            alert('请填写必填字段');
-            return false;
-        }
-        
-        // 简单的IP/域名格式验证
-        const hostPattern = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$|^[a-zA-Z0-9][a-zA-Z0-9\.-]*[a-zA-Z0-9]$/;
-        if (!hostPattern.test(host)) {
-            e.preventDefault();
-            alert('请输入有效的IP地址或域名');
-            $('#host').focus();
-            return false;
-        }
-    });
-});
-</script>
-
 <style>
-.spin {
-    animation: spin 1s linear infinite;
+.claude-metric-card {
+    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 24px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+    transition: all 0.2s ease;
+}
+
+.claude-metric-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    border-color: #cbd5e1;
+}
+
+.claude-metric-value {
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: 4px;
+    line-height: 1;
+}
+
+.claude-metric-label {
+    font-size: 0.875rem;
+    color: var(--claude-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+    font-weight: 500;
+}
+
+.server-config-info {
+    font-size: 0.875rem;
+}
+
+.claude-code {
+    background: #f1f5f9;
+    color: #475569;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 0.8rem;
+}
+
+.claude-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.claude-badge-success {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.claude-badge-danger {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.claude-badge-secondary {
+    background: #f1f5f9;
+    color: #475569;
+}
+
+.claude-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.claude-btn-primary {
+    background: linear-gradient(135deg, #0369a1 0%, #0284c7 100%);
+    color: white;
+    box-shadow: 0 2px 4px rgba(3, 105, 161, 0.2);
+}
+
+.claude-btn-primary:hover {
+    background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(3, 105, 161, 0.3);
+    color: white;
+}
+
+.claude-btn-secondary {
+    background: #f8fafc;
+    color: #64748b;
+    border: 1px solid #e2e8f0;
+}
+
+.claude-btn-secondary:hover {
+    background: #f1f5f9;
+    color: #475569;
+    border-color: #cbd5e1;
+}
+
+.claude-btn-warning {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    color: white;
+    box-shadow: 0 2px 4px rgba(245, 158, 11, 0.2);
+}
+
+.claude-btn-warning:hover {
+    background: linear-gradient(135deg, #d97706 0%, #f59e0b 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(245, 158, 11, 0.3);
+    color: white;
+}
+
+.claude-btn-danger {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    color: white;
+    box-shadow: 0 2px 4px rgba(239, 68, 68, 0.2);
+}
+
+.claude-btn-danger:hover {
+    background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(239, 68, 68, 0.3);
+    color: white;
+}
+
+.claude-btn-sm {
+    padding: 6px 12px;
+    font-size: 0.8rem;
+}
+
+.claude-modal {
+    border: none;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+}
+
+.claude-modal .modal-header {
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    border-bottom: 1px solid #e2e8f0;
+    border-radius: 12px 12px 0 0;
+}
+
+.claude-input {
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+}
+
+.claude-input:focus {
+    border-color: #0369a1;
+    box-shadow: 0 0 0 3px rgba(3, 105, 161, 0.1);
+}
+
+.table th {
+    border-bottom: 2px solid #e2e8f0;
+    padding: 12px 8px;
+}
+
+.table td {
+    padding: 12px 8px;
+    vertical-align: middle;
+}
+
+.table-hover tbody tr:hover {
+    background-color: rgba(3, 105, 161, 0.02);
 }
 
 @keyframes spin {
     from { transform: rotate(0deg); }
     to { transform: rotate(360deg); }
 }
+
+.spinning {
+    animation: spin 1s linear infinite;
+}
 </style>
+
+<script>
+function testConnection(serverId) {
+    const btn = event.target.closest('button');
+    const originalText = btn.innerHTML;
+    const icon = btn.querySelector('i');
+    
+    icon.classList.add('spinning');
+    btn.innerHTML = '<i class="bi bi-arrow-clockwise spinning"></i>';
+    btn.disabled = true;
+    
+    // 模拟连接测试
+    setTimeout(() => {
+        // 这里可以调用真实的测试连接API
+        fetch(`/api/test_connection/${serverId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast('连接测试成功', 'success');
+                } else {
+                    showToast(`连接测试失败: ${data.error}`, 'error');
+                }
+            })
+            .catch(error => {
+                showToast('连接测试失败', 'error');
+            })
+            .finally(() => {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            });
+    }, 2000);
+}
+
+function editServer(serverId, name, host, port, username, password) {
+    // 填充编辑表单
+    document.getElementById('edit_server_id').value = serverId;
+    document.getElementById('edit_name').value = name;
+    document.getElementById('edit_host').value = host;
+    document.getElementById('edit_port').value = port;
+    document.getElementById('edit_username').value = username;
+    document.getElementById('edit_password').value = '';
+    
+    // 显示编辑模态框
+    const modal = new bootstrap.Modal(document.getElementById('editServerModal'));
+    modal.show();
+}
+
+function deleteServer(serverId, serverName) {
+    if (confirm(`确定要删除服务器 "${serverName}" 吗？\n\n注意：删除后相关的申请记录将无法访问。`)) {
+        // 创建删除表单
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.style.display = 'none';
+        
+        // 添加必要字段
+        const serverIdInput = document.createElement('input');
+        serverIdInput.type = 'hidden';
+        serverIdInput.name = 'server_id';
+        serverIdInput.value = serverId;
+        form.appendChild(serverIdInput);
+        
+        const actionInput = document.createElement('input');
+        actionInput.type = 'hidden';
+        actionInput.name = 'action';
+        actionInput.value = 'delete';
+        form.appendChild(actionInput);
+        
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+
+function showToast(message, type) {
+    // 创建简单的toast提示
+    const toast = document.createElement('div');
+    toast.className = `alert alert-${type === 'success' ? 'success' : 'danger'} alert-dismissible fade show position-fixed`;
+    toast.style.cssText = 'top: 80px; right: 20px; z-index: 1050; min-width: 300px;';
+    toast.innerHTML = `
+        <div class="d-flex align-items-center">
+            <i class="bi bi-${type === 'success' ? 'check-circle' : 'exclamation-triangle'} me-2"></i>
+            ${message}
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(toast);
+    
+    // 3秒后自动移除
+    setTimeout(() => {
+        if (toast.parentNode) {
+            toast.parentNode.removeChild(toast);
+        }
+    }, 3000);
+}
+
+// 表单验证
+document.addEventListener('DOMContentLoaded', function() {
+    function validateForm(form) {
+        const nameInput = form.querySelector('input[name="name"]');
+        const hostInput = form.querySelector('input[name="host"]');
+        const usernameInput = form.querySelector('input[name="username"]');
+        
+        const name = nameInput.value.trim();
+        const host = hostInput.value.trim();
+        const username = usernameInput.value.trim();
+        
+        if (!name || !host || !username) {
+            showToast('请填写必填字段', 'error');
+            return false;
+        }
+        
+        // 简单的IP/域名格式验证
+        const hostPattern = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$|^[a-zA-Z0-9][a-zA-Z0-9\.-]*[a-zA-Z0-9]$/;
+        if (!hostPattern.test(host)) {
+            showToast('请输入有效的IP地址或域名', 'error');
+            hostInput.focus();
+            return false;
+        }
+        
+        return true;
+    }
+    
+    // 添加服务器表单验证
+    document.getElementById('addServerForm').addEventListener('submit', function(e) {
+        if (!validateForm(this)) {
+            e.preventDefault();
+        }
+    });
+    
+    // 编辑服务器表单验证
+    document.getElementById('editServerForm').addEventListener('submit', function(e) {
+        if (!validateForm(this)) {
+            e.preventDefault();
+        }
+    });
+});
+</script>
 {% endblock %}

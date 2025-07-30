@@ -11,6 +11,10 @@ class User(db.Model):
     username = db.Column(db.String(80), unique=True, nullable=False)
     password_hash = db.Column(db.String(120), nullable=False)
     role = db.Column(db.String(20), nullable=False, default='user')  # user, admin
+    student_id = db.Column(db.String(50))  # 学号
+    laboratory = db.Column(db.String(100))  # 实验室
+    supervisor = db.Column(db.String(100))  # 导师
+    contact = db.Column(db.String(100))  # 联系方式
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     def set_password(self, password):
