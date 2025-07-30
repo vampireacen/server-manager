@@ -37,6 +37,22 @@ class Server(db.Model):
     password = db.Column(db.String(200))  # 可选，也可以用密钥
     status = db.Column(db.String(20), default='unknown')  # online, offline, unknown
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # 位置信息 (可选)
+    location = db.Column(db.String(200))      # 部署位置
+    datacenter = db.Column(db.String(100))    # 部署机房  
+    rack = db.Column(db.String(50))           # 部署机柜
+    rack_position = db.Column(db.String(20))  # 柜内位置
+    
+    # 配置信息 (可选)
+    cpu_model = db.Column(db.String(100))     # CPU型号
+    cpu_count = db.Column(db.Integer)         # CPU数量
+    gpu_model = db.Column(db.String(100))     # GPU型号  
+    gpu_count = db.Column(db.Integer)         # GPU数量
+    memory_model = db.Column(db.String(100))  # 内存型号
+    memory_count = db.Column(db.Integer)      # 内存数量
+    ssd_model = db.Column(db.String(100))     # SSD型号
+    ssd_count = db.Column(db.Integer)         # SSD数量
 
 class PermissionType(db.Model):
     __tablename__ = 'permission_types'

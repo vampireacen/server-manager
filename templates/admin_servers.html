@@ -78,10 +78,35 @@
 <!-- 服务器列表 -->
 <div class="claude-card">
     <div class="claude-card-header">
-        <h5 class="mb-0" style="color: var(--claude-text-primary); font-weight: 600;">
-            <i class="bi bi-list me-2" style="color: var(--claude-primary);"></i>
-            服务器列表
-        </h5>
+        <div class="d-flex justify-content-between align-items-center">
+            <h5 class="mb-0" style="color: var(--claude-text-primary); font-weight: 600;">
+                <i class="bi bi-list me-2" style="color: var(--claude-primary);"></i>
+                服务器列表
+            </h5>
+            <div class="server-search-controls d-flex gap-2">
+                <div class="input-group" style="width: 280px;">
+                    <span class="input-group-text">
+                        <i class="bi bi-search"></i>
+                    </span>
+                    <input type="text" class="form-control" id="serverSearchInput" placeholder="搜索服务器名称或地址...">
+                    <button class="btn btn-outline-secondary" type="button" id="clearSearchBtn" style="display: none;">
+                        <i class="bi bi-x"></i>
+                    </button>
+                </div>
+                <div class="dropdown">
+                    <button class="claude-btn claude-btn-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                        <i class="bi bi-funnel"></i>
+                        筛选
+                    </button>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item filter-status" href="#" data-status="all">全部状态</a></li>
+                        <li><a class="dropdown-item filter-status" href="#" data-status="online">在线</a></li>
+                        <li><a class="dropdown-item filter-status" href="#" data-status="offline">离线</a></li>
+                        <li><a class="dropdown-item filter-status" href="#" data-status="unknown">未知</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
     </div>
     <div class="claude-card-body">
         <div class="table-responsive">
@@ -104,6 +129,14 @@
                                 <div>
                                     <div class="fw-semibold" style="color: var(--claude-text-primary);">{{ server.name }}</div>
                                     <small class="text-muted">{{ server.host }}</small>
+                                    {% if server.location or server.datacenter %}
+                                    <br><small class="text-muted">
+                                        <i class="bi bi-geo-alt me-1"></i>
+                                        {% if server.location %}{{ server.location }}{% endif %}
+                                        {% if server.location and server.datacenter %} - {% endif %}
+                                        {% if server.datacenter %}{{ server.datacenter }}{% endif %}
+                                    </small>
+                                    {% endif %}
                                 </div>
                             </div>
                         </td>
@@ -111,6 +144,19 @@
                             <div class="server-config-info">
                                 <div><strong>端口:</strong> <code class="claude-code">{{ server.port }}</code></div>
                                 <div class="mt-1"><strong>用户:</strong> <code class="claude-code">{{ server.username }}</code></div>
+                                {% if server.cpu_model or server.memory_count %}
+                                <div class="mt-2 text-muted small">
+                                    {% if server.cpu_model %}
+                                    <div><i class="bi bi-cpu me-1"></i>{{ server.cpu_model }}{% if server.cpu_count %} x{{ server.cpu_count }}{% endif %}</div>
+                                    {% endif %}
+                                    {% if server.memory_count %}
+                                    <div><i class="bi bi-memory me-1"></i>{{ server.memory_count }}GB{% if server.memory_model %} {{ server.memory_model }}{% endif %}</div>
+                                    {% endif %}
+                                    {% if server.gpu_model %}
+                                    <div><i class="bi bi-gpu-card me-1"></i>{{ server.gpu_model }}{% if server.gpu_count %} x{{ server.gpu_count }}{% endif %}</div>
+                                    {% endif %}
+                                </div>
+                                {% endif %}
                             </div>
                         </td>
                         <td>
@@ -127,7 +173,7 @@
                                 <button class="claude-btn claude-btn-sm claude-btn-secondary" onclick="testConnection({{ server.id }})" title="测试连接">
                                     <i class="bi bi-wifi"></i>
                                 </button>
-                                <button class="claude-btn claude-btn-sm claude-btn-secondary" onclick="editServer({{ server.id }}, '{{ server.name }}', '{{ server.host }}', {{ server.port }}, '{{ server.username }}', '{{ server.password }}')" title="编辑服务器">
+                                <button class="claude-btn claude-btn-sm claude-btn-secondary" onclick="editServerById({{ server.id }})" title="编辑服务器">
                                     <i class="bi bi-pencil"></i>
                                 </button>
                                 <button class="claude-btn claude-btn-sm claude-btn-danger" onclick="deleteServer({{ server.id }}, '{{ server.name }}')" title="删除服务器">
@@ -197,6 +243,74 @@
                         <input type="password" class="form-control claude-input" id="password" name="password">
                         <div class="form-text">暂只支持密码认证，留空表示使用密钥认证</div>
                     </div>
+                    
+                    <!-- 位置信息 -->
+                    <hr class="my-4">
+                    <h6 class="text-muted mb-3">
+                        <i class="bi bi-geo-alt me-2"></i>
+                        位置信息 (可选)
+                    </h6>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="location" class="form-label">部署位置</label>
+                            <input type="text" class="form-control claude-input" id="location" name="location" placeholder="如：北京机房">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="datacenter" class="form-label">部署机房</label>
+                            <input type="text" class="form-control claude-input" id="datacenter" name="datacenter" placeholder="如：A区机房">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="rack" class="form-label">部署机柜</label>
+                            <input type="text" class="form-control claude-input" id="rack" name="rack" placeholder="如：R-A01">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="rack_position" class="form-label">柜内位置</label>
+                            <input type="text" class="form-control claude-input" id="rack_position" name="rack_position" placeholder="如：U1-U2">
+                        </div>
+                    </div>
+                    
+                    <!-- 配置信息 -->
+                    <hr class="my-4">
+                    <h6 class="text-muted mb-3">
+                        <i class="bi bi-cpu me-2"></i>
+                        配置信息 (可选)
+                    </h6>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="cpu_model" class="form-label">CPU型号</label>
+                            <input type="text" class="form-control claude-input" id="cpu_model" name="cpu_model" placeholder="如：Intel Xeon E5-2620">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="cpu_count" class="form-label">CPU数量</label>
+                            <input type="number" class="form-control claude-input" id="cpu_count" name="cpu_count" min="1" placeholder="如：2">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="gpu_model" class="form-label">GPU型号</label>
+                            <input type="text" class="form-control claude-input" id="gpu_model" name="gpu_model" placeholder="如：NVIDIA RTX 4090">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="gpu_count" class="form-label">GPU数量</label>
+                            <input type="number" class="form-control claude-input" id="gpu_count" name="gpu_count" min="0" placeholder="如：1">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="memory_model" class="form-label">内存型号</label>
+                            <input type="text" class="form-control claude-input" id="memory_model" name="memory_model" placeholder="如：DDR4-3200">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="memory_count" class="form-label">内存数量(GB)</label>
+                            <input type="number" class="form-control claude-input" id="memory_count" name="memory_count" min="1" placeholder="如：32">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="ssd_model" class="form-label">SSD型号</label>
+                            <input type="text" class="form-control claude-input" id="ssd_model" name="ssd_model" placeholder="如：Samsung 980 PRO">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="ssd_count" class="form-label">SSD数量(GB)</label>
+                            <input type="number" class="form-control claude-input" id="ssd_count" name="ssd_count" min="1" placeholder="如：1024">
+                        </div>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="claude-btn claude-btn-secondary" data-bs-dismiss="modal">取消</button>
@@ -250,6 +364,74 @@
                         <label for="edit_password" class="form-label">密码</label>
                         <input type="password" class="form-control claude-input" id="edit_password" name="password">
                         <div class="form-text">留空表示不修改密码</div>
+                    </div>
+                    
+                    <!-- 位置信息 -->
+                    <hr class="my-4">
+                    <h6 class="text-muted mb-3">
+                        <i class="bi bi-geo-alt me-2"></i>
+                        位置信息 (可选)
+                    </h6>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="edit_location" class="form-label">部署位置</label>
+                            <input type="text" class="form-control claude-input" id="edit_location" name="location" placeholder="如：北京机房">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="edit_datacenter" class="form-label">部署机房</label>
+                            <input type="text" class="form-control claude-input" id="edit_datacenter" name="datacenter" placeholder="如：A区机房">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="edit_rack" class="form-label">部署机柜</label>
+                            <input type="text" class="form-control claude-input" id="edit_rack" name="rack" placeholder="如：R-A01">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="edit_rack_position" class="form-label">柜内位置</label>
+                            <input type="text" class="form-control claude-input" id="edit_rack_position" name="rack_position" placeholder="如：U1-U2">
+                        </div>
+                    </div>
+                    
+                    <!-- 配置信息 -->
+                    <hr class="my-4">
+                    <h6 class="text-muted mb-3">
+                        <i class="bi bi-cpu me-2"></i>
+                        配置信息 (可选)
+                    </h6>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="edit_cpu_model" class="form-label">CPU型号</label>
+                            <input type="text" class="form-control claude-input" id="edit_cpu_model" name="cpu_model" placeholder="如：Intel Xeon E5-2620">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="edit_cpu_count" class="form-label">CPU数量</label>
+                            <input type="number" class="form-control claude-input" id="edit_cpu_count" name="cpu_count" min="1" placeholder="如：2">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="edit_gpu_model" class="form-label">GPU型号</label>
+                            <input type="text" class="form-control claude-input" id="edit_gpu_model" name="gpu_model" placeholder="如：NVIDIA RTX 4090">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="edit_gpu_count" class="form-label">GPU数量</label>
+                            <input type="number" class="form-control claude-input" id="edit_gpu_count" name="gpu_count" min="0" placeholder="如：1">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="edit_memory_model" class="form-label">内存型号</label>
+                            <input type="text" class="form-control claude-input" id="edit_memory_model" name="memory_model" placeholder="如：DDR4-3200">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="edit_memory_count" class="form-label">内存数量(GB)</label>
+                            <input type="number" class="form-control claude-input" id="edit_memory_count" name="memory_count" min="1" placeholder="如：32">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="edit_ssd_model" class="form-label">SSD型号</label>
+                            <input type="text" class="form-control claude-input" id="edit_ssd_model" name="ssd_model" placeholder="如：Samsung 980 PRO">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="edit_ssd_count" class="form-label">SSD数量(GB)</label>
+                            <input type="number" class="form-control claude-input" id="edit_ssd_count" name="ssd_count" min="1" placeholder="如：1024">
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -397,6 +579,38 @@
 </style>
 
 <script>
+// 服务器数据
+const serversData = {
+    {% for server in servers %}
+    {{ server.id }}: {
+        name: '{{ server.name }}',
+        host: '{{ server.host }}',
+        port: {{ server.port }},
+        username: '{{ server.username }}',
+        password: '{{ server.password or "" }}',
+        location: '{{ server.location or "" }}',
+        datacenter: '{{ server.datacenter or "" }}',
+        rack: '{{ server.rack or "" }}',
+        rack_position: '{{ server.rack_position or "" }}',
+        cpu_model: '{{ server.cpu_model or "" }}',
+        cpu_count: {{ server.cpu_count or 'null' }},
+        gpu_model: '{{ server.gpu_model or "" }}',
+        gpu_count: {{ server.gpu_count or 'null' }},
+        memory_model: '{{ server.memory_model or "" }}',
+        memory_count: {{ server.memory_count or 'null' }},
+        ssd_model: '{{ server.ssd_model or "" }}',
+        ssd_count: {{ server.ssd_count or 'null' }}
+    }{% if not loop.last %},{% endif %}
+    {% endfor %}
+};
+
+function editServerById(serverId) {
+    const serverData = serversData[serverId];
+    if (serverData) {
+        editServer(serverId, serverData);
+    }
+}
+
 function testConnection(serverId) {
     const btn = event.target.closest('button');
     const originalText = btn.innerHTML;
@@ -428,14 +642,30 @@ function testConnection(serverId) {
     }, 2000);
 }
 
-function editServer(serverId, name, host, port, username, password) {
-    // 填充编辑表单
+function editServer(serverId, serverData) {
+    // 填充基本编辑表单
     document.getElementById('edit_server_id').value = serverId;
-    document.getElementById('edit_name').value = name;
-    document.getElementById('edit_host').value = host;
-    document.getElementById('edit_port').value = port;
-    document.getElementById('edit_username').value = username;
+    document.getElementById('edit_name').value = serverData.name || '';
+    document.getElementById('edit_host').value = serverData.host || '';
+    document.getElementById('edit_port').value = serverData.port || 22;
+    document.getElementById('edit_username').value = serverData.username || '';
     document.getElementById('edit_password').value = '';
+    
+    // 填充位置信息
+    document.getElementById('edit_location').value = serverData.location || '';
+    document.getElementById('edit_datacenter').value = serverData.datacenter || '';
+    document.getElementById('edit_rack').value = serverData.rack || '';
+    document.getElementById('edit_rack_position').value = serverData.rack_position || '';
+    
+    // 填充配置信息
+    document.getElementById('edit_cpu_model').value = serverData.cpu_model || '';
+    document.getElementById('edit_cpu_count').value = serverData.cpu_count || '';
+    document.getElementById('edit_gpu_model').value = serverData.gpu_model || '';
+    document.getElementById('edit_gpu_count').value = serverData.gpu_count || '';
+    document.getElementById('edit_memory_model').value = serverData.memory_model || '';
+    document.getElementById('edit_memory_count').value = serverData.memory_count || '';
+    document.getElementById('edit_ssd_model').value = serverData.ssd_model || '';
+    document.getElementById('edit_ssd_count').value = serverData.ssd_count || '';
     
     // 显示编辑模态框
     const modal = new bootstrap.Modal(document.getElementById('editServerModal'));
@@ -490,8 +720,102 @@ function showToast(message, type) {
     }, 3000);
 }
 
+// 服务器搜索和筛选功能
+function initServerSearch() {
+    const searchInput = document.getElementById('serverSearchInput');
+    const clearBtn = document.getElementById('clearSearchBtn');
+    const filterButtons = document.querySelectorAll('.filter-status');
+    const serverRows = document.querySelectorAll('tbody tr');
+    
+    let currentFilter = 'all';
+    
+    // 搜索功能
+    function performSearch() {
+        const searchTerm = searchInput.value.toLowerCase().trim();
+        let visibleCount = 0;
+        
+        serverRows.forEach(row => {
+            const serverName = row.querySelector('.fw-semibold').textContent.toLowerCase();
+            const serverHost = row.querySelector('small').textContent.toLowerCase();
+            const serverStatus = row.querySelector('.claude-badge').textContent.toLowerCase();
+            
+            const matchesSearch = !searchTerm || 
+                serverName.includes(searchTerm) || 
+                serverHost.includes(searchTerm);
+            
+            const matchesFilter = currentFilter === 'all' || 
+                serverStatus.includes(currentFilter === 'online' ? '在线' : 
+                                    currentFilter === 'offline' ? '离线' : '未知');
+            
+            if (matchesSearch && matchesFilter) {
+                row.style.display = '';
+                visibleCount++;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+        
+        // 显示/隐藏清除按钮
+        clearBtn.style.display = searchTerm ? 'block' : 'none';
+        
+        // 更新结果提示
+        updateResultCount(visibleCount);
+    }
+    
+    // 防抖搜索
+    let searchTimeout;
+    searchInput.addEventListener('input', () => {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(performSearch, 300);
+    });
+    
+    // 清除搜索
+    clearBtn.addEventListener('click', () => {
+        searchInput.value = '';
+        clearBtn.style.display = 'none';
+        performSearch();
+        searchInput.focus();
+    });
+    
+    // 状态筛选
+    filterButtons.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            currentFilter = btn.dataset.status;
+            
+            // 更新筛选按钮文本
+            const dropdownBtn = document.querySelector('.dropdown-toggle');
+            const statusText = btn.textContent;
+            dropdownBtn.innerHTML = `<i class="bi bi-funnel"></i> ${statusText}`;
+            
+            performSearch();
+        });
+    });
+    
+    // 更新结果计数
+    function updateResultCount(count) {
+        let countElement = document.getElementById('searchResultCount');
+        if (!countElement) {
+            countElement = document.createElement('small');
+            countElement.id = 'searchResultCount';
+            countElement.className = 'text-muted ms-2';
+            document.querySelector('.claude-card-header h5').appendChild(countElement);
+        }
+        
+        if (searchInput.value.trim() || currentFilter !== 'all') {
+            countElement.textContent = `(${count} 个结果)`;
+        } else {
+            countElement.textContent = '';
+        }
+    }
+}
+
 // 表单验证
 document.addEventListener('DOMContentLoaded', function() {
+    // 初始化搜索功能
+    if (document.getElementById('serverSearchInput')) {
+        initServerSearch();
+    }
     function validateForm(form) {
         const nameInput = form.querySelector('input[name="name"]');
         const hostInput = form.querySelector('input[name="host"]');

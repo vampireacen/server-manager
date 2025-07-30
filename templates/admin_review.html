@@ -104,8 +104,8 @@
 {% if batches %}
 <div class="row">
     {% for batch in batches %}
-    <div class="col-xl-6 col-lg-12 col-md-6 col-sm-12 mb-4">
-        <div class="claude-card {{ 'border-warning' if batch.get_status_summary() == 'pending' else 'border-info' if batch.get_status_summary() == 'processing' else 'border-success' if batch.get_status_summary() == 'completed' else 'border-secondary' }}" 
+    <div class="col-12 mb-4">
+        <div class="claude-card uniform-card-height {{ 'border-warning' if batch.get_status_summary() == 'pending' else 'border-info' if batch.get_status_summary() == 'processing' else 'border-success' if batch.get_status_summary() == 'completed' else 'border-secondary' }}" 
              style="border-left-width: 4px !important;">
             <!-- 申请批次头部 -->
             <div class="claude-card-header">
@@ -158,7 +158,7 @@
                 </div>
                 
                 <!-- 权限状态概览 -->
-                <div class="mb-3">
+                <div class="mb-3 flex-grow-1">
                     <div class="application-detail-item">
                         <label>权限状态</label>
                         <div class="application-detail-value w-100">
@@ -182,7 +182,7 @@
                     <div class="application-detail-item">
                         <label>申请理由</label>
                         <div class="application-detail-value">
-                            <div class="alert alert-light border-0 mb-0" style="background: var(--claude-bg-secondary);">
+                            <div class="alert alert-light border-0 mb-0 application-reason-section" style="background: var(--claude-bg-secondary);">
                                 <i class="bi bi-chat-text me-2"></i>
                                 {{ batch.reason }}
                             </div>
@@ -311,6 +311,195 @@
 .claude-card.border-danger {
     border-left-color: var(--claude-danger) !important;
 }
+
+/* 自适应卡片高度样式 */
+.uniform-card-height {
+    min-height: 300px;
+    display: flex;
+    flex-direction: column;
+}
+
+.uniform-card-height .claude-card-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.permissions-summary {
+    border: 1px solid var(--claude-border-light);
+    border-radius: var(--claude-radius-sm);
+    padding: 8px;
+    background: var(--claude-bg-secondary);
+    margin-top: 4px;
+}
+
+.permission-item {
+    padding: 2px 0;
+}
+
+.application-reason-section {
+    /* No height restrictions - show full content */
+}
+
+/* 权限审核卡片样式 - 完全重新设计 */
+.permission-review-card {
+    border: 1px solid var(--claude-border-light);
+    border-radius: var(--claude-radius);
+    padding: 20px;
+    margin-bottom: 20px;
+    background: white;
+    box-shadow: var(--claude-shadow-sm);
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.permission-review-card:last-child {
+    margin-bottom: 0;
+}
+
+/* 权限卡片上半部分 - 左右分栏布局 */
+.permission-card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 20px;
+}
+
+/* 权限信息区域 - 左侧 */
+.permission-info {
+    flex: 1;
+    padding-right: 20px;
+}
+
+.permission-info h6 {
+    color: var(--claude-text-primary);
+    margin-bottom: 8px;
+    font-weight: 600;
+    font-size: 1.1rem;
+}
+
+.permission-info .description {
+    color: var(--claude-text-muted);
+    font-size: 0.875rem;
+    margin-bottom: 8px;
+    line-height: 1.4;
+}
+
+.permission-info .review-time {
+    color: var(--claude-text-light);
+    font-size: 0.75rem;
+}
+
+/* 权限操作区域 - 右侧 */
+.permission-actions {
+    flex: 0 0 280px;
+    display: flex;
+    gap: 10px;
+}
+
+.permission-actions .claude-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.875rem;
+    padding: 10px 16px;
+    min-width: 120px;
+    white-space: nowrap;
+}
+
+/* 权限结果显示 - 右侧 */
+.permission-result {
+    flex: 0 0 280px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+/* 审核意见区域 - 下方全宽 */
+.permission-comment {
+    width: 100%;
+    padding-top: 20px;
+    border-top: 1px solid var(--claude-border-light);
+}
+
+.permission-comment textarea {
+    width: 100%;
+    border: 1px solid var(--claude-border-medium);
+    border-radius: var(--claude-radius-sm);
+    padding: 12px;
+    font-size: 0.875rem;
+    resize: vertical;
+    min-height: 80px;
+    background: var(--claude-bg-secondary);
+    box-sizing: border-box;
+}
+
+.permission-comment textarea:focus {
+    outline: none;
+    border-color: var(--claude-primary);
+    box-shadow: 0 0 0 2px rgba(255, 107, 53, 0.1);
+    background: white;
+}
+
+/* 确保权限审核容器正确显示 */
+.application-detail-value {
+    display: block;
+    width: 100%;
+}
+
+.application-detail-value.w-100 {
+    display: block !important;
+    flex-direction: column;
+}
+
+/* 响应式优化 */
+@media (max-width: 767.98px) {
+    .uniform-card-height {
+        min-height: 250px;
+    }
+    
+    /* Mobile: no height restrictions for full content display */
+    
+    /* 移动端权限卡片堆叠布局 */
+    .permission-card-top {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .permission-info {
+        padding-right: 0;
+        margin-bottom: 16px;
+    }
+    
+    .permission-actions {
+        flex: none;
+        width: 100%;
+        gap: 8px;
+    }
+    
+    .permission-actions .claude-btn {
+        font-size: 0.8rem;
+        padding: 10px 12px;
+        min-width: auto;
+    }
+    
+    .permission-result {
+        flex: none;
+        width: 100%;
+    }
+    
+    .permission-comment {
+        padding-top: 12px;
+    }
+    
+    .permission-comment textarea {
+        min-height: 60px;
+        font-size: 0.8rem;
+        padding: 10px;
+    }
+}
 </style>
 
 <script>
@@ -335,57 +524,51 @@ function showBatchReviewModal(batchId) {
     let permissionsHtml = '';
     batch.permissions.forEach(perm => {
         const isEditable = perm.status === 'pending';
-        const approvedChecked = perm.status === 'approved' ? 'checked' : '';
-        const rejectedChecked = perm.status === 'rejected' ? 'checked' : '';
-        const pendingChecked = perm.status === 'pending' ? 'checked' : '';
         
         permissionsHtml += `
-            <div class="permission-review-item border rounded p-3 mb-3">
-                <div class="row">
-                    <div class="col-md-6">
-                        <h6 class="fw-semibold mb-2">${perm.permission_type.name}</h6>
-                        <p class="text-muted small mb-2">${perm.permission_type.description}</p>
-                        ${perm.reviewed_at ? `<small class="text-muted">审核时间: ${new Date(perm.reviewed_at).toLocaleString()}</small>` : ''}
+            <div class="permission-review-card">
+                <div class="permission-card-top">
+                    <div class="permission-info">
+                        <h6>${perm.permission_type.name}</h6>
+                        <div class="description">${perm.permission_type.description}</div>
+                        ${perm.reviewed_at ? `<div class="review-time">审核时间: ${new Date(perm.reviewed_at).toLocaleString()}</div>` : ''}
                     </div>
-                    <div class="col-md-6">
-                        ${isEditable ? `
-                        <div class="review-actions">
-                            <div class="mb-2">
-                                <div class="form-check form-check-inline">
-                                    <input class="form-check-input" type="radio" name="action_${perm.id}" id="approve_${perm.id}" value="approved">
-                                    <label class="form-check-label text-success" for="approve_${perm.id}">
-                                        <i class="bi bi-check-circle me-1"></i>通过
-                                    </label>
-                                </div>
-                                <div class="form-check form-check-inline">
-                                    <input class="form-check-input" type="radio" name="action_${perm.id}" id="reject_${perm.id}" value="rejected">
-                                    <label class="form-check-label text-danger" for="reject_${perm.id}">
-                                        <i class="bi bi-x-circle me-1"></i>拒绝
-                                    </label>
-                                </div>
-                            </div>
-                            <textarea class="form-control form-control-sm" name="comment_${perm.id}" rows="2" 
-                                      placeholder="审核意见（可选）">${perm.admin_comment || ''}</textarea>
-                        </div>` : `
-                        <div class="review-result">
-                            <span class="claude-badge claude-badge-${
-                                perm.status === 'approved' ? 'success' : 
-                                perm.status === 'rejected' ? 'danger' : 'secondary'
-                            }">
-                                <i class="bi bi-${
-                                    perm.status === 'approved' ? 'check-circle' : 
-                                    perm.status === 'rejected' ? 'x-circle' : 'clock-history'
-                                } me-1"></i>
-                                ${perm.status === 'approved' ? '已通过' : 
-                                  perm.status === 'rejected' ? '已拒绝' : '待审核'}
-                            </span>
-                            ${perm.admin_comment ? `
-                            <div class="alert alert-info border-0 mt-2 small">
-                                <strong>审核意见:</strong> ${perm.admin_comment}
-                            </div>` : ''}
-                        </div>`}
-                    </div>
+                    
+                    ${isEditable ? `
+                    <div class="permission-actions">
+                        <button type="button" class="claude-btn claude-btn-success" 
+                                onclick="setPermissionAction(${perm.id}, 'approved', this)">
+                            <i class="bi bi-check-circle me-1"></i>同意
+                        </button>
+                        <button type="button" class="claude-btn claude-btn-danger" 
+                                onclick="setPermissionAction(${perm.id}, 'rejected', this)">
+                            <i class="bi bi-x-circle me-1"></i>拒绝
+                        </button>
+                    </div>` : `
+                    <div class="permission-result">
+                        <span class="claude-badge claude-badge-${
+                            perm.status === 'approved' ? 'success' : 
+                            perm.status === 'rejected' ? 'danger' : 'secondary'
+                        }">
+                            <i class="bi bi-${
+                                perm.status === 'approved' ? 'check-circle' : 
+                                perm.status === 'rejected' ? 'x-circle' : 'clock-history'
+                            } me-1"></i>
+                            ${perm.status === 'approved' ? '已通过' : 
+                              perm.status === 'rejected' ? '已拒绝' : '待审核'}
+                        </span>
+                        ${perm.admin_comment ? `
+                        <div class="alert alert-info border-0 mt-2 small">
+                            <strong>审核意见:</strong> ${perm.admin_comment}
+                        </div>` : ''}
+                    </div>`}
                 </div>
+                
+                ${isEditable ? `
+                <div class="permission-comment">
+                    <textarea name="comment_${perm.id}" placeholder="审核意见（可选）">${perm.admin_comment || ''}</textarea>
+                    <input type="hidden" name="action_${perm.id}" value="" id="action_${perm.id}">
+                </div>` : ''}
             </div>
         `;
     });
@@ -453,6 +636,33 @@ function showBatchReviewModal(batchId) {
         submitBtn.style.display = 'inline-flex';
     } else {
         submitBtn.style.display = 'none';
+    }
+}
+
+// 设置权限审核动作
+function setPermissionAction(permId, action, button) {
+    // 设置隐藏字段的值
+    document.getElementById(`action_${permId}`).value = action;
+    
+    // 更新按钮状态
+    const card = button.closest('.permission-review-card');
+    const buttons = card.querySelectorAll('.permission-actions .claude-btn');
+    
+    // 重置所有按钮状态
+    buttons.forEach(btn => {
+        btn.classList.remove('active');
+        btn.style.opacity = '0.6';
+    });
+    
+    // 激活选中的按钮
+    button.classList.add('active');
+    button.style.opacity = '1';
+    
+    // 添加视觉反馈
+    if (action === 'approved') {
+        button.style.boxShadow = '0 0 0 2px rgba(16, 185, 129, 0.3)';
+    } else if (action === 'rejected') {
+        button.style.boxShadow = '0 0 0 2px rgba(239, 68, 68, 0.3)';
     }
 }
 
