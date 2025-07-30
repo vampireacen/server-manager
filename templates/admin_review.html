@@ -332,7 +332,7 @@
 </style>
 
 <script>
-const applications = {{ applications | tojson }};
+const applications = {{ applications_json | tojson }};
 
 function showReviewModal(appId) {
     const app = applications.find(a => a.id === appId);

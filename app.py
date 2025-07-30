@@ -270,8 +270,51 @@ def apply():
 @login_required
 def my_applications():
     """用户查看自己的申请"""
-    applications = Application.query.filter_by(user_id=session['user_id']).order_by(Application.created_at.desc()).all()
-    return render_template('my_applications.html', applications=applications)
+    applications_query = Application.query.filter_by(user_id=session['user_id']).options(
+        db.joinedload(Application.server),
+        db.joinedload(Application.permission_type),
+        db.joinedload(Application.user),
+        db.joinedload(Application.reviewer)
+    ).order_by(Application.created_at.desc()).all()
+    
+    # 转换为字典格式以便JSON序列化
+    applications = []
+    for app in applications_query:
+        app_dict = {
+            'id': app.id,
+            'user': {
+                'id': app.user.id,
+                'username': app.user.username
+            },
+            'server': {
+                'id': app.server.id,
+                'name': app.server.name,
+                'host': app.server.host,
+                'port': app.server.port
+            },
+            'permission_type': {
+                'id': app.permission_type.id,
+                'name': app.permission_type.name,
+                'description': app.permission_type.description
+            },
+            'status': app.status,
+            'created_at': app.created_at.isoformat() if app.created_at else None,
+            'reviewed_at': app.reviewed_at.isoformat() if app.reviewed_at else None,
+            'reason': app.reason,
+            'admin_comment': app.admin_comment
+        }
+        
+        if app.reviewer:
+            app_dict['reviewer'] = {
+                'id': app.reviewer.id,
+                'username': app.reviewer.username
+            }
+        else:
+            app_dict['reviewer'] = None
+            
+        applications.append(app_dict)
+    
+    return render_template('my_applications.html', applications=applications_query, applications_json=applications)
 
 @app.route('/admin/review')
 @admin_required
@@ -283,13 +326,56 @@ def admin_review():
     if status_filter != 'all':
         query = query.filter_by(status=status_filter)
     
-    applications = query.order_by(Application.created_at.desc()).all()
+    applications_query = query.options(
+        db.joinedload(Application.server),
+        db.joinedload(Application.permission_type),
+        db.joinedload(Application.user),
+        db.joinedload(Application.reviewer)
+    ).order_by(Application.created_at.desc()).all()
+    
+    # 转换为字典格式以便JSON序列化
+    applications_json = []
+    for app in applications_query:
+        app_dict = {
+            'id': app.id,
+            'user': {
+                'id': app.user.id,
+                'username': app.user.username
+            },
+            'server': {
+                'id': app.server.id,
+                'name': app.server.name,
+                'host': app.server.host,
+                'port': app.server.port
+            },
+            'permission_type': {
+                'id': app.permission_type.id,
+                'name': app.permission_type.name,
+                'description': app.permission_type.description,
+                'requires_reason': app.permission_type.requires_reason
+            },
+            'status': app.status,
+            'created_at': app.created_at.isoformat() if app.created_at else None,
+            'reviewed_at': app.reviewed_at.isoformat() if app.reviewed_at else None,
+            'reason': app.reason,
+            'admin_comment': app.admin_comment
+        }
+        
+        if app.reviewer:
+            app_dict['reviewer'] = {
+                'id': app.reviewer.id,
+                'username': app.reviewer.username
+            }
+        else:
+            app_dict['reviewer'] = None
+            
+        applications_json.append(app_dict)
     
     # 标记通知为已读
     Notification.query.filter_by(admin_id=session['user_id'], is_read=False).update({'is_read': True})
     db.session.commit()
     
-    return render_template('admin_review.html', applications=applications, status_filter=status_filter)
+    return render_template('admin_review.html', applications=applications_query, applications_json=applications_json, status_filter=status_filter)
 
 @app.route('/admin/review_application/<int:app_id>', methods=['POST'])
 @admin_required

@@ -106,7 +106,7 @@
 
 {% block scripts %}
 <script>
-const applications = {{ applications | tojson }};
+const applications = {{ applications_json | tojson }};
 
 function showApplicationDetails(appId) {
     const app = applications.find(a => a.id === appId);
