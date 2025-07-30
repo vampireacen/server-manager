@@ -99,6 +99,10 @@
                     <ul class="dropdown-menu dropdown-menu-end">
                         <li><span class="dropdown-header">{{ session.username }}</span></li>
                         <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="{{ url_for('account') }}">
+                            <i class="bi bi-person-circle me-2"></i>账户信息
+                        </a></li>
+                        <li><hr class="dropdown-divider"></li>
                         <li><a class="dropdown-item text-danger" href="{{ url_for('logout') }}">
                             <i class="bi bi-box-arrow-right me-2"></i>退出登录
                         </a></li>
@@ -506,8 +510,8 @@
         
         .claude-content-wrapper {
             padding: 24px;
-            max-width: 1400px;
-            margin: 0 auto;
+            width: 100%;
+            margin: 0;
         }
         
         .claude-notification-badge {

@@ -1,4 +1,5 @@
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify, flash
+from sqlalchemy.orm import joinedload
 from models import db, User, Server, Application, PermissionType, ServerMetric, Notification
 from server_monitor import collect_all_servers_metrics, get_server_latest_metrics, get_server_metrics_history
 from config import Config
@@ -495,6 +496,19 @@ def admin_users():
                 db.session.delete(user)
                 db.session.commit()
                 flash(f'用户 {user.username} 删除成功', 'success')
+                
+        elif action == 'reset_password':
+            # 重置用户密码
+            user_id = request.form['user_id']
+            new_password = request.form['new_password']
+            user = User.query.get_or_404(user_id)
+            
+            if len(new_password) < 8:
+                flash('新密码至少需要8位字符', 'error')
+            else:
+                user.set_password(new_password)
+                db.session.commit()
+                flash(f'用户 {user.username} 密码重置成功', 'success')
         
         return redirect(url_for('admin_users'))
     
@@ -529,6 +543,60 @@ def api_user_applications(user_id):
         })
     
     return jsonify({'applications': result})
+
+@app.route('/account', methods=['GET', 'POST'])
+@login_required
+def account():
+    """账户信息管理页面"""
+    user = User.query.get(session['user_id'])
+    
+    if request.method == 'POST':
+        action = request.form.get('action')
+        
+        if action == 'change_password':
+            current_password = request.form.get('current_password')
+            new_password = request.form.get('new_password')
+            confirm_password = request.form.get('confirm_password')
+            
+            # 验证当前密码
+            if not user.check_password(current_password):
+                flash('当前密码不正确', 'error')
+                return redirect(url_for('account'))
+            
+            # 验证新密码
+            if new_password != confirm_password:
+                flash('新密码两次输入不一致', 'error')
+                return redirect(url_for('account'))
+            
+            if len(new_password) < 8:
+                flash('新密码至少需要8位字符', 'error')
+                return redirect(url_for('account'))
+            
+            # 更新密码
+            user.set_password(new_password)
+            db.session.commit()
+            flash('密码修改成功', 'success')
+            return redirect(url_for('account'))
+    
+    # 获取用户的服务器权限信息（仅显示已批准的申请）
+    user_applications = Application.query.filter_by(
+        user_id=session['user_id'], 
+        status='approved'
+    ).options(db.joinedload(Application.server), db.joinedload(Application.permission_type)).all()
+    
+    return render_template('account.html', user=user, applications=user_applications)
+
+@app.route('/api/verify_password', methods=['POST'])
+@login_required
+def api_verify_password():
+    """验证用户密码API"""
+    password = request.json.get('password')
+    user = User.query.get(session['user_id'])
+    
+    if user.check_password(password):
+        return jsonify({'success': True})
+    else:
+        return jsonify({'success': False, 'message': '密码不正确'})
 
 @app.route('/api/notifications')
 @login_required

@@ -119,7 +119,7 @@
                                             <strong>密码:</strong> 
                                             <span class="password-field" id="pwd-{{ app.id }}">
                                                 <code class="claude-code password-hidden">••••••••</code>
-                                                <button class="btn btn-sm btn-link p-0 ms-1" onclick="togglePassword({{ app.id }}, '{{ app.server.password|replace("'", "\\'") }}')" title="显示密码">
+                                                <button class="claude-btn claude-btn-sm claude-btn-secondary p-0 ms-1" onclick="togglePassword({{ app.id }}, '{{ app.server.password|replace("'", "\\'") }}')" title="显示密码">
                                                     <i class="bi bi-eye" id="eye-{{ app.id }}"></i>
                                                 </button>
                                             </span>
@@ -154,7 +154,7 @@
                                     <small class="text-muted">{{ app.reviewed_at.strftime('%Y-%m-%d %H:%M') if app.reviewed_at else '--' }}</small>
                                 </td>
                                 <td>
-                                    <button class="btn btn-sm btn-outline-primary" onclick="copyConnectionInfo('{{ app.server.username }}', '{{ app.server.host }}', {{ app.server.port }}, '{{ app.server.password|replace("'", "\\'") }}')" title="复制连接命令">
+                                    <button class="claude-btn claude-btn-sm claude-btn-secondary" onclick="copyConnectionInfo('{{ app.server.username }}', '{{ app.server.host }}', {{ app.server.port }}, '{{ app.server.password|replace("'", "\\'") }}')" title="复制连接命令">
                                         <i class="bi bi-clipboard"></i>
                                     </button>
                                 </td>
@@ -378,30 +378,6 @@
     transition: all 0.2s ease;
 }
 
-.claude-btn-primary {
-    background: linear-gradient(135deg, #0369a1 0%, #0284c7 100%);
-    color: white;
-    box-shadow: 0 2px 4px rgba(3, 105, 161, 0.2);
-}
-
-.claude-btn-primary:hover {
-    background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 8px rgba(3, 105, 161, 0.3);
-    color: white;
-}
-
-.claude-btn-secondary {
-    background: #f8fafc;
-    color: #64748b;
-    border: 1px solid #e2e8f0;
-}
-
-.claude-btn-secondary:hover {
-    background: #f1f5f9;
-    color: #475569;
-    border-color: #cbd5e1;
-}
 </style>
 
 <script>

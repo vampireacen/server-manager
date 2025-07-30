@@ -118,6 +118,9 @@
                                     <i class="bi bi-list-ul"></i>
                                 </button>
                                 {% if user.id != session.user_id %}
+                                <button class="claude-btn claude-btn-sm claude-btn-warning" onclick="resetUserPassword({{ user.id }}, '{{ user.username }}')" title="重置密码">
+                                    <i class="bi bi-key"></i>
+                                </button>
                                 <button class="claude-btn claude-btn-sm claude-btn-primary" onclick="toggleUserRole({{ user.id }}, '{{ user.role }}', '{{ user.username }}')" title="{{ '降为普通用户' if user.role == 'admin' else '提升为管理员' }}">
                                     <i class="bi bi-{{ 'arrow-down-circle' if user.role == 'admin' else 'arrow-up-circle' }}"></i>
                                 </button>
@@ -178,6 +181,55 @@
                     <button type="button" class="claude-btn claude-btn-secondary" data-bs-dismiss="modal">取消</button>
                     <button type="submit" class="claude-btn claude-btn-primary">
                         <i class="bi bi-person-plus"></i> 添加用户
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- 重置密码模态框 -->
+<div class="modal fade" id="resetPasswordModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content claude-modal">
+            <div class="modal-header">
+                <h5 class="modal-title" style="color: var(--claude-text-primary); font-weight: 600;">
+                    <i class="bi bi-key me-2" style="color: var(--claude-warning);"></i>
+                    重置用户密码
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="resetPasswordForm" method="POST" action="{{ url_for('admin_users') }}">
+                <div class="modal-body">
+                    <input type="hidden" name="action" value="reset_password">
+                    <input type="hidden" name="user_id" id="resetUserId">
+                    
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        <strong>注意：</strong>您即将重置 <span id="resetUserName" class="fw-bold"></span> 的密码
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="newPassword" class="claude-form-label">
+                            <i class="bi bi-shield-plus me-1"></i>新密码
+                        </label>
+                        <input type="password" class="claude-form-control" id="newPassword" 
+                               name="new_password" required minlength="8" 
+                               placeholder="请输入新密码（至少8位字符）">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="confirmNewPassword" class="claude-form-label">
+                            <i class="bi bi-shield-check me-1"></i>确认新密码
+                        </label>
+                        <input type="password" class="claude-form-control" id="confirmNewPassword" 
+                               required minlength="8" placeholder="请再次输入新密码">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="claude-btn claude-btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="claude-btn claude-btn-warning">
+                        <i class="bi bi-check-circle me-1"></i>重置密码
                     </button>
                 </div>
             </form>
@@ -290,61 +342,6 @@
     cursor: pointer;
 }
 
-.claude-btn-primary {
-    background: linear-gradient(135deg, #0369a1 0%, #0284c7 100%);
-    color: white;
-    box-shadow: 0 2px 4px rgba(3, 105, 161, 0.2);
-}
-
-.claude-btn-primary:hover {
-    background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 8px rgba(3, 105, 161, 0.3);
-    color: white;
-}
-
-.claude-btn-secondary {
-    background: #f8fafc;
-    color: #64748b;
-    border: 1px solid #e2e8f0;
-}
-
-.claude-btn-secondary:hover {
-    background: #f1f5f9;
-    color: #475569;
-    border-color: #cbd5e1;
-}
-
-.claude-btn-warning {
-    background: linear-gradient(135deg, var(--claude-primary) 0%, var(--claude-primary-dark) 100%);
-    color: white;
-    box-shadow: 0 2px 4px rgba(255, 107, 53, 0.2);
-}
-
-.claude-btn-warning:hover {
-    background: linear-gradient(135deg, var(--claude-primary-dark) 0%, #d44a21 100%);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 8px rgba(255, 107, 53, 0.3);
-    color: white;
-}
-
-.claude-btn-danger {
-    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-    color: white;
-    box-shadow: 0 2px 4px rgba(239, 68, 68, 0.2);
-}
-
-.claude-btn-danger:hover {
-    background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 8px rgba(239, 68, 68, 0.3);
-    color: white;
-}
-
-.claude-btn-sm {
-    padding: 6px 12px;
-    font-size: 0.8rem;
-}
 
 .claude-modal {
     border: none;
@@ -508,6 +505,20 @@ function toggleUserRole(userId, currentRole, username) {
     }
 }
 
+function resetUserPassword(userId, username) {
+    // 设置模态框中的用户信息
+    document.getElementById('resetUserId').value = userId;
+    document.getElementById('resetUserName').textContent = username;
+    
+    // 清空表单
+    document.getElementById('newPassword').value = '';
+    document.getElementById('confirmNewPassword').value = '';
+    
+    // 显示模态框
+    const modal = new bootstrap.Modal(document.getElementById('resetPasswordModal'));
+    modal.show();
+}
+
 function deleteUser(userId, username) {
     if (confirm(`确定要删除用户 "${username}" 吗？\n\n注意：删除后该用户的所有申请记录也将被删除。`)) {
         const form = document.createElement('form');
@@ -578,6 +589,34 @@ document.addEventListener('DOMContentLoaded', function() {
             e.preventDefault();
             showToast('密码长度至少6位', 'error');
             document.getElementById('new_password').focus();
+            return false;
+        }
+    });
+    
+    // 重置密码表单验证
+    const resetPasswordForm = document.getElementById('resetPasswordForm');
+    
+    resetPasswordForm.addEventListener('submit', function(e) {
+        const newPassword = document.getElementById('newPassword').value;
+        const confirmNewPassword = document.getElementById('confirmNewPassword').value;
+        
+        if (!newPassword || !confirmNewPassword) {
+            e.preventDefault();
+            showToast('请填写所有密码字段', 'error');
+            return false;
+        }
+        
+        if (newPassword !== confirmNewPassword) {
+            e.preventDefault();
+            showToast('两次输入的密码不一致', 'error');
+            document.getElementById('confirmNewPassword').focus();
+            return false;
+        }
+        
+        if (newPassword.length < 8) {
+            e.preventDefault();
+            showToast('密码长度至少8位', 'error');
+            document.getElementById('newPassword').focus();
             return false;
         }
     });

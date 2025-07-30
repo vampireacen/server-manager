@@ -9,7 +9,7 @@
         <p class="text-muted">查看您提交的权限申请状态</p>
     </div>
     <div class="col-auto">
-        <a href="{{ url_for('apply') }}" class="btn btn-primary">
+        <a href="{{ url_for('apply') }}" class="claude-btn claude-btn-primary">
             <i class="bi bi-plus-circle"></i> 新建申请
         </a>
     </div>
@@ -60,7 +60,7 @@
                             {% endif %}
                         </td>
                         <td>
-                            <button class="btn btn-sm btn-outline-primary" 
+                            <button class="claude-btn claude-btn-sm claude-btn-secondary" 
                                     onclick="showApplicationDetails({{ app.id }})"
                                     data-bs-toggle="modal" 
                                     data-bs-target="#applicationModal">

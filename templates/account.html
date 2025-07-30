@@ -1,0 +1,352 @@
+{% extends "base.html" %}
+
+{% block title %}账户信息 - 服务器管理系统{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1 class="h3 mb-0">
+            <i class="bi bi-person-circle me-2" style="color: var(--claude-primary);"></i>
+            账户信息
+        </h1>
+        <p class="text-muted mb-0">管理您的账户密码和服务器连接信息</p>
+    </div>
+</div>
+
+<div class="row">
+    <!-- 用户基本信息 -->
+    <div class="col-lg-4 mb-4">
+        <div class="claude-card">
+            <div class="claude-card-header">
+                <i class="bi bi-person-badge me-2"></i>
+                基本信息
+            </div>
+            <div class="claude-card-body">
+                <div class="row mb-3">
+                    <div class="col-4"><strong>用户名:</strong></div>
+                    <div class="col-8">{{ user.username }}</div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-4"><strong>角色:</strong></div>
+                    <div class="col-8">
+                        <span class="claude-badge claude-badge-{{ 'primary' if user.is_admin() else 'info' }}">
+                            {{ '管理员' if user.is_admin() else '用户' }}
+                        </span>
+                    </div>
+                </div>
+                {% if user.student_id %}
+                <div class="row mb-3">
+                    <div class="col-4"><strong>学号:</strong></div>
+                    <div class="col-8">{{ user.student_id }}</div>
+                </div>
+                {% endif %}
+                {% if user.laboratory %}
+                <div class="row mb-3">
+                    <div class="col-4"><strong>实验室:</strong></div>
+                    <div class="col-8">{{ user.laboratory }}</div>
+                </div>
+                {% endif %}
+                {% if user.supervisor %}
+                <div class="row mb-3">
+                    <div class="col-4"><strong>导师:</strong></div>
+                    <div class="col-8">{{ user.supervisor }}</div>
+                </div>
+                {% endif %}
+                <div class="row mb-0">
+                    <div class="col-4"><strong>注册时间:</strong></div>
+                    <div class="col-8">{{ user.created_at.strftime('%Y-%m-%d') }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 密码修改 -->
+    <div class="col-lg-8 mb-4">
+        <div class="claude-card">
+            <div class="claude-card-header">
+                <i class="bi bi-shield-lock me-2"></i>
+                修改密码
+            </div>
+            <div class="claude-card-body">
+                <form method="POST" action="{{ url_for('account') }}">
+                    <input type="hidden" name="action" value="change_password">
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="current_password" class="claude-form-label">
+                                    <i class="bi bi-key me-1"></i>当前密码
+                                </label>
+                                <input type="password" class="claude-form-control" id="current_password" 
+                                       name="current_password" required>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="new_password" class="claude-form-label">
+                                    <i class="bi bi-shield-plus me-1"></i>新密码
+                                </label>
+                                <input type="password" class="claude-form-control" id="new_password" 
+                                       name="new_password" required minlength="8">
+                                <small class="text-muted">密码至少需要8位字符</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="confirm_password" class="claude-form-label">
+                                    <i class="bi bi-shield-check me-1"></i>确认新密码
+                                </label>
+                                <input type="password" class="claude-form-control" id="confirm_password" 
+                                       name="confirm_password" required minlength="8">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="claude-btn claude-btn-primary">
+                            <i class="bi bi-check-circle me-1"></i>修改密码
+                        </button>
+                        <button type="reset" class="claude-btn claude-btn-secondary">
+                            <i class="bi bi-arrow-clockwise me-1"></i>重置
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 服务器连接信息 -->
+{% if applications %}
+<div class="claude-card mb-4">
+    <div class="claude-card-header d-flex justify-content-between align-items-center">
+        <span>
+            <i class="bi bi-server me-2"></i>
+            服务器连接信息
+        </span>
+        <span class="claude-badge claude-badge-info">{{ applications|length }} 个授权服务器</span>
+    </div>
+    <div class="claude-card-body">
+        <div class="alert alert-warning">
+            <i class="bi bi-exclamation-triangle me-2"></i>
+            <strong>注意：</strong>查看服务器密码需要先验证您的用户密码
+        </div>
+        
+        <div class="table-responsive">
+            <table class="claude-table">
+                <thead>
+                    <tr>
+                        <th>服务器</th>
+                        <th>权限类型</th>
+                        <th>连接信息</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for app in applications %}
+                    <tr>
+                        <td>
+                            <strong>{{ app.server.name }}</strong><br>
+                            <small class="text-muted">{{ app.server.host }}:{{ app.server.port }}</small>
+                        </td>
+                        <td>
+                            <span class="claude-badge claude-badge-primary">{{ app.permission_type.name }}</span>
+                        </td>
+                        <td>
+                            <div class="mb-1">
+                                <strong>用户名：</strong>
+                                <code class="claude-code">{{ app.server.username }}</code>
+                            </div>
+                            <div>
+                                <strong>密码：</strong>
+                                <span class="password-field" id="pwd-display-{{ app.id }}">
+                                    <code class="claude-code">••••••••</code>
+                                </span>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="btn-group-vertical d-grid gap-1">
+                                <button class="claude-btn claude-btn-sm claude-btn-secondary" 
+                                        onclick="showPassword({{ app.id }}, '{{ app.server.password|replace("'", "\\'") }}')"
+                                        title="查看密码">
+                                    <i class="bi bi-eye"></i> 查看密码
+                                </button>
+                                <button class="claude-btn claude-btn-sm claude-btn-secondary" 
+                                        onclick="copyConnectionInfo('{{ app.server.username }}', '{{ app.server.host }}', {{ app.server.port }}, '{{ app.server.password|replace("'", "\\'") }}')"
+                                        title="复制SSH命令">
+                                    <i class="bi bi-clipboard"></i> 复制连接
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="claude-card">
+    <div class="claude-card-body text-center py-5">
+        <i class="bi bi-server" style="font-size: 3rem; color: var(--claude-text-muted);"></i>
+        <h5 class="mt-3 mb-2">暂无服务器权限</h5>
+        <p class="text-muted mb-3">您还没有获得任何服务器的访问权限</p>
+        <a href="{{ url_for('apply') }}" class="claude-btn claude-btn-primary">
+            <i class="bi bi-plus-circle me-1"></i>申请权限
+        </a>
+    </div>
+</div>
+{% endif %}
+
+<!-- 密码验证模态框 -->
+<div class="modal fade" id="passwordVerifyModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-shield-lock me-2"></i>验证密码
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted">为了保护您的账户安全，请输入您的用户密码以查看服务器密码。</p>
+                <div class="mb-3">
+                    <label for="verify_password" class="claude-form-label">用户密码</label>
+                    <input type="password" class="claude-form-control" id="verify_password" 
+                           placeholder="请输入您的用户密码">
+                </div>
+                <div id="verify_error" class="alert alert-danger d-none"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="claude-btn claude-btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="claude-btn claude-btn-primary" onclick="verifyPassword()">
+                    <i class="bi bi-check-circle me-1"></i>验证
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentAppId = null;
+let currentServerPassword = null;
+
+function showPassword(appId, serverPassword) {
+    currentAppId = appId;
+    currentServerPassword = serverPassword;
+    
+    // 清空之前的输入
+    document.getElementById('verify_password').value = '';
+    document.getElementById('verify_error').classList.add('d-none');
+    
+    // 显示验证模态框
+    const modal = new bootstrap.Modal(document.getElementById('passwordVerifyModal'));
+    modal.show();
+}
+
+function verifyPassword() {
+    const password = document.getElementById('verify_password').value;
+    const errorDiv = document.getElementById('verify_error');
+    
+    if (!password) {
+        errorDiv.textContent = '请输入密码';
+        errorDiv.classList.remove('d-none');
+        return;
+    }
+    
+    // 发送验证请求
+    fetch('/api/verify_password', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ password: password })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // 验证成功，显示服务器密码
+            const passwordField = document.getElementById(`pwd-display-${currentAppId}`);
+            passwordField.innerHTML = `<code class="claude-code">${currentServerPassword}</code>`;
+            
+            // 关闭模态框
+            const modal = bootstrap.Modal.getInstance(document.getElementById('passwordVerifyModal'));
+            modal.hide();
+            
+            // 5秒后隐藏密码
+            setTimeout(() => {
+                passwordField.innerHTML = '<code class="claude-code">••••••••</code>';
+            }, 5000);
+        } else {
+            errorDiv.textContent = data.message || '密码验证失败';
+            errorDiv.classList.remove('d-none');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        errorDiv.textContent = '验证请求失败，请重试';
+        errorDiv.classList.remove('d-none');
+    });
+}
+
+function copyConnectionInfo(username, host, port, password) {
+    const sshCommand = `ssh ${username}@${host} -p ${port}`;
+    
+    // 创建临时文本区域
+    const textArea = document.createElement('textarea');
+    textArea.value = sshCommand;
+    document.body.appendChild(textArea);
+    textArea.select();
+    
+    try {
+        document.execCommand('copy');
+        // 显示成功提示
+        const alert = document.createElement('div');
+        alert.className = 'alert alert-success alert-dismissible fade show position-fixed';
+        alert.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+        alert.innerHTML = `
+            <i class="bi bi-check-circle me-2"></i>
+            SSH连接命令已复制到剪贴板
+            <button type="button" class="btn-close" onclick="this.parentElement.remove()"></button>
+        `;
+        document.body.appendChild(alert);
+        
+        // 3秒后自动移除提示
+        setTimeout(() => {
+            if (alert.parentElement) {
+                alert.remove();
+            }
+        }, 3000);
+    } catch (err) {
+        console.error('复制失败:', err);
+    }
+    
+    document.body.removeChild(textArea);
+}
+
+// 密码确认验证
+document.addEventListener('DOMContentLoaded', function() {
+    const newPassword = document.getElementById('new_password');
+    const confirmPassword = document.getElementById('confirm_password');
+    
+    function validatePassword() {
+        if (newPassword.value && confirmPassword.value) {
+            if (newPassword.value !== confirmPassword.value) {
+                confirmPassword.setCustomValidity('密码不匹配');
+            } else {
+                confirmPassword.setCustomValidity('');
+            }
+        }
+    }
+    
+    newPassword.addEventListener('input', validatePassword);
+    confirmPassword.addEventListener('input', validatePassword);
+});
+</script>
+{% endblock %}
