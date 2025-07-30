@@ -215,20 +215,22 @@ body {
 
 /* 主内容区域 */
 .claude-main-content {
-  margin-left: 250px;
+  margin: 0 auto;
   transition: var(--claude-transition);
   min-height: 100vh;
   background: var(--claude-bg-primary);
+  max-width: 1400px;
 }
 
 .claude-main-content.sidebar-collapsed {
-  margin-left: 60px;
+  margin: 0 auto;
+  max-width: 1400px;
 }
 
 .claude-content-wrapper {
   padding: var(--claude-spacing-lg);
-  max-width: 1400px;
-  margin: 0 auto;
+  width: 100%;
+  margin: 0;
 }
 
 /* 卡片样式 */
@@ -624,11 +626,13 @@ body {
   }
   
   .claude-main-content {
-    margin-left: 250px;
+    margin: 0 auto;
+    max-width: 1400px;
   }
   
   .claude-main-content.sidebar-collapsed {
-    margin-left: 60px;
+    margin: 0 auto;
+    max-width: 1400px;
   }
   
   /* 悬浮提示在桌面端显示 */
@@ -642,9 +646,9 @@ body {
 /* 超大屏幕 (大桌面, >= 1200px) */
 @media (min-width: 1200px) {
   .claude-content-wrapper {
-    max-width: 1400px;
-    margin: 0 auto;
     padding: var(--claude-spacing-xl);
+    width: 100%;
+    margin: 0;
   }
 }
 
