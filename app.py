@@ -155,6 +155,25 @@ def dashboard():
             status='approved'
         ).join(Server).join(PermissionType).all()
         
+        # 按服务器分组权限
+        server_permissions = {}
+        for app in approved_applications:
+            server_id = app.server.id
+            if server_id not in server_permissions:
+                server_permissions[server_id] = {
+                    'server': app.server,
+                    'permissions': [],
+                    'user_password': None  # 用户密码，从admin_comment中提取
+                }
+            server_permissions[server_id]['permissions'].append(app)
+            
+            # 提取用户密码（只需要提取一次）
+            if server_permissions[server_id]['user_password'] is None and app.admin_comment:
+                import re
+                password_match = re.search(r'\[系统生成\] 用户密码: (.+)', app.admin_comment)
+                if password_match:
+                    server_permissions[server_id]['user_password'] = password_match.group(1)
+        
         # 最近的申请批次状态
         recent_batches = ApplicationBatch.query.filter_by(
             user_id=session['user_id']
@@ -168,6 +187,7 @@ def dashboard():
         return render_template('user_dashboard.html', 
                              user=user,
                              approved_applications=approved_applications,
+                             server_permissions=server_permissions,
                              recent_batches=recent_batches,
                              available_servers=available_servers)
 
@@ -469,6 +489,8 @@ def admin_review_batch(batch_id):
     applications = Application.query.filter_by(batch_id=batch_id).all()
     
     # 处理每个权限的审核结果
+    approved_applications = []
+    
     for app in applications:
         action = request.form.get(f'action_{app.id}')
         admin_comment = request.form.get(f'comment_{app.id}', '')
@@ -480,33 +502,38 @@ def admin_review_batch(batch_id):
             app.reviewed_at = datetime.utcnow()
             app.admin_comment = admin_comment
             
-            # 如果是批准状态，自动配置服务器权限
+            # 收集批准的申请，后续批量处理
             if action == 'approved':
-                try:
-                    from server_operations import configure_user_permissions
-                    
-                    # 尝试自动配置用户权限
-                    success, message = configure_user_permissions(app)
-                    
-                    if success:
-                        # 在管理员评论中记录自动化操作
-                        timestamp = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
-                        auto_comment = f"\n[{timestamp}] 系统自动配置: {message}"
-                        app.admin_comment = (app.admin_comment or '') + auto_comment
-                        
-                    else:
-                        # 在管理员评论中记录错误信息
-                        timestamp = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
-                        error_comment = f"\n[{timestamp}] 自动配置失败: {message}，需要手动处理"
-                        app.admin_comment = (app.admin_comment or '') + error_comment
-                        
-                except ImportError:
-                    pass  # 自动化模块未就绪
-                except Exception as e:
-                    # 记录异常信息
-                    timestamp = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
-                    error_comment = f"\n[{timestamp}] 配置异常: {str(e)}"
+                approved_applications.append(app)
+    
+    # 批量配置所有批准的权限
+    if approved_applications:
+        try:
+            from server_operations import configure_user_permissions_batch
+            
+            # 批量配置用户权限
+            results = configure_user_permissions_batch(approved_applications)
+            
+            # 处理配置结果
+            for app, success, message in results:
+                timestamp = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+                if success:
+                    # 在管理员评论中记录自动化操作
+                    auto_comment = f"\n[{timestamp}] 系统自动配置: {message}"
+                    app.admin_comment = (app.admin_comment or '') + auto_comment
+                else:
+                    # 在管理员评论中记录错误信息
+                    error_comment = f"\n[{timestamp}] 自动配置失败: {message}，需要手动处理"
                     app.admin_comment = (app.admin_comment or '') + error_comment
+                        
+        except ImportError:
+            pass  # 自动化模块未就绪
+        except Exception as e:
+            # 记录异常信息
+            timestamp = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+            for app in approved_applications:
+                error_comment = f"\n[{timestamp}] 配置异常: {str(e)}"
+                app.admin_comment = (app.admin_comment or '') + error_comment
     
     # 更新批次状态
     batch.status = 'processing'  # 批次进入处理中状态
@@ -770,6 +797,247 @@ def api_user_applications(user_id):
     
     return jsonify({'applications': result})
 
+@app.route('/api/user_server_accounts/<int:user_id>')
+@admin_required
+def api_user_server_accounts(user_id):
+    """获取用户在各服务器的账户信息API"""
+    user = User.query.get_or_404(user_id)
+    
+    # 获取用户已批准的申请
+    approved_applications = Application.query.filter_by(
+        user_id=user_id, 
+        status='approved'
+    ).options(db.joinedload(Application.server), db.joinedload(Application.permission_type)).all()
+    
+    # 按服务器分组权限
+    server_accounts = {}
+    for app in approved_applications:
+        server_id = app.server.id
+        if server_id not in server_accounts:
+            server_accounts[server_id] = {
+                'server_id': server_id,
+                'server_name': app.server.name,
+                'server_host': app.server.host,
+                'server_port': app.server.port,
+                'server_status': app.server.status,
+                'username': user.username,
+                'user_password': None,
+                'permissions': []
+            }
+        
+        server_accounts[server_id]['permissions'].append({
+            'type': app.permission_type.name,
+            'status': '已配置' if app.admin_comment and '系统自动配置' in app.admin_comment else '需手动配置',
+            'reviewed_at': app.reviewed_at.strftime('%Y-%m-%d %H:%M') if app.reviewed_at else '--'
+        })
+        
+        # 提取用户密码
+        if server_accounts[server_id]['user_password'] is None and app.admin_comment:
+            import re
+            password_match = re.search(r'\[系统生成\] 用户密码: (.+)', app.admin_comment)
+            if password_match:
+                server_accounts[server_id]['user_password'] = password_match.group(1)
+    
+    return jsonify({
+        'user': {
+            'id': user.id,
+            'username': user.username,
+            'role': user.role,
+            'student_id': user.student_id,
+            'laboratory': user.laboratory,
+            'supervisor': user.supervisor,
+            'created_at': user.created_at.strftime('%Y-%m-%d %H:%M')
+        },
+        'server_accounts': list(server_accounts.values())
+    })
+
+@app.route('/api/update_user_server_password', methods=['POST'])
+@admin_required
+def api_update_user_server_password():
+    """更新用户在特定服务器的密码API"""
+    user_id = request.json.get('user_id')
+    server_id = request.json.get('server_id')
+    new_password = request.json.get('new_password')
+    
+    if not all([user_id, server_id, new_password]):
+        return jsonify({'success': False, 'message': '参数不完整'}), 400
+    
+    user = User.query.get(user_id)
+    server = Server.query.get(server_id)
+    
+    if not user or not server:
+        return jsonify({'success': False, 'message': '用户或服务器不存在'}), 404
+    
+    # 查找该用户在该服务器的第一个已批准申请来更新密码
+    application = Application.query.filter_by(
+        user_id=user_id,
+        server_id=server_id,
+        status='approved'
+    ).first()
+    
+    if not application:
+        return jsonify({'success': False, 'message': '未找到相关权限申请'}), 404
+    
+    try:
+        # 使用server_operations模块更新服务器上的密码
+        from server_operations import ServerUserManager
+        
+        manager = ServerUserManager(server)
+        if not manager.connect():
+            return jsonify({'success': False, 'message': '无法连接到服务器'}), 500
+        
+        try:
+            # 更新服务器上的用户密码
+            import shlex
+            safe_username = shlex.quote(user.username)
+            safe_password = shlex.quote(new_password)
+            success, output = manager.execute_command(
+                f"sh -c \"echo {safe_username}:{safe_password} | chpasswd\"", 
+                require_sudo=True
+            )
+            
+            if not success:
+                return jsonify({'success': False, 'message': f'更新服务器密码失败: {output}'}), 500
+                
+            # 更新数据库中的admin_comment
+            timestamp = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+            password_info = f"[系统生成] 用户密码: {new_password}"
+            
+            # 如果已经有密码信息，替换它；否则添加
+            import re
+            if application.admin_comment:
+                # 替换现有密码信息
+                new_comment = re.sub(r'\[系统生成\] 用户密码: .+', password_info, application.admin_comment)
+                if new_comment == application.admin_comment:  # 如果没有找到匹配项，就添加
+                    application.admin_comment += f"\n[{timestamp}] 管理员更新密码: {password_info}"
+                else:
+                    application.admin_comment = new_comment + f"\n[{timestamp}] 管理员更新密码"
+            else:
+                application.admin_comment = f"[{timestamp}] 管理员更新密码: {password_info}"
+            
+            db.session.commit()
+            
+            return jsonify({'success': True, 'message': '密码更新成功'})
+            
+        finally:
+            manager.disconnect()
+            
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'更新密码时发生异常: {str(e)}'}), 500
+
+@app.route('/api/reset_user_password', methods=['POST'])
+@admin_required
+def api_reset_user_password():
+    """重置用户登录密码API"""
+    user_id = request.json.get('user_id')
+    new_password = request.json.get('new_password')
+    
+    if not all([user_id, new_password]):
+        return jsonify({'success': False, 'message': '参数不完整'}), 400
+    
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({'success': False, 'message': '用户不存在'}), 404
+    
+    try:
+        # 更新用户密码
+        user.set_password(new_password)
+        db.session.commit()
+        
+        return jsonify({'success': True, 'message': '用户密码重置成功'})
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'重置密码时发生异常: {str(e)}'}), 500
+
+@app.route('/api/reset_server_password', methods=['POST'])
+@admin_required
+def api_reset_server_password():
+    """重置用户在服务器上的密码API"""
+    user_id = request.json.get('user_id')
+    server_id = request.json.get('server_id')
+    auto_generate = request.json.get('auto_generate', True)
+    custom_password = request.json.get('new_password')
+    
+    if not all([user_id, server_id]):
+        return jsonify({'success': False, 'message': '参数不完整'}), 400
+    
+    user = User.query.get(user_id)
+    server = Server.query.get(server_id)
+    
+    if not user or not server:
+        return jsonify({'success': False, 'message': '用户或服务器不存在'}), 404
+    
+    # 查找该用户在该服务器的第一个已批准申请
+    application = Application.query.filter_by(
+        user_id=user_id,
+        server_id=server_id,
+        status='approved'
+    ).first()
+    
+    if not application:
+        return jsonify({'success': False, 'message': '未找到相关权限申请'}), 404
+    
+    try:
+        # 使用server_operations模块重置服务器上的密码
+        from server_operations import ServerUserManager
+        
+        manager = ServerUserManager(server)
+        if not manager.connect():
+            return jsonify({'success': False, 'message': '无法连接到服务器'}), 500
+        
+        try:
+            # 生成或使用自定义密码
+            if auto_generate:
+                new_password = manager.generate_password()
+            else:
+                new_password = custom_password
+                if not new_password:
+                    return jsonify({'success': False, 'message': '自定义密码不能为空'}), 400
+            
+            # 更新服务器上的用户密码
+            import shlex
+            safe_username = shlex.quote(user.username)
+            safe_password = shlex.quote(new_password)
+            success, output = manager.execute_command(
+                f"sh -c \"echo {safe_username}:{safe_password} | chpasswd\"", 
+                require_sudo=True
+            )
+            
+            if not success:
+                return jsonify({'success': False, 'message': f'更新服务器密码失败: {output}'}), 500
+                
+            # 更新数据库中的admin_comment
+            timestamp = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+            password_info = f"[系统生成] 用户密码: {new_password}"
+            
+            # 如果已经有密码信息，替换它；否则添加
+            import re
+            if application.admin_comment:
+                # 替换现有密码信息
+                new_comment = re.sub(r'\[系统生成\] 用户密码: .+', password_info, application.admin_comment)
+                if new_comment == application.admin_comment:  # 如果没有找到匹配项，就添加
+                    application.admin_comment += f"\n[{timestamp}] 管理员重置密码: {password_info}"
+                else:
+                    application.admin_comment = new_comment + f"\n[{timestamp}] 管理员重置密码"
+            else:
+                application.admin_comment = f"[{timestamp}] 管理员重置密码: {password_info}"
+            
+            db.session.commit()
+            
+            # 返回新密码（如果是自动生成的话）
+            result = {'success': True, 'message': '服务器密码重置成功'}
+            if auto_generate:
+                result['new_password'] = new_password
+            
+            return jsonify(result)
+            
+        finally:
+            manager.disconnect()
+            
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'重置密码时发生异常: {str(e)}'}), 500
+
 @app.route('/account', methods=['GET', 'POST'])
 @login_required
 def account():
@@ -810,7 +1078,26 @@ def account():
         status='approved'
     ).options(db.joinedload(Application.server), db.joinedload(Application.permission_type)).all()
     
-    return render_template('account.html', user=user, applications=user_applications)
+    # 按服务器分组权限
+    server_permissions = {}
+    for app in user_applications:
+        server_id = app.server.id
+        if server_id not in server_permissions:
+            server_permissions[server_id] = {
+                'server': app.server,
+                'permissions': [],
+                'user_password': None  # 用户密码，从admin_comment中提取
+            }
+        server_permissions[server_id]['permissions'].append(app)
+        
+        # 提取用户密码（只需要提取一次）
+        if server_permissions[server_id]['user_password'] is None and app.admin_comment:
+            import re
+            password_match = re.search(r'\[系统生成\] 用户密码: (.+)', app.admin_comment)
+            if password_match:
+                server_permissions[server_id]['user_password'] = password_match.group(1)
+    
+    return render_template('account.html', user=user, applications=user_applications, server_permissions=server_permissions)
 
 @app.route('/api/verify_password', methods=['POST'])
 @login_required

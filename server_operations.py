@@ -204,7 +204,7 @@ class ServerUserManager:
             safe_username = shlex.quote(username)
             safe_password = shlex.quote(password)
             success, output = self.execute_command(
-                f"echo {safe_username}:{safe_password} | chpasswd", 
+                f"sh -c \"echo {safe_username}:{safe_password} | chpasswd\"", 
                 require_sudo=True
             )
             
@@ -306,6 +306,99 @@ class ServerUserManager:
             groups = output.split(':')[1].strip().split() if ':' in output else []
             return True, groups
         return False, []
+
+
+def configure_user_permissions_batch(applications):
+    """
+    批量配置用户权限的主函数
+    处理同一用户在同一服务器的多个权限申请，只建立一次SSH连接
+    """
+    if not applications:
+        return []
+    
+    # 按服务器和用户分组
+    server_user_groups = {}
+    for app in applications:
+        key = (app.server.id, app.user.id)
+        if key not in server_user_groups:
+            server_user_groups[key] = []
+        server_user_groups[key].append(app)
+    
+    results = []
+    
+    for (server_id, user_id), apps in server_user_groups.items():
+        server = apps[0].server
+        user = apps[0].user
+        
+        logger.info(f"开始批量配置用户 {user.username} 在服务器 {server.name} 的权限")
+        
+        # 创建服务器管理器
+        manager = ServerUserManager(server)
+        
+        # 连接服务器
+        if not manager.connect():
+            OperationLogger.log_ssh_connection(server, False, "SSH连接失败")
+            for app in apps:
+                results.append((app, False, "无法连接到服务器"))
+            continue
+        
+        OperationLogger.log_ssh_connection(server, True, "SSH连接成功")
+        
+        try:
+            # 生成用户密码（如果用户不存在）
+            user_password = None
+            
+            # 检查并创建用户（只需要检查一次）
+            if not manager.user_exists(user.username):
+                success, result = manager.create_user(user.username)
+                if not success:
+                    OperationLogger.log_user_creation(server, user.username, False, result)
+                    for app in apps:
+                        results.append((app, False, f"创建用户失败: {result}"))
+                    continue
+                user_password = result
+                OperationLogger.log_user_creation(server, user.username, True, "用户创建成功", password_generated=True)
+            else:
+                logger.info(f"用户 {user.username} 已存在")
+                OperationLogger.log_user_creation(server, user.username, True, "用户已存在，跳过创建")
+            
+            # 批量配置所有权限
+            for app in apps:
+                permission_type = app.permission_type
+                
+                # 根据权限类型配置权限
+                success, message = configure_permission_by_type(manager, user.username, permission_type.name)
+                
+                if not success:
+                    OperationLogger.log_permission_grant(app, False, message)
+                    results.append((app, False, message))
+                    continue
+                
+                # 记录操作结果
+                operation_log = {
+                    'timestamp': datetime.utcnow().isoformat(),
+                    'server': server.name,
+                    'user': user.username,
+                    'permission': permission_type.name,
+                    'action': 'granted',
+                    'password_generated': user_password is not None,
+                    'message': message
+                }
+                
+                # 如果生成了新密码，将其保存到第一个application的admin_comment中
+                if user_password and app == apps[0]:
+                    current_comment = app.admin_comment or ""
+                    app.admin_comment = f"{current_comment}\n[系统生成] 用户密码: {user_password}".strip()
+                    db.session.commit()
+                
+                logger.info(f"权限配置完成: {operation_log}")
+                OperationLogger.log_permission_grant(app, True, message, details={'password_generated': user_password is not None})
+                results.append((app, True, f"{permission_type.name} 权限配置成功"))
+            
+        finally:
+            manager.disconnect()
+    
+    return results
 
 
 def configure_user_permissions(application):

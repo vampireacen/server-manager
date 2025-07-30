@@ -114,17 +114,14 @@
                         </td>
                         <td>
                             <div class="btn-group">
-                                <button class="claude-btn claude-btn-sm claude-btn-secondary" onclick="viewUserApplications({{ user.id }}, '{{ user.username }}')" title="查看申请记录">
-                                    <i class="bi bi-list-ul"></i>
+                                <button class="btn btn-sm btn-info text-white" onclick="manageUserAccounts({{ user.id }}, '{{ user.username }}')" title="管理用户账户">
+                                    <i class="bi bi-person-gear"></i>
                                 </button>
                                 {% if user.id != session.user_id %}
-                                <button class="claude-btn claude-btn-sm claude-btn-warning" onclick="resetUserPassword({{ user.id }}, '{{ user.username }}')" title="重置密码">
-                                    <i class="bi bi-key"></i>
-                                </button>
-                                <button class="claude-btn claude-btn-sm claude-btn-primary" onclick="toggleUserRole({{ user.id }}, '{{ user.role }}', '{{ user.username }}')" title="{{ '降为普通用户' if user.role == 'admin' else '提升为管理员' }}">
+                                <button class="btn btn-sm btn-{{ 'warning text-white' if user.role == 'admin' else 'primary text-white' }}" onclick="toggleUserRole({{ user.id }}, '{{ user.role }}', '{{ user.username }}')" title="{{ '降为普通用户' if user.role == 'admin' else '提升为管理员' }}">
                                     <i class="bi bi-{{ 'arrow-down-circle' if user.role == 'admin' else 'arrow-up-circle' }}"></i>
                                 </button>
-                                <button class="claude-btn claude-btn-sm claude-btn-danger" onclick="deleteUser({{ user.id }}, '{{ user.username }}')" title="删除用户">
+                                <button class="btn btn-sm btn-danger text-white" onclick="deleteUser({{ user.id }}, '{{ user.username }}')" title="删除用户">
                                     <i class="bi bi-trash"></i>
                                 </button>
                                 {% endif %}
@@ -188,8 +185,32 @@
     </div>
 </div>
 
-<!-- 重置密码模态框 -->
-<div class="modal fade" id="resetPasswordModal" tabindex="-1">
+
+<!-- 用户账户管理模态框 -->
+<div class="modal fade" id="userAccountsModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content claude-modal">
+            <div class="modal-header">
+                <h5 class="modal-title" style="color: var(--claude-text-primary); font-weight: 600;">
+                    <i class="bi bi-person-gear me-2" style="color: var(--claude-info);"></i>
+                    用户账户管理
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="userAccountsContent">
+                <div class="text-center py-4">
+                    <div class="claude-loading">
+                        <i class="bi bi-arrow-clockwise" style="font-size: 2rem; color: var(--claude-primary);"></i>
+                        <p class="mt-2 text-muted">加载账户信息中...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 重置用户密码模态框 -->
+<div class="modal fade" id="resetUserPasswordModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content claude-modal">
             <div class="modal-header">
@@ -199,62 +220,80 @@
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <form id="resetPasswordForm" method="POST" action="{{ url_for('admin_users') }}">
-                <div class="modal-body">
-                    <input type="hidden" name="action" value="reset_password">
-                    <input type="hidden" name="user_id" id="resetUserId">
-                    
-                    <div class="alert alert-warning">
-                        <i class="bi bi-exclamation-triangle me-2"></i>
-                        <strong>注意：</strong>您即将重置 <span id="resetUserName" class="fw-bold"></span> 的密码
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="newPassword" class="claude-form-label">
-                            <i class="bi bi-shield-plus me-1"></i>新密码
-                        </label>
-                        <input type="password" class="claude-form-control" id="newPassword" 
-                               name="new_password" required minlength="8" 
-                               placeholder="请输入新密码（至少8位字符）">
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="confirmNewPassword" class="claude-form-label">
-                            <i class="bi bi-shield-check me-1"></i>确认新密码
-                        </label>
-                        <input type="password" class="claude-form-control" id="confirmNewPassword" 
-                               required minlength="8" placeholder="请再次输入新密码">
-                    </div>
+            <div class="modal-body">
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    <strong>注意：</strong>重置后用户需要使用新密码重新登录系统
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="claude-btn claude-btn-secondary" data-bs-dismiss="modal">取消</button>
-                    <button type="submit" class="claude-btn claude-btn-warning">
-                        <i class="bi bi-check-circle me-1"></i>重置密码
-                    </button>
+                
+                <div class="mb-3">
+                    <label class="form-label"><strong>用户:</strong> <span id="resetUserPasswordUsername"></span></label>
                 </div>
-            </form>
+                <div class="mb-3">
+                    <label for="newUserPassword" class="form-label">新密码</label>
+                    <input type="password" class="form-control" id="newUserPassword" 
+                           placeholder="请输入新密码（至少8位字符）" required minlength="8">
+                </div>
+                <div class="mb-3">
+                    <label for="confirmUserPassword" class="form-label">确认新密码</label>
+                    <input type="password" class="form-control" id="confirmUserPassword" 
+                           placeholder="请再次输入新密码" required minlength="8">
+                </div>
+                <div id="resetUserPasswordError" class="alert alert-danger d-none"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-warning" onclick="resetUserPassword()">
+                    <i class="bi bi-check-circle me-1"></i>重置密码
+                </button>
+            </div>
         </div>
     </div>
 </div>
 
-<!-- 用户申请记录模态框 -->
-<div class="modal fade" id="userApplicationsModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
+<!-- 重置服务器密码模态框 -->
+<div class="modal fade" id="resetServerPasswordModal" tabindex="-1">
+    <div class="modal-dialog">
         <div class="modal-content claude-modal">
             <div class="modal-header">
                 <h5 class="modal-title" style="color: var(--claude-text-primary); font-weight: 600;">
-                    <i class="bi bi-list-ul me-2" style="color: var(--claude-info);"></i>
-                    用户申请记录
+                    <i class="bi bi-arrow-clockwise me-2" style="color: var(--claude-warning);"></i>
+                    重置服务器密码
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body" id="userApplicationsContent">
-                <div class="text-center py-4">
-                    <div class="claude-loading">
-                        <i class="bi bi-arrow-clockwise" style="font-size: 2rem; color: var(--claude-primary);"></i>
-                        <p class="mt-2 text-muted">加载申请记录中...</p>
+            <div class="modal-body">
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle me-2"></i>
+                    <strong>注意：</strong>重置密码将生成新的随机密码并更新服务器上的用户密码
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label"><strong>用户:</strong> <span id="resetServerPasswordUsername"></span></label>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label"><strong>服务器:</strong> <span id="resetServerPasswordServerName"></span></label>
+                </div>
+                <div class="mb-3">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="autoGeneratePassword" checked>
+                        <label class="form-check-label" for="autoGeneratePassword">
+                            自动生成安全密码（推荐）
+                        </label>
                     </div>
                 </div>
+                <div class="mb-3" id="customPasswordField" style="display: none;">
+                    <label for="customServerPassword" class="form-label">自定义密码</label>
+                    <input type="password" class="form-control" id="customServerPassword" 
+                           placeholder="请输入自定义密码（至少8位字符）" minlength="8">
+                </div>
+                <div id="resetServerPasswordError" class="alert alert-danger d-none"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-warning" onclick="resetServerPassword()">
+                    <i class="bi bi-arrow-clockwise me-1"></i>重置密码
+                </button>
             </div>
         </div>
     </div>
@@ -388,89 +427,305 @@
     from { transform: rotate(0deg); }
     to { transform: rotate(360deg); }
 }
+
+.server-account-card {
+    background: #ffffff;
+    transition: all 0.2s ease;
+}
+
+.server-account-card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    border-color: #cbd5e1 !important;
+}
+
+.user-info-section {
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    border-radius: 8px;
+    padding: 20px;
+}
+
+.server-accounts-section {
+    background: #ffffff;
+}
 </style>
 
 <script>
-function viewUserApplications(userId, username) {
+let currentUpdateUserId = null;
+let currentUpdateServerId = null;
+
+function manageUserAccounts(userId, username) {
     // 显示模态框
-    const modal = new bootstrap.Modal(document.getElementById('userApplicationsModal'));
+    const modal = new bootstrap.Modal(document.getElementById('userAccountsModal'));
     modal.show();
     
-    // 获取用户申请记录
-    fetch(`/api/user_applications/${userId}`)
+    // 获取用户账户信息
+    fetch(`/api/user_server_accounts/${userId}`)
         .then(response => response.json())
         .then(data => {
-            let content = `<h6 class="mb-3">用户: ${username}</h6>`;
+            let content = `
+                <div class="user-info-section mb-4">
+                    <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
+                        <h6 class="mb-0">
+                            <i class="bi bi-person-circle me-2"></i>用户基本信息
+                        </h6>
+                        <button class="btn btn-sm btn-warning text-white" onclick="showResetUserPasswordModal(${userId}, '${data.user.username}')">
+                            <i class="bi bi-key me-1"></i>重置用户密码
+                        </button>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>用户名:</strong> ${data.user.username}</p>
+                            <p><strong>角色:</strong> 
+                                <span class="claude-badge claude-badge-${data.user.role === 'admin' ? 'danger' : 'info'}">
+                                    ${data.user.role === 'admin' ? '管理员' : '普通用户'}
+                                </span>
+                            </p>
+                        </div>
+                        <div class="col-md-6">
+                            ${data.user.student_id ? `<p><strong>学号:</strong> ${data.user.student_id}</p>` : ''}
+                            ${data.user.laboratory ? `<p><strong>实验室:</strong> ${data.user.laboratory}</p>` : ''}
+                            <p><strong>注册时间:</strong> ${data.user.created_at}</p>
+                        </div>
+                    </div>
+                </div>
+            `;
             
-            if (data.applications && data.applications.length > 0) {
+            if (data.server_accounts && data.server_accounts.length > 0) {
                 content += `
-                    <div class="table-responsive">
-                        <table class="table table-hover">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>服务器</th>
-                                    <th>权限类型</th>
-                                    <th>申请时间</th>
-                                    <th>状态</th>
-                                    <th>审核时间</th>
-                                </tr>
-                            </thead>
-                            <tbody>
+                    <div class="server-accounts-section">
+                        <h6 class="border-bottom pb-2 mb-3">
+                            <i class="bi bi-server me-2"></i>服务器账户信息 (${data.server_accounts.length})
+                        </h6>
                 `;
                 
-                data.applications.forEach(app => {
-                    let statusBadge = '';
-                    let statusColor = '';
-                    if (app.status === 'pending') {
-                        statusBadge = '待审核';
-                        statusColor = 'warning';
-                    } else if (app.status === 'approved') {
-                        statusBadge = '已批准';
-                        statusColor = 'success';
-                    } else if (app.status === 'rejected') {
-                        statusBadge = '已拒绝';
-                        statusColor = 'danger';
-                    }
+                data.server_accounts.forEach(account => {
+                    content += `
+                        <div class="server-account-card border rounded p-3 mb-3">
+                            <div class="d-flex justify-content-between align-items-start mb-3">
+                                <div>
+                                    <h6 class="mb-1"><i class="bi bi-server me-2"></i>${account.server_name}</h6>
+                                    <small class="text-muted">${account.server_host}:${account.server_port}</small>
+                                </div>
+                                <span class="claude-badge claude-badge-${account.server_status === 'online' ? 'success' : 'secondary'}">
+                                    <i class="bi bi-${account.server_status === 'online' ? 'check-circle' : 'question-circle'}"></i>
+                                    ${account.server_status}
+                                </span>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="account-info">
+                                        <p class="mb-1"><strong>用户名:</strong> <code>${account.username}</code></p>
+                                        <p class="mb-2">
+                                            <strong>密码:</strong> 
+                                            ${account.user_password ? 
+                                                `<code class="text-muted">••••••••</code>` : 
+                                                '<span class="text-muted">未配置</span>'
+                                            }
+                                        </p>
+                                    </div>
+                                </div>
+                                <div class="col-md-6 text-end">
+                                    <button class="btn btn-sm btn-warning text-white" onclick="showResetServerPasswordModal(${userId}, ${account.server_id}, '${account.username}', '${account.server_name}')">
+                                        <i class="bi bi-arrow-clockwise me-1"></i>重置服务器密码
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div class="permissions-info mt-3">
+                                <strong>权限列表:</strong>
+                                <div class="mt-2">
+                    `;
                     
-                    const reviewedAt = app.reviewed_at ? new Date(app.reviewed_at).toLocaleString() : '--';
+                    account.permissions.forEach(perm => {
+                        content += `
+                            <span class="claude-badge claude-badge-info me-2 mb-1">
+                                ${perm.type}
+                            </span>
+                        `;
+                    });
                     
                     content += `
-                        <tr>
-                            <td><strong>${app.server_name}</strong></td>
-                            <td><span class="claude-badge claude-badge-info">${app.permission_type_name}</span></td>
-                            <td><small class="text-muted">${new Date(app.created_at).toLocaleString()}</small></td>
-                            <td><span class="claude-badge claude-badge-${statusColor}">${statusBadge}</span></td>
-                            <td><small class="text-muted">${reviewedAt}</small></td>
-                        </tr>
+                                </div>
+                            </div>
+                        </div>
                     `;
                 });
                 
-                content += `
-                            </tbody>
-                        </table>
-                    </div>
-                `;
+                content += `</div>`;
             } else {
                 content += `
                     <div class="text-center py-4">
-                        <i class="bi bi-list-check" style="font-size: 3rem; color: var(--claude-text-muted); opacity: 0.5;"></i>
-                        <h5 class="mt-3 mb-2" style="color: var(--claude-text-secondary);">暂无申请记录</h5>
-                        <p class="text-muted">该用户还没有提交任何申请</p>
+                        <i class="bi bi-server" style="font-size: 3rem; color: var(--claude-text-muted); opacity: 0.5;"></i>
+                        <h5 class="mt-3 mb-2" style="color: var(--claude-text-secondary);">暂无服务器账户</h5>
+                        <p class="text-muted">该用户还没有获得任何服务器访问权限</p>
                     </div>
                 `;
             }
             
-            document.getElementById('userApplicationsContent').innerHTML = content;
+            document.getElementById('userAccountsContent').innerHTML = content;
         })
         .catch(error => {
-            console.error('Error loading applications:', error);
-            document.getElementById('userApplicationsContent').innerHTML = `
+            console.error('Error loading user accounts:', error);
+            document.getElementById('userAccountsContent').innerHTML = `
                 <div class="text-center py-4">
                     <i class="bi bi-exclamation-triangle text-warning" style="font-size: 2rem;"></i>
-                    <p class="mt-2 text-muted">加载申请记录失败</p>
+                    <p class="mt-2 text-muted">加载账户信息失败</p>
                 </div>
             `;
         });
+}
+
+function showResetUserPasswordModal(userId, username) {
+    currentUpdateUserId = userId;
+    
+    document.getElementById('resetUserPasswordUsername').textContent = username;
+    document.getElementById('newUserPassword').value = '';
+    document.getElementById('confirmUserPassword').value = '';
+    document.getElementById('resetUserPasswordError').classList.add('d-none');
+    
+    const modal = new bootstrap.Modal(document.getElementById('resetUserPasswordModal'));
+    modal.show();
+}
+
+function showResetServerPasswordModal(userId, serverId, username, serverName) {
+    currentUpdateUserId = userId;
+    currentUpdateServerId = serverId;
+    
+    document.getElementById('resetServerPasswordUsername').textContent = username;
+    document.getElementById('resetServerPasswordServerName').textContent = serverName;
+    document.getElementById('autoGeneratePassword').checked = true;
+    document.getElementById('customServerPassword').value = '';
+    document.getElementById('customPasswordField').style.display = 'none';
+    document.getElementById('resetServerPasswordError').classList.add('d-none');
+    
+    const modal = new bootstrap.Modal(document.getElementById('resetServerPasswordModal'));
+    modal.show();
+}
+
+function resetUserPassword() {
+    const newPassword = document.getElementById('newUserPassword').value;
+    const confirmPassword = document.getElementById('confirmUserPassword').value;
+    const errorDiv = document.getElementById('resetUserPasswordError');
+    
+    if (!newPassword || !confirmPassword) {
+        errorDiv.textContent = '请填写所有密码字段';
+        errorDiv.classList.remove('d-none');
+        return;
+    }
+    
+    if (newPassword !== confirmPassword) {
+        errorDiv.textContent = '两次输入的密码不一致';
+        errorDiv.classList.remove('d-none');
+        return;
+    }
+    
+    if (newPassword.length < 8) {
+        errorDiv.textContent = '密码长度至少需要8位字符';
+        errorDiv.classList.remove('d-none');
+        return;
+    }
+    
+    // 发送重置用户密码请求
+    fetch('/api/reset_user_password', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            user_id: currentUpdateUserId,
+            new_password: newPassword
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // 关闭模态框
+            const modal = bootstrap.Modal.getInstance(document.getElementById('resetUserPasswordModal'));
+            modal.hide();
+            
+            // 显示成功消息
+            showToast('用户密码重置成功', 'success');
+        } else {
+            errorDiv.textContent = data.message || '密码重置失败';
+            errorDiv.classList.remove('d-none');
+        }
+    })
+    .catch(error => {
+        console.error('Error resetting user password:', error);
+        errorDiv.textContent = '重置请求失败，请重试';
+        errorDiv.classList.remove('d-none');
+    });
+}
+
+function resetServerPassword() {
+    const autoGenerate = document.getElementById('autoGeneratePassword').checked;
+    const customPassword = document.getElementById('customServerPassword').value;
+    const errorDiv = document.getElementById('resetServerPasswordError');
+    
+    let passwordToUse = null;
+    
+    if (!autoGenerate) {
+        if (!customPassword) {
+            errorDiv.textContent = '请输入自定义密码';
+            errorDiv.classList.remove('d-none');
+            return;
+        }
+        if (customPassword.length < 8) {
+            errorDiv.textContent = '密码长度至少需要8位字符';
+            errorDiv.classList.remove('d-none');
+            return;
+        }
+        passwordToUse = customPassword;
+    }
+    
+    // 发送重置服务器密码请求
+    const requestData = {
+        user_id: currentUpdateUserId,
+        server_id: currentUpdateServerId,
+        auto_generate: autoGenerate
+    };
+    
+    if (passwordToUse) {
+        requestData.new_password = passwordToUse;
+    }
+    
+    fetch('/api/reset_server_password', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // 关闭模态框
+            const modal = bootstrap.Modal.getInstance(document.getElementById('resetServerPasswordModal'));
+            modal.hide();
+            
+            // 显示成功消息，包含新密码
+            if (data.new_password) {
+                showToast(`服务器密码重置成功！新密码: ${data.new_password}`, 'success', 8000);
+            } else {
+                showToast('服务器密码重置成功', 'success');
+            }
+            
+            // 刷新账户信息
+            const usernameSpan = document.getElementById('resetServerPasswordUsername');
+            if (usernameSpan) {
+                manageUserAccounts(currentUpdateUserId, usernameSpan.textContent);
+            }
+        } else {
+            errorDiv.textContent = data.message || '密码重置失败';
+            errorDiv.classList.remove('d-none');
+        }
+    })
+    .catch(error => {
+        console.error('Error resetting server password:', error);
+        errorDiv.textContent = '重置请求失败，请重试';
+        errorDiv.classList.remove('d-none');
+    });
 }
 
 function toggleUserRole(userId, currentRole, username) {
@@ -505,19 +760,6 @@ function toggleUserRole(userId, currentRole, username) {
     }
 }
 
-function resetUserPassword(userId, username) {
-    // 设置模态框中的用户信息
-    document.getElementById('resetUserId').value = userId;
-    document.getElementById('resetUserName').textContent = username;
-    
-    // 清空表单
-    document.getElementById('newPassword').value = '';
-    document.getElementById('confirmNewPassword').value = '';
-    
-    // 显示模态框
-    const modal = new bootstrap.Modal(document.getElementById('resetPasswordModal'));
-    modal.show();
-}
 
 function deleteUser(userId, username) {
     if (confirm(`确定要删除用户 "${username}" 吗？\n\n注意：删除后该用户的所有申请记录也将被删除。`)) {
@@ -542,14 +784,14 @@ function deleteUser(userId, username) {
     }
 }
 
-function showToast(message, type) {
+function showToast(message, type, duration = 3000) {
     const toast = document.createElement('div');
     toast.className = `alert alert-${type === 'success' ? 'success' : 'danger'} alert-dismissible fade show position-fixed`;
-    toast.style.cssText = 'top: 80px; right: 20px; z-index: 1050; min-width: 300px;';
+    toast.style.cssText = 'top: 80px; right: 20px; z-index: 1050; min-width: 300px; max-width: 400px;';
     toast.innerHTML = `
         <div class="d-flex align-items-center">
             <i class="bi bi-${type === 'success' ? 'check-circle' : 'exclamation-triangle'} me-2"></i>
-            ${message}
+            <span style="word-break: break-all;">${message}</span>
         </div>
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     `;
@@ -560,7 +802,7 @@ function showToast(message, type) {
         if (toast.parentNode) {
             toast.parentNode.removeChild(toast);
         }
-    }, 3000);
+    }, duration);
 }
 
 // 表单验证
@@ -593,33 +835,20 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
-    // 重置密码表单验证
-    const resetPasswordForm = document.getElementById('resetPasswordForm');
+    // 自动生成密码复选框事件监听
+    const autoGenerateCheckbox = document.getElementById('autoGeneratePassword');
+    const customPasswordField = document.getElementById('customPasswordField');
     
-    resetPasswordForm.addEventListener('submit', function(e) {
-        const newPassword = document.getElementById('newPassword').value;
-        const confirmNewPassword = document.getElementById('confirmNewPassword').value;
-        
-        if (!newPassword || !confirmNewPassword) {
-            e.preventDefault();
-            showToast('请填写所有密码字段', 'error');
-            return false;
-        }
-        
-        if (newPassword !== confirmNewPassword) {
-            e.preventDefault();
-            showToast('两次输入的密码不一致', 'error');
-            document.getElementById('confirmNewPassword').focus();
-            return false;
-        }
-        
-        if (newPassword.length < 8) {
-            e.preventDefault();
-            showToast('密码长度至少8位', 'error');
-            document.getElementById('newPassword').focus();
-            return false;
-        }
-    });
+    if (autoGenerateCheckbox && customPasswordField) {
+        autoGenerateCheckbox.addEventListener('change', function() {
+            if (this.checked) {
+                customPasswordField.style.display = 'none';
+                document.getElementById('customServerPassword').value = '';
+            } else {
+                customPasswordField.style.display = 'block';
+            }
+        });
+    }
 });
 </script>
 {% endblock %}

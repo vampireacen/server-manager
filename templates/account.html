@@ -120,14 +120,14 @@
 </div>
 
 <!-- 服务器连接信息 -->
-{% if applications %}
+{% if server_permissions %}
 <div class="claude-card mb-4">
     <div class="claude-card-header d-flex justify-content-between align-items-center">
         <span>
             <i class="bi bi-server me-2"></i>
-            服务器连接信息
+            服务器账户信息
         </span>
-        <span class="claude-badge claude-badge-info">{{ applications|length }} 个授权服务器</span>
+        <span class="claude-badge claude-badge-info">{{ server_permissions|length }} 个授权服务器</span>
     </div>
     <div class="claude-card-body">
         <div class="alert alert-warning">
@@ -135,57 +135,102 @@
             <strong>注意：</strong>查看服务器密码需要先验证您的用户密码
         </div>
         
-        <div class="table-responsive">
-            <table class="claude-table">
-                <thead>
-                    <tr>
-                        <th>服务器</th>
-                        <th>权限类型</th>
-                        <th>连接信息</th>
-                        <th>操作</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for app in applications %}
-                    <tr>
-                        <td>
-                            <strong>{{ app.server.name }}</strong><br>
-                            <small class="text-muted">{{ app.server.host }}:{{ app.server.port }}</small>
-                        </td>
-                        <td>
-                            <span class="claude-badge claude-badge-primary">{{ app.permission_type.name }}</span>
-                        </td>
-                        <td>
-                            <div class="mb-1">
-                                <strong>用户名：</strong>
-                                <code class="claude-code">{{ app.server.username }}</code>
+        {% for server_id, server_data in server_permissions.items() %}
+        {% set server = server_data.server %}
+        {% set permissions = server_data.permissions %}
+        {% set user_password = server_data.user_password %}
+        
+        <div class="account-server-group mb-4">
+            <div class="server-header d-flex justify-content-between align-items-center p-3 bg-light rounded">
+                <div class="server-info d-flex align-items-center">
+                    <i class="bi bi-server me-2" style="color: var(--claude-primary); font-size: 1.2rem;"></i>
+                    <div>
+                        <h6 class="mb-0 fw-bold">{{ server.name }}</h6>
+                        <small class="text-muted">{{ server.host }}:{{ server.port }}</small>
+                    </div>
+                </div>
+                <div class="server-status">
+                    <span class="claude-badge claude-badge-{{ 'success' if server.status == 'online' else 'danger' if server.status == 'offline' else 'secondary' }}">
+                        <i class="bi bi-{{ 'check-circle' if server.status == 'online' else 'x-circle' if server.status == 'offline' else 'question-circle' }}"></i>
+                        {{ server.status }}
+                    </span>
+                </div>
+            </div>
+            
+            <div class="server-content">
+                <!-- 账户信息 -->
+                <div class="account-info p-3 bg-white border rounded-bottom">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div class="user-account-info">
+                                <div><strong>用户名:</strong> <code class="claude-code">{{ user.username }}</code></div>
+                                <div class="mt-1">
+                                    <strong>密码:</strong> 
+                                    {% if user_password %}
+                                    <span class="password-field" id="pwd-account-{{ server.id }}">
+                                        <code class="claude-code">••••••••</code>
+                                    </span>
+                                    {% else %}
+                                    <span class="text-muted">需要管理员手动配置</span>
+                                    {% endif %}
+                                </div>
                             </div>
-                            <div>
-                                <strong>密码：</strong>
-                                <span class="password-field" id="pwd-display-{{ app.id }}">
-                                    <code class="claude-code">••••••••</code>
-                                </span>
-                            </div>
-                        </td>
-                        <td>
+                        </div>
+                        <div class="col-md-4 text-end">
                             <div class="btn-group-vertical d-grid gap-1">
+                                {% if user_password %}
                                 <button class="claude-btn claude-btn-sm claude-btn-secondary" 
-                                        onclick="showPassword({{ app.id }}, '{{ app.server.password|replace("'", "\\'") }}')"
+                                        onclick="showPassword('account-{{ server.id }}', '{{ user_password|replace("'", "\\'") }}')"
                                         title="查看密码">
                                     <i class="bi bi-eye"></i> 查看密码
                                 </button>
                                 <button class="claude-btn claude-btn-sm claude-btn-secondary" 
-                                        onclick="copyConnectionInfo('{{ app.server.username }}', '{{ app.server.host }}', {{ app.server.port }}, '{{ app.server.password|replace("'", "\\'") }}')"
+                                        onclick="copyConnectionInfo('{{ user.username }}', '{{ server.host }}', {{ server.port }}, '{{ user_password|replace("'", "\\'") }}')"
                                         title="复制SSH命令">
                                     <i class="bi bi-clipboard"></i> 复制连接
                                 </button>
+                                {% endif %}
                             </div>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 权限列表 -->
+                <div class="permissions-list p-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6 class="mb-0 text-muted">已获权限 ({{ permissions|length }})</h6>
+                    </div>
+                    <div class="permission-badges">
+                        {% for app in permissions %}
+                        <div class="permission-item d-inline-flex align-items-center me-3 mb-2">
+                            <span class="claude-badge claude-badge-info me-2">
+                                {{ app.permission_type.name }}
+                            </span>
+                            {% if app.admin_comment and '系统自动配置' in app.admin_comment %}
+                                <span class="claude-badge claude-badge-success">
+                                    <i class="bi bi-check-circle"></i>
+                                    已配置
+                                </span>
+                            {% elif app.admin_comment and '自动配置失败' in app.admin_comment %}
+                                <span class="claude-badge claude-badge-warning">
+                                    <i class="bi bi-exclamation-triangle"></i>
+                                    需手动配置
+                                </span>
+                            {% else %}
+                                <span class="claude-badge claude-badge-info">
+                                    <i class="bi bi-question-circle"></i>
+                                    未知状态
+                                </span>
+                            {% endif %}
+                            <small class="text-muted ms-2">{{ app.reviewed_at.strftime('%m-%d %H:%M') if app.reviewed_at else '--' }}</small>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
         </div>
+        {% if not loop.last %}<hr class="my-4">{% endif %}
+        {% endfor %}
     </div>
 </div>
 {% else %}
@@ -233,13 +278,122 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
-let currentAppId = null;
-let currentServerPassword = null;
+<style>
+.account-server-group {
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+    transition: all 0.2s ease;
+}
 
-function showPassword(appId, serverPassword) {
-    currentAppId = appId;
-    currentServerPassword = serverPassword;
+.account-server-group:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    border-color: #cbd5e1;
+}
+
+.server-header {
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.account-info {
+    background: #ffffff;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.permissions-list {
+    background: #fafbfc;
+}
+
+.permission-item {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 8px 12px;
+    transition: all 0.2s ease;
+}
+
+.permission-item:hover {
+    border-color: #cbd5e1;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+}
+
+.user-account-info {
+    font-size: 0.875rem;
+}
+
+.claude-code {
+    background: #f1f5f9;
+    color: #475569;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 0.8rem;
+}
+
+.claude-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.claude-badge-success {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.claude-badge-warning {
+    background: #fef3c7;
+    color: #a16207;
+}
+
+.claude-badge-danger {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.claude-badge-info {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.claude-badge-secondary {
+    background: #f1f5f9;
+    color: #475569;
+}
+
+.claude-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.claude-btn-sm {
+    padding: 4px 12px;
+    font-size: 0.8rem;
+}
+</style>
+
+<script>
+let currentServerId = null;
+let currentUserPassword = null;
+
+function showPassword(serverId, userPassword) {
+    currentServerId = serverId;
+    currentUserPassword = userPassword;
     
     // 清空之前的输入
     document.getElementById('verify_password').value = '';
@@ -271,9 +425,9 @@ function verifyPassword() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            // 验证成功，显示服务器密码
-            const passwordField = document.getElementById(`pwd-display-${currentAppId}`);
-            passwordField.innerHTML = `<code class="claude-code">${currentServerPassword}</code>`;
+            // 验证成功，显示用户密码
+            const passwordField = document.getElementById(`pwd-${currentServerId}`);
+            passwordField.innerHTML = `<code class="claude-code">${currentUserPassword}</code>`;
             
             // 关闭模态框
             const modal = bootstrap.Modal.getInstance(document.getElementById('passwordVerifyModal'));

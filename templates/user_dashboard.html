@@ -81,88 +81,98 @@
                 </h5>
             </div>
             <div class="claude-card-body">
-                {% if approved_applications %}
-                <div class="table-responsive">
-                    <table class="table table-hover mb-0">
-                        <thead class="table-light">
-                            <tr>
-                                <th style="color: var(--claude-text-secondary); font-weight: 600;">服务器</th>
-                                <th style="color: var(--claude-text-secondary); font-weight: 600;">权限类型</th>
-                                <th style="color: var(--claude-text-secondary); font-weight: 600;">连接信息</th>
-                                <th style="color: var(--claude-text-secondary); font-weight: 600;">配置状态</th>
-                                <th style="color: var(--claude-text-secondary); font-weight: 600;">状态</th>
-                                <th style="color: var(--claude-text-secondary); font-weight: 600;">批准时间</th>
-                                <th style="color: var(--claude-text-secondary); font-weight: 600;">操作</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for app in approved_applications %}
-                            <tr>
-                                <td>
-                                    <div class="d-flex align-items-center">
-                                        <i class="bi bi-server me-2" style="color: var(--claude-primary);"></i>
-                                        <div>
-                                            <div class="fw-semibold">{{ app.server.name }}</div>
-                                            <small class="text-muted">{{ app.server.host }}:{{ app.server.port }}</small>
+                {% if server_permissions %}
+                    {% for server_id, server_data in server_permissions.items() %}
+                    {% set server = server_data.server %}
+                    {% set permissions = server_data.permissions %}
+                    {% set user_password = server_data.user_password %}
+                    
+                    <div class="server-group mb-4">
+                        <div class="server-header d-flex justify-content-between align-items-center p-3 bg-light rounded">
+                            <div class="server-info d-flex align-items-center">
+                                <i class="bi bi-server me-2" style="color: var(--claude-primary); font-size: 1.2rem;"></i>
+                                <div>
+                                    <h6 class="mb-0 fw-bold">{{ server.name }}</h6>
+                                    <small class="text-muted">{{ server.host }}:{{ server.port }}</small>
+                                </div>
+                            </div>
+                            <div class="server-status">
+                                <span class="claude-badge claude-badge-{{ 'success' if server.status == 'online' else 'danger' if server.status == 'offline' else 'secondary' }}">
+                                    <i class="bi bi-{{ 'check-circle' if server.status == 'online' else 'x-circle' if server.status == 'offline' else 'question-circle' }}"></i>
+                                    {{ server.status }}
+                                </span>
+                            </div>
+                        </div>
+                        
+                        <div class="server-content">
+                            <!-- 连接信息 -->
+                            <div class="connection-info p-3 bg-white border rounded-bottom">
+                                <div class="row">
+                                    <div class="col-md-8">
+                                        <div class="user-server-info">
+                                            <div><strong>用户名:</strong> <code class="claude-code">{{ user.username }}</code></div>
+                                            <div class="mt-1">
+                                                <strong>密码:</strong> 
+                                                {% if user_password %}
+                                                <span class="password-field" id="pwd-server-{{ server.id }}">
+                                                    <code class="claude-code password-hidden">••••••••</code>
+                                                    <button class="claude-btn claude-btn-sm claude-btn-secondary p-0 ms-1" onclick="showPasswordForView('server-{{ server.id }}', '{{ user_password|replace("'", "\\'") }}')" title="显示密码">
+                                                        <i class="bi bi-eye" id="eye-server-{{ server.id }}"></i>
+                                                    </button>
+                                                </span>
+                                                {% else %}
+                                                <span class="text-muted">需要管理员手动配置</span>
+                                                {% endif %}
+                                            </div>
                                         </div>
                                     </div>
-                                </td>
-                                <td>
-                                    <span class="claude-badge claude-badge-info">
-                                        {{ app.permission_type.name }}
-                                    </span>
-                                </td>
-                                <td>
-                                    <div class="user-server-info">
-                                        <div><strong>用户名:</strong> <code class="claude-code">{{ app.server.username }}</code></div>
-                                        <div class="mt-1">
-                                            <strong>密码:</strong> 
-                                            <span class="password-field" id="pwd-{{ app.id }}">
-                                                <code class="claude-code password-hidden">••••••••</code>
-                                                <button class="claude-btn claude-btn-sm claude-btn-secondary p-0 ms-1" onclick="togglePassword({{ app.id }}, '{{ app.server.password|replace("'", "\\'") }}')" title="显示密码">
-                                                    <i class="bi bi-eye" id="eye-{{ app.id }}"></i>
-                                                </button>
+                                    <div class="col-md-4 text-end">
+                                        {% if user_password %}
+                                        <button class="claude-btn claude-btn-sm claude-btn-secondary" onclick="showPasswordForCopy('server-{{ server.id }}', '{{ user.username }}', '{{ server.host }}', {{ server.port }}, '{{ user_password|replace("'", "\\'") }}')" title="复制连接命令">
+                                            <i class="bi bi-clipboard"></i>
+                                            复制连接信息
+                                        </button>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- 权限列表 -->
+                            <div class="permissions-list p-3">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <h6 class="mb-0 text-muted">已获权限 ({{ permissions|length }})</h6>
+                                </div>
+                                <div class="permission-badges">
+                                    {% for app in permissions %}
+                                    <div class="permission-item d-inline-flex align-items-center me-3 mb-2">
+                                        <span class="claude-badge claude-badge-info me-2">
+                                            {{ app.permission_type.name }}
+                                        </span>
+                                        {% if app.admin_comment and '系统自动配置' in app.admin_comment %}
+                                            <span class="claude-badge claude-badge-success">
+                                                <i class="bi bi-check-circle"></i>
+                                                已配置
                                             </span>
-                                        </div>
+                                        {% elif app.admin_comment and '自动配置失败' in app.admin_comment %}
+                                            <span class="claude-badge claude-badge-warning">
+                                                <i class="bi bi-exclamation-triangle"></i>
+                                                需手动配置
+                                            </span>
+                                        {% else %}
+                                            <span class="claude-badge claude-badge-info">
+                                                <i class="bi bi-question-circle"></i>
+                                                未知状态
+                                            </span>
+                                        {% endif %}
+                                        <small class="text-muted ms-2">{{ app.reviewed_at.strftime('%m-%d %H:%M') if app.reviewed_at else '--' }}</small>
                                     </div>
-                                </td>
-                                <td>
-                                    {% if app.admin_comment and '系统自动配置' in app.admin_comment %}
-                                        <span class="claude-badge claude-badge-success">
-                                            <i class="bi bi-check-circle"></i>
-                                            已配置
-                                        </span>
-                                    {% elif app.admin_comment and '自动配置失败' in app.admin_comment %}
-                                        <span class="claude-badge claude-badge-warning">
-                                            <i class="bi bi-exclamation-triangle"></i>
-                                            需手动配置
-                                        </span>
-                                    {% else %}
-                                        <span class="claude-badge claude-badge-info">
-                                            <i class="bi bi-question-circle"></i>
-                                            未知状态
-                                        </span>
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    <span class="claude-badge claude-badge-{{ 'success' if app.server.status == 'online' else 'danger' if app.server.status == 'offline' else 'secondary' }}">
-                                        <i class="bi bi-{{ 'check-circle' if app.server.status == 'online' else 'x-circle' if app.server.status == 'offline' else 'question-circle' }}"></i>
-                                        {{ app.server.status }}
-                                    </span>
-                                </td>
-                                <td>
-                                    <small class="text-muted">{{ app.reviewed_at.strftime('%Y-%m-%d %H:%M') if app.reviewed_at else '--' }}</small>
-                                </td>
-                                <td>
-                                    <button class="claude-btn claude-btn-sm claude-btn-secondary" onclick="copyConnectionInfo('{{ app.server.username }}', '{{ app.server.host }}', {{ app.server.port }}, '{{ app.server.password|replace("'", "\\'") }}')" title="复制连接命令">
-                                        <i class="bi bi-clipboard"></i>
-                                    </button>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% if not loop.last %}<hr class="my-4">{% endif %}
+                    {% endfor %}
                 {% else %}
                 <div class="text-center py-4">
                     <i class="bi bi-server" style="font-size: 3rem; color: var(--claude-text-muted); opacity: 0.5;"></i>
@@ -251,6 +261,35 @@
                     </a>
                 </div>
                 {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 密码验证模态框 -->
+<div class="modal fade" id="passwordVerifyModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-shield-lock me-2"></i>验证密码
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted">为了保护您的账户安全，请输入您的用户密码以查看服务器密码。</p>
+                <div class="mb-3">
+                    <label for="verify_password" class="form-label">用户密码</label>
+                    <input type="password" class="form-control" id="verify_password" 
+                           placeholder="请输入您的用户密码">
+                </div>
+                <div id="verify_error" class="alert alert-danger d-none"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="verifyPassword()">
+                    <i class="bi bi-check-circle me-1"></i>验证
+                </button>
             </div>
         </div>
     </div>
@@ -378,18 +417,148 @@
     transition: all 0.2s ease;
 }
 
+.server-group {
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+    transition: all 0.2s ease;
+}
+
+.server-group:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    border-color: #cbd5e1;
+}
+
+.server-header {
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.connection-info {
+    background: #ffffff;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.permissions-list {
+    background: #fafbfc;
+}
+
+.permission-item {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 8px 12px;
+    transition: all 0.2s ease;
+}
+
+.permission-item:hover {
+    border-color: #cbd5e1;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+}
+
 </style>
 
 <script>
-function togglePassword(appId, password) {
-    const passwordField = document.getElementById(`pwd-${appId}`);
-    const eyeIcon = document.getElementById(`eye-${appId}`);
+let currentAction = null;
+let currentServerId = null;
+let currentPassword = null;
+let currentConnectionInfo = null;
+
+function showPasswordForView(serverId, password) {
+    currentAction = 'view';
+    currentServerId = serverId;
+    currentPassword = password;
+    
+    // 清空之前的输入
+    document.getElementById('verify_password').value = '';
+    document.getElementById('verify_error').classList.add('d-none');
+    
+    // 显示验证模态框
+    const modal = new bootstrap.Modal(document.getElementById('passwordVerifyModal'));
+    modal.show();
+}
+
+function showPasswordForCopy(serverId, username, host, port, password) {
+    currentAction = 'copy';
+    currentServerId = serverId;
+    currentPassword = password;
+    currentConnectionInfo = {
+        username: username,
+        host: host,
+        port: port,
+        password: password
+    };
+    
+    // 清空之前的输入
+    document.getElementById('verify_password').value = '';
+    document.getElementById('verify_error').classList.add('d-none');
+    
+    // 显示验证模态框
+    const modal = new bootstrap.Modal(document.getElementById('passwordVerifyModal'));
+    modal.show();
+}
+
+function verifyPassword() {
+    const password = document.getElementById('verify_password').value;
+    const errorDiv = document.getElementById('verify_error');
+    
+    if (!password) {
+        errorDiv.textContent = '请输入密码';
+        errorDiv.classList.remove('d-none');
+        return;
+    }
+    
+    // 发送验证请求
+    fetch('/api/verify_password', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ password: password })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // 验证成功，执行相应操作
+            if (currentAction === 'view') {
+                togglePasswordDisplay(currentServerId, currentPassword);
+            } else if (currentAction === 'copy') {
+                copyConnectionInfo(currentConnectionInfo.username, currentConnectionInfo.host, 
+                                 currentConnectionInfo.port, currentConnectionInfo.password);
+            }
+            
+            // 关闭模态框
+            const modal = bootstrap.Modal.getInstance(document.getElementById('passwordVerifyModal'));
+            modal.hide();
+        } else {
+            errorDiv.textContent = data.message || '密码验证失败';
+            errorDiv.classList.remove('d-none');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        errorDiv.textContent = '验证请求失败，请重试';
+        errorDiv.classList.remove('d-none');
+    });
+}
+
+function togglePasswordDisplay(serverId, password) {
+    const passwordField = document.getElementById(`pwd-${serverId}`);
+    const eyeIcon = document.getElementById(`eye-${serverId}`);
     const codeElement = passwordField.querySelector('code');
     
     if (codeElement.classList.contains('password-hidden')) {
         codeElement.textContent = password;
         codeElement.classList.remove('password-hidden');
         eyeIcon.className = 'bi bi-eye-slash';
+        
+        // 5秒后自动隐藏密码
+        setTimeout(() => {
+            codeElement.textContent = '••••••••';
+            codeElement.classList.add('password-hidden');
+            eyeIcon.className = 'bi bi-eye';
+        }, 5000);
     } else {
         codeElement.textContent = '••••••••';
         codeElement.classList.add('password-hidden');
