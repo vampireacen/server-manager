@@ -17,11 +17,20 @@
     <!-- 用户基本信息 -->
     <div class="col-lg-4 mb-4">
         <div class="claude-card">
-            <div class="claude-card-header">
-                <i class="bi bi-person-badge me-2"></i>
-                基本信息
+            <div class="claude-card-header d-flex justify-content-between align-items-center">
+                <span>
+                    <i class="bi bi-person-badge me-2"></i>
+                    基本信息
+                </span>
+                <button class="claude-btn claude-btn-sm claude-btn-secondary" onclick="showEditProfileModal()">
+                    <i class="bi bi-pencil me-1"></i>编辑信息
+                </button>
             </div>
             <div class="claude-card-body">
+                <div class="row mb-3">
+                    <div class="col-4"><strong>姓名:</strong></div>
+                    <div class="col-8">{{ user.name or '未设置' }}</div>
+                </div>
                 <div class="row mb-3">
                     <div class="col-4"><strong>用户名:</strong></div>
                     <div class="col-8">{{ user.username }}</div>
@@ -38,6 +47,16 @@
                 <div class="row mb-3">
                     <div class="col-4"><strong>学号:</strong></div>
                     <div class="col-8">{{ user.student_id }}</div>
+                </div>
+                {% endif %}
+                {% if user.identity_type %}
+                <div class="row mb-3">
+                    <div class="col-4"><strong>身份类别:</strong></div>
+                    <div class="col-8">
+                        <span class="claude-badge claude-badge-secondary">
+                            {{ user.identity_type }}
+                        </span>
+                    </div>
                 </div>
                 {% endif %}
                 {% if user.laboratory %}
@@ -246,6 +265,106 @@
 </div>
 {% endif %}
 
+<!-- 编辑用户信息模态框 -->
+<div class="modal fade" id="editProfileModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-pencil me-2"></i>编辑个人信息
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('account') }}" id="editProfileForm">
+                <input type="hidden" name="action" value="edit_profile">
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="edit_name" class="claude-form-label">
+                                    <i class="bi bi-person me-1"></i>真实姓名 <span class="text-danger">*</span>
+                                </label>
+                                <input type="text" class="claude-form-control" id="edit_name" 
+                                       name="name" value="{{ user.name or '' }}" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="edit_student_id" class="claude-form-label">
+                                    <i class="bi bi-card-text me-1"></i>学号 <span class="text-danger">*</span>
+                                </label>
+                                <input type="text" class="claude-form-control" id="edit_student_id" 
+                                       name="student_id" value="{{ user.student_id or '' }}" required>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="edit_identity_type" class="claude-form-label">
+                                    <i class="bi bi-person-badge me-1"></i>身份类别 <span class="text-danger">*</span>
+                                </label>
+                                <select class="claude-form-control" id="edit_identity_type" name="identity_type" required>
+                                    <option value="">请选择身份类别</option>
+                                    <option value="本科" {{ 'selected' if user.identity_type == '本科' else '' }}>本科</option>
+                                    <option value="硕士" {{ 'selected' if user.identity_type == '硕士' else '' }}>硕士</option>
+                                    <option value="博士" {{ 'selected' if user.identity_type == '博士' else '' }}>博士</option>
+                                    <option value="博后" {{ 'selected' if user.identity_type == '博后' else '' }}>博后</option>
+                                    <option value="工程师" {{ 'selected' if user.identity_type == '工程师' else '' }}>工程师</option>
+                                    <option value="教师" {{ 'selected' if user.identity_type == '教师' else '' }}>教师</option>
+                                    <option value="其他" {{ 'selected' if user.identity_type == '其他' else '' }}>其他</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="edit_laboratory" class="claude-form-label">
+                                    <i class="bi bi-building me-1"></i>实验室 <span class="text-danger">*</span>
+                                </label>
+                                <select class="claude-form-control" id="edit_laboratory" name="laboratory" required>
+                                    <option value="">请选择实验室</option>
+                                    <option value="蓝色中心" {{ 'selected' if user.laboratory == '蓝色中心' else '' }}>蓝色中心</option>
+                                    <option value="双创" {{ 'selected' if user.laboratory == '双创' else '' }}>双创</option>
+                                    <option value="嵌入式实验室" {{ 'selected' if user.laboratory == '嵌入式实验室' else '' }}>嵌入式实验室</option>
+                                    <option value="其他" {{ 'selected' if user.laboratory == '其他' else '' }}>其他</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="edit_supervisor" class="claude-form-label">
+                                    <i class="bi bi-person-check me-1"></i>导师 <span class="text-danger">*</span>
+                                </label>
+                                <input type="text" class="claude-form-control" id="edit_supervisor" 
+                                       name="supervisor" value="{{ user.supervisor or '' }}" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="edit_contact" class="claude-form-label">
+                                    <i class="bi bi-telephone me-1"></i>联系方式
+                                </label>
+                                <input type="text" class="claude-form-control" id="edit_contact" 
+                                       name="contact" value="{{ user.contact or '' }}" placeholder="手机号或邮箱">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="claude-btn claude-btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="claude-btn claude-btn-primary">
+                        <i class="bi bi-check-circle me-1"></i>保存修改
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <!-- 密码验证模态框 -->
 <div class="modal fade" id="passwordVerifyModal" tabindex="-1">
     <div class="modal-dialog">
@@ -390,6 +509,11 @@
 <script>
 let currentServerId = null;
 let currentUserPassword = null;
+
+function showEditProfileModal() {
+    const modal = new bootstrap.Modal(document.getElementById('editProfileModal'));
+    modal.show();
+}
 
 function showPassword(serverId, userPassword) {
     currentServerId = serverId;

@@ -12,16 +12,68 @@ app.config.from_object(Config)
 # 初始化数据库
 db.init_app(app)
 
+def migrate_database():
+    """数据库迁移"""
+    with app.app_context():
+        # 检查是否需要添加字段到users表
+        try:
+            # 获取users表的列信息
+            result = db.session.execute(db.text("PRAGMA table_info(users)")).fetchall()
+            columns = [row[1] for row in result]  # 第二个元素是列名
+            
+            # 检查并添加name字段
+            if 'name' not in columns:
+                print("正在添加name字段到users表...")
+                db.session.execute(db.text("ALTER TABLE users ADD COLUMN name VARCHAR(100)"))
+                # 为现有用户设置默认姓名（使用用户名）
+                db.session.execute(db.text("UPDATE users SET name = username WHERE name IS NULL OR name = ''"))
+                db.session.commit()
+                print("name字段添加成功")
+            
+            # 检查并添加identity_type字段
+            if 'identity_type' not in columns:
+                print("正在添加identity_type字段到users表...")
+                db.session.execute(db.text("ALTER TABLE users ADD COLUMN identity_type VARCHAR(50)"))
+                db.session.commit()
+                print("identity_type字段添加成功")
+                
+            # 检查并添加其他可能缺失的字段
+            missing_fields = []
+            expected_fields = ['laboratory', 'supervisor', 'contact']
+            for field in expected_fields:
+                if field not in columns:
+                    missing_fields.append(field)
+            
+            if missing_fields:
+                for field in missing_fields:
+                    print(f"正在添加{field}字段到users表...")
+                    db.session.execute(db.text(f"ALTER TABLE users ADD COLUMN {field} VARCHAR(100)"))
+                db.session.commit()
+                print(f"成功添加字段: {', '.join(missing_fields)}")
+                
+        except Exception as e:
+            print(f"数据库迁移过程中出现错误: {e}")
+            db.session.rollback()
+
 def create_tables():
     """创建数据库表"""
     with app.app_context():
+        # 首先进行数据库迁移
+        migrate_database()
+        
+        # 创建所有表
         db.create_all()
         
         # 创建默认管理员用户
-        if not User.query.filter_by(username='admin').first():
-            admin = User(username='admin', role='admin')
+        admin = User.query.filter_by(username='admin').first()
+        if not admin:
+            admin = User(username='admin', name='系统管理员', role='admin')
             admin.set_password('admin123')
             db.session.add(admin)
+        else:
+            # 如果管理员存在但没有姓名，添加姓名
+            if not admin.name:
+                admin.name = '系统管理员'
         
         # 创建默认权限类型
         permission_types = [
@@ -78,6 +130,7 @@ def login():
         if user and user.check_password(password):
             session['user_id'] = user.id
             session['username'] = user.username
+            session['name'] = getattr(user, 'name', None) or user.username
             session['role'] = user.role
             return redirect(url_for('dashboard'))
         else:
@@ -88,8 +141,10 @@ def login():
 @app.route('/register', methods=['POST'])
 def register():
     username = request.form['username']
+    name = request.form.get('name', '')  # 使用get方法避免KeyError
     password = request.form['password']
     student_id = request.form['student_id']
+    identity_type = request.form.get('identity_type', '')  # 身份类别
     laboratory = request.form['laboratory']
     supervisor = request.form.get('supervisor', '')
     contact = request.form.get('contact', '')
@@ -109,7 +164,9 @@ def register():
     # 创建新用户
     new_user = User(
         username=username,
+        name=name if name else username,  # 如果没有提供姓名，使用用户名作为默认值
         student_id=student_id,
+        identity_type=identity_type,  # 身份类别
         laboratory=laboratory,
         supervisor=supervisor,
         contact=contact,
@@ -993,6 +1050,92 @@ def api_reset_user_password():
         db.session.rollback()
         return jsonify({'success': False, 'message': f'重置密码时发生异常: {str(e)}'}), 500
 
+@app.route('/api/user_profile/<int:user_id>')
+@admin_required
+def api_user_profile(user_id):
+    """获取用户详细信息API"""
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({'success': False, 'message': '用户不存在'}), 404
+    
+    user_data = {
+        'id': user.id,
+        'username': user.username,
+        'name': user.name or '',
+        'student_id': user.student_id or '',
+        'identity_type': user.identity_type or '',
+        'laboratory': user.laboratory or '',
+        'supervisor': user.supervisor or '',
+        'contact': user.contact or '',
+        'role': user.role,
+        'created_at': user.created_at.strftime('%Y-%m-%d %H:%M:%S') if user.created_at else ''
+    }
+    
+    return jsonify({'success': True, 'user': user_data})
+
+@app.route('/api/admin_edit_user_profile', methods=['POST'])
+@admin_required
+def api_admin_edit_user_profile():
+    """管理员编辑用户信息API"""
+    data = request.json
+    user_id = data.get('user_id')
+    
+    if not user_id:
+        return jsonify({'success': False, 'message': '缺少用户ID'}), 400
+    
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({'success': False, 'message': '用户不存在'}), 404
+    
+    # 获取更新字段
+    username = data.get('username', '').strip()
+    name = data.get('name', '').strip()
+    student_id = data.get('student_id', '').strip()
+    identity_type = data.get('identity_type', '').strip()
+    laboratory = data.get('laboratory', '').strip()
+    supervisor = data.get('supervisor', '').strip()
+    contact = data.get('contact', '').strip()
+    role = data.get('role', 'user')
+    
+    # 验证必填字段
+    if not all([username, name, student_id, identity_type, laboratory, supervisor]):
+        return jsonify({'success': False, 'message': '请填写所有必填字段'}), 400
+    
+    try:
+        # 检查用户名是否已被其他用户使用
+        existing_username = User.query.filter(
+            User.username == username,
+            User.id != user.id
+        ).first()
+        if existing_username:
+            return jsonify({'success': False, 'message': '该用户名已被其他用户使用'}), 400
+        
+        # 检查学号是否已被其他用户使用
+        existing_student = User.query.filter(
+            User.student_id == student_id,
+            User.id != user.id
+        ).first()
+        if existing_student:
+            return jsonify({'success': False, 'message': '该学号已被其他用户使用'}), 400
+        
+        # 更新用户信息
+        user.username = username
+        user.name = name
+        user.student_id = student_id
+        user.identity_type = identity_type
+        user.laboratory = laboratory
+        user.supervisor = supervisor
+        user.contact = contact
+        user.role = role
+        
+        db.session.commit()
+        
+        return jsonify({'success': True, 'message': '用户信息更新成功'})
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'更新用户信息时发生异常: {str(e)}'}), 500
+
 @app.route('/api/reset_server_password', methods=['POST'])
 @admin_required
 def api_reset_server_password():
@@ -1113,6 +1256,48 @@ def account():
             user.set_password(new_password)
             db.session.commit()
             flash('密码修改成功', 'success')
+            return redirect(url_for('account'))
+        
+        elif action == 'edit_profile':
+            # 编辑用户信息
+            name = request.form.get('name', '').strip()
+            student_id = request.form.get('student_id', '').strip()
+            identity_type = request.form.get('identity_type', '').strip()
+            laboratory = request.form.get('laboratory', '').strip()
+            supervisor = request.form.get('supervisor', '').strip()
+            contact = request.form.get('contact', '').strip()
+            
+            # 验证必填字段
+            if not all([name, student_id, identity_type, laboratory, supervisor]):
+                flash('请填写所有必填字段', 'error')
+                return redirect(url_for('account'))
+            
+            # 检查学号是否被其他用户使用
+            existing_student = User.query.filter(
+                User.student_id == student_id,
+                User.id != user.id
+            ).first()
+            if existing_student:
+                flash('该学号已被其他用户使用', 'error')
+                return redirect(url_for('account'))
+            
+            # 更新用户信息
+            user.name = name
+            user.student_id = student_id
+            user.identity_type = identity_type
+            user.laboratory = laboratory
+            user.supervisor = supervisor
+            user.contact = contact
+            
+            try:
+                db.session.commit()
+                # 更新session中的姓名
+                session['name'] = name
+                flash('个人信息更新成功', 'success')
+            except Exception as e:
+                db.session.rollback()
+                flash('更新失败，请重试', 'error')
+            
             return redirect(url_for('account'))
     
     # 获取用户的服务器权限信息（仅显示已批准的申请）

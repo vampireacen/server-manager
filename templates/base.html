@@ -91,13 +91,13 @@
                 <div class="dropdown">
                     <button class="claude-user-btn dropdown-toggle" type="button" id="userDropdown" data-bs-toggle="dropdown">
                         <i class="bi bi-person-circle"></i>
-                        <span class="claude-user-name">{{ session.username }}</span>
+                        <span class="claude-user-name">{{ session.name or session.username }}</span>
                         <span class="claude-user-badge claude-badge-{{ 'primary' if session.role == 'admin' else 'info' }}">
                             {{ '管理员' if session.role == 'admin' else '用户' }}
                         </span>
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end">
-                        <li><span class="dropdown-header">{{ session.username }}</span></li>
+                        <li><span class="dropdown-header">{{ session.name or session.username }}</span></li>
                         <li><hr class="dropdown-divider"></li>
                         <li><a class="dropdown-item" href="{{ url_for('account') }}">
                             <i class="bi bi-person-circle me-2"></i>账户信息

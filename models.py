@@ -9,9 +9,11 @@ class User(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
+    name = db.Column(db.String(100), nullable=True)  # 真实姓名
     password_hash = db.Column(db.String(120), nullable=False)
     role = db.Column(db.String(20), nullable=False, default='user')  # user, admin
     student_id = db.Column(db.String(50))  # 学号
+    identity_type = db.Column(db.String(50))  # 身份类别：本科,硕士,博士,博后,工程师,教师,其他
     laboratory = db.Column(db.String(100))  # 实验室
     supervisor = db.Column(db.String(100))  # 导师
     contact = db.Column(db.String(100))  # 联系方式

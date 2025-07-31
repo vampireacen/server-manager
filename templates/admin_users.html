@@ -75,6 +75,7 @@
                 <thead class="table-light">
                     <tr>
                         <th style="color: var(--claude-text-secondary); font-weight: 600;">用户信息</th>
+                        <th style="color: var(--claude-text-secondary); font-weight: 600;">身份信息</th>
                         <th style="color: var(--claude-text-secondary); font-weight: 600;">角色</th>
                         <th style="color: var(--claude-text-secondary); font-weight: 600;">注册时间</th>
                         <th style="color: var(--claude-text-secondary); font-weight: 600;">申请统计</th>
@@ -88,11 +89,30 @@
                             <div class="d-flex align-items-center">
                                 <i class="bi bi-person-circle me-3" style="color: var(--claude-primary); font-size: 1.2rem;"></i>
                                 <div>
-                                    <div class="fw-semibold" style="color: var(--claude-text-primary);">{{ user.username }}</div>
+                                    <div class="fw-semibold" style="color: var(--claude-text-primary);">{{ user.name or user.username }}</div>
+                                    <small class="text-muted">@{{ user.username }}</small>
                                     {% if user.id == session.user_id %}
-                                        <span class="claude-badge claude-badge-primary">当前用户</span>
+                                        <br><span class="claude-badge claude-badge-primary">当前用户</span>
                                     {% endif %}
                                 </div>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="user-identity-info">
+                                {% if user.identity_type %}
+                                <div class="mb-1">
+                                    <span class="claude-badge claude-badge-secondary">{{ user.identity_type }}</span>
+                                </div>
+                                {% endif %}
+                                {% if user.student_id %}
+                                <small class="text-muted d-block">学号: {{ user.student_id }}</small>
+                                {% endif %}
+                                {% if user.laboratory %}
+                                <small class="text-muted d-block">{{ user.laboratory }}</small>
+                                {% endif %}
+                                {% if user.supervisor %}
+                                <small class="text-muted d-block">导师: {{ user.supervisor }}</small>
+                                {% endif %}
                             </div>
                         </td>
                         <td>
@@ -114,6 +134,9 @@
                         </td>
                         <td>
                             <div class="btn-group">
+                                <button class="claude-btn claude-btn-sm claude-btn-info" onclick="editUserProfile({{ user.id }})" title="编辑用户信息">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
                                 <button class="claude-btn claude-btn-sm claude-btn-secondary" onclick="manageUserAccounts({{ user.id }}, '{{ user.username }}')" title="管理用户账户">
                                     <i class="bi bi-person-gear"></i>
                                 </button>
@@ -298,6 +321,29 @@
         </div>
     </div>
 </div>
+
+<!-- 编辑用户信息模态框 -->
+<div class="modal fade" id="editUserProfileModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content claude-modal">
+            <div class="modal-header">
+                <h5 class="modal-title" style="color: var(--claude-text-primary); font-weight: 600;">
+                    <i class="bi bi-pencil me-2" style="color: var(--claude-info);"></i>
+                    编辑用户信息
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="editUserProfileContent">
+                <div class="text-center py-4">
+                    <div class="claude-loading">
+                        <i class="bi bi-arrow-clockwise" style="font-size: 2rem; color: var(--claude-primary);"></i>
+                        <p class="mt-2 text-muted">加载用户信息中...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -452,6 +498,197 @@
 <script>
 let currentUpdateUserId = null;
 let currentUpdateServerId = null;
+let currentEditUserId = null;
+
+function editUserProfile(userId) {
+    currentEditUserId = userId;
+    
+    // 显示模态框
+    const modal = new bootstrap.Modal(document.getElementById('editUserProfileModal'));
+    modal.show();
+    
+    // 获取用户信息
+    fetch(`/api/user_profile/${userId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const user = data.user;
+                const content = `
+                    <form id="adminEditUserForm">
+                        <input type="hidden" name="user_id" value="${user.id}">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="claude-form-label">
+                                        <i class="bi bi-person me-1"></i>真实姓名 <span class="text-danger">*</span>
+                                    </label>
+                                    <input type="text" class="claude-form-control" name="name" 
+                                           value="${user.name || ''}" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="claude-form-label">
+                                        <i class="bi bi-at me-1"></i>用户名 <span class="text-danger">*</span>
+                                    </label>
+                                    <input type="text" class="claude-form-control" name="username" 
+                                           value="${user.username}" required>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="claude-form-label">
+                                        <i class="bi bi-card-text me-1"></i>学号 <span class="text-danger">*</span>
+                                    </label>
+                                    <input type="text" class="claude-form-control" name="student_id" 
+                                           value="${user.student_id || ''}" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="claude-form-label">
+                                        <i class="bi bi-person-badge me-1"></i>身份类别 <span class="text-danger">*</span>
+                                    </label>
+                                    <select class="claude-form-control" name="identity_type" required>
+                                        <option value="">请选择身份类别</option>
+                                        <option value="本科" ${user.identity_type === '本科' ? 'selected' : ''}>本科</option>
+                                        <option value="硕士" ${user.identity_type === '硕士' ? 'selected' : ''}>硕士</option>
+                                        <option value="博士" ${user.identity_type === '博士' ? 'selected' : ''}>博士</option>
+                                        <option value="博后" ${user.identity_type === '博后' ? 'selected' : ''}>博后</option>
+                                        <option value="工程师" ${user.identity_type === '工程师' ? 'selected' : ''}>工程师</option>
+                                        <option value="教师" ${user.identity_type === '教师' ? 'selected' : ''}>教师</option>
+                                        <option value="其他" ${user.identity_type === '其他' ? 'selected' : ''}>其他</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="claude-form-label">
+                                        <i class="bi bi-building me-1"></i>实验室 <span class="text-danger">*</span>
+                                    </label>
+                                    <select class="claude-form-control" name="laboratory" required>
+                                        <option value="">请选择实验室</option>
+                                        <option value="蓝色中心" ${user.laboratory === '蓝色中心' ? 'selected' : ''}>蓝色中心</option>
+                                        <option value="双创" ${user.laboratory === '双创' ? 'selected' : ''}>双创</option>
+                                        <option value="嵌入式实验室" ${user.laboratory === '嵌入式实验室' ? 'selected' : ''}>嵌入式实验室</option>
+                                        <option value="其他" ${user.laboratory === '其他' ? 'selected' : ''}>其他</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="claude-form-label">
+                                        <i class="bi bi-person-check me-1"></i>导师 <span class="text-danger">*</span>
+                                    </label>
+                                    <input type="text" class="claude-form-control" name="supervisor" 
+                                           value="${user.supervisor || ''}" required>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="claude-form-label">
+                                        <i class="bi bi-telephone me-1"></i>联系方式
+                                    </label>
+                                    <input type="text" class="claude-form-control" name="contact" 
+                                           value="${user.contact || ''}" placeholder="手机号或邮箱">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="claude-form-label">
+                                        <i class="bi bi-shield me-1"></i>用户角色
+                                    </label>
+                                    <select class="claude-form-control" name="role">
+                                        <option value="user" ${user.role === 'user' ? 'selected' : ''}>普通用户</option>
+                                        <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>管理员</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="text-end">
+                            <button type="button" class="claude-btn claude-btn-secondary me-2" data-bs-dismiss="modal">取消</button>
+                            <button type="button" class="claude-btn claude-btn-primary" onclick="saveUserProfile()">
+                                <i class="bi bi-check-circle me-1"></i>保存修改
+                            </button>
+                        </div>
+                    </form>
+                `;
+                
+                document.getElementById('editUserProfileContent').innerHTML = content;
+            } else {
+                document.getElementById('editUserProfileContent').innerHTML = `
+                    <div class="text-center py-4">
+                        <i class="bi bi-exclamation-triangle text-warning" style="font-size: 2rem;"></i>
+                        <p class="mt-2 text-muted">加载用户信息失败</p>
+                    </div>
+                `;
+            }
+        })
+        .catch(error => {
+            console.error('Error loading user profile:', error);
+            document.getElementById('editUserProfileContent').innerHTML = `
+                <div class="text-center py-4">
+                    <i class="bi bi-exclamation-triangle text-warning" style="font-size: 2rem;"></i>
+                    <p class="mt-2 text-muted">加载用户信息失败</p>
+                </div>
+            `;
+        });
+}
+
+function saveUserProfile() {
+    const form = document.getElementById('adminEditUserForm');
+    const formData = new FormData(form);
+    
+    const data = {};
+    for (let [key, value] of formData.entries()) {
+        data[key] = value.trim();
+    }
+    
+    // 验证必填字段
+    if (!data.name || !data.username || !data.student_id || !data.identity_type || !data.laboratory || !data.supervisor) {
+        showToast('请填写所有必填字段', 'error');
+        return;
+    }
+    
+    // 发送更新请求
+    fetch('/api/admin_edit_user_profile', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // 关闭模态框
+            const modal = bootstrap.Modal.getInstance(document.getElementById('editUserProfileModal'));
+            modal.hide();
+            
+            // 显示成功消息并刷新页面
+            showToast('用户信息更新成功', 'success');
+            setTimeout(() => {
+                location.reload();
+            }, 1500);
+        } else {
+            showToast(data.message || '更新失败，请重试', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error updating user profile:', error);
+        showToast('更新请求失败，请重试', 'error');
+    });
+}
 
 function manageUserAccounts(userId, username) {
     // 显示模态框
@@ -475,6 +712,7 @@ function manageUserAccounts(userId, username) {
                     <div class="row">
                         <div class="col-md-6">
                             <p><strong>用户名:</strong> ${data.user.username}</p>
+                            <p><strong>姓名:</strong> ${data.user.name || '未设置'}</p>
                             <p><strong>角色:</strong> 
                                 <span class="claude-badge claude-badge-${data.user.role === 'admin' ? 'danger' : 'info'}">
                                     ${data.user.role === 'admin' ? '管理员' : '普通用户'}

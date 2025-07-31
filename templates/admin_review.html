@@ -121,7 +121,7 @@
                             </div>
                         </div>
                         <div>
-                            <h6 class="mb-1 fw-semibold">{{ batch.user.username }}</h6>
+                            <h6 class="mb-1 fw-semibold">{{ batch.user.name or batch.user.username }}</h6>
                             <small class="text-muted">申请时间: {{ batch.created_at.strftime('%m-%d %H:%M') }}</small>
                         </div>
                     </div>
@@ -670,7 +670,7 @@ function showBatchReviewModal(batchId) {
                     <div class="application-detail-value">
                         <i class="bi bi-person-circle me-2" style="color: var(--claude-primary);"></i>
                         <div>
-                            <strong>${batch.user.username}</strong>
+                            <strong>${batch.user.name || batch.user.username}</strong>
                             <br><small class="text-muted">申请时间: ${new Date(batch.created_at).toLocaleString()}</small>
                         </div>
                     </div>
