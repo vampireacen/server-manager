@@ -1,6 +1,5 @@
 # Claude Code 相关文件
 .claude/
-CLAUDE.md
 
 # 数据库文件
 instance/*.db*
