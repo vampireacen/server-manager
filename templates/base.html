@@ -62,7 +62,7 @@
                         </ul>
                     </li>
                     
-                    {% if session.role == 'admin' %}
+                    {% if session.role == 'admin' or session.role == 'super_admin' %}
                     <li class="claude-nav-item dropdown">
                         <a href="#" class="claude-nav-link dropdown-toggle" id="adminMenuDropdown" role="button" data-bs-toggle="dropdown">
                             <i class="bi bi-gear"></i>
@@ -92,8 +92,8 @@
                     <button class="claude-user-btn dropdown-toggle" type="button" id="userDropdown" data-bs-toggle="dropdown">
                         <i class="bi bi-person-circle"></i>
                         <span class="claude-user-name">{{ session.name or session.username }}</span>
-                        <span class="claude-user-badge claude-badge-{{ 'primary' if session.role == 'admin' else 'info' }}">
-                            {{ '管理员' if session.role == 'admin' else '用户' }}
+                        <span class="claude-user-badge claude-badge-{{ 'primary' if session.role == 'super_admin' else 'danger' if session.role == 'admin' else 'info' }}">
+                            {{ '超级管理员' if session.role == 'super_admin' else '管理员' if session.role == 'admin' else '用户' }}
                         </span>
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end">
@@ -133,7 +133,7 @@
                     <i class="bi bi-list-check"></i>我的申请
                 </a></li>
                 
-                {% if session.role == 'admin' %}
+                {% if session.role == 'admin' or session.role == 'super_admin' %}
                 <li><hr class="claude-mobile-divider"></li>
                 <li class="claude-mobile-section-title">管理功能</li>
                 <li><a href="{{ url_for('admin_review') }}" class="claude-mobile-nav-link">
@@ -257,7 +257,7 @@
         });
     </script>
     
-    {% if session.role == 'admin' %}
+    {% if session.role == 'admin' or session.role == 'super_admin' %}
     <script>
         // 管理员通知检查
         function updateNotificationBadge() {

@@ -122,6 +122,17 @@ def create_tables():
             if not admin.name:
                 admin.name = '系统管理员'
         
+        # 创建默认超级管理员用户
+        super_admin = User.query.filter_by(username='superadmin').first()
+        if not super_admin:
+            super_admin = User(username='superadmin', name='超级管理员', role='super_admin')
+            super_admin.set_password('superadmin123')
+            db.session.add(super_admin)
+        else:
+            # 如果超级管理员存在但没有姓名，添加姓名
+            if not super_admin.name:
+                super_admin.name = '超级管理员'
+        
         # 创建默认权限类型
         permission_types = [
             {'name': '普通用户', 'description': '基本SSH访问权限', 'requires_reason': False},
@@ -156,6 +167,20 @@ def admin_required(f):
         user = User.query.get(session['user_id'])
         if not user or not user.is_admin():
             flash('需要管理员权限', 'error')
+            return redirect(url_for('dashboard'))
+        return f(*args, **kwargs)
+    decorated_function.__name__ = f.__name__
+    return decorated_function
+
+def super_admin_required(f):
+    """超级管理员权限验证装饰器"""
+    def decorated_function(*args, **kwargs):
+        if 'user_id' not in session:
+            return redirect(url_for('login'))
+        
+        user = User.query.get(session['user_id'])
+        if not user or not user.is_super_admin():
+            flash('需要超级管理员权限', 'error')
             return redirect(url_for('dashboard'))
         return f(*args, **kwargs)
     decorated_function.__name__ = f.__name__
@@ -267,9 +292,20 @@ def dashboard():
                 server_permissions[server_id] = {
                     'server': app.server,
                     'permissions': [],
-                    'user_password': None  # 用户密码，从admin_comment中提取
+                    'user_password': None,  # 用户密码，从admin_comment中提取
+                    'server_username': None  # 实际的服务器用户名
                 }
             server_permissions[server_id]['permissions'].append(app)
+            
+            # 设置服务器用户名（使用第一个找到的server_username，如果没有则使用系统用户名）
+            if server_permissions[server_id]['server_username'] is None:
+                if app.server_username:
+                    server_permissions[server_id]['server_username'] = app.server_username
+                else:
+                    # 如果没有设置server_username，尝试生成或使用系统用户名
+                    from username_generator import generate_username_for_user
+                    generated_username, _ = generate_username_for_user(user.name or user.username, server_id)
+                    server_permissions[server_id]['server_username'] = generated_username or user.username
             
             # 提取用户密码（只需要提取一次）
             if server_permissions[server_id]['user_password'] is None and app.admin_comment:
@@ -930,17 +966,23 @@ def admin_users():
                 flash('用户添加成功', 'success')
                 
         elif action == 'toggle_role':
-            # 切换用户角色
-            user_id = request.form['user_id']
-            new_role = request.form['role']
-            user = User.query.get_or_404(user_id)
-            
-            if user.id == session['user_id']:
-                flash('不能修改自己的角色', 'error')
+            # 切换用户角色 - 只有超级管理员可以执行此操作
+            current_user = User.query.get(session['user_id'])
+            if not current_user.can_manage_roles():
+                flash('只有超级管理员可以修改用户角色', 'error')
             else:
-                user.role = new_role
-                db.session.commit()
-                flash(f'用户 {user.username} 角色已更新为 {"管理员" if new_role == "admin" else "普通用户"}', 'success')
+                user_id = request.form['user_id']
+                new_role = request.form['role']
+                user = User.query.get_or_404(user_id)
+                
+                if user.id == session['user_id']:
+                    flash('不能修改自己的角色', 'error')
+                else:
+                    user.role = new_role
+                    db.session.commit()
+                    
+                    role_name = {"admin": "管理员", "super_admin": "超级管理员", "user": "普通用户"}.get(new_role, new_role)
+                    flash(f'用户 {user.username} 角色已更新为 {role_name}', 'success')
                 
         elif action == 'delete':
             # 删除用户
@@ -984,9 +1026,13 @@ def admin_users():
         count = Application.query.filter_by(user_id=user.id).count()
         user_applications_count[user.id] = count
     
+    # 获取当前用户信息以便在模板中进行权限判断
+    current_user = User.query.get(session['user_id'])
+    
     return render_template('admin_users.html', 
                          users=users, 
-                         user_applications_count=user_applications_count)
+                         user_applications_count=user_applications_count,
+                         current_user=current_user)
 
 @app.route('/api/user_applications/<int:user_id>')
 @admin_required
@@ -1025,13 +1071,24 @@ def api_user_server_accounts(user_id):
     for app in approved_applications:
         server_id = app.server.id
         if server_id not in server_accounts:
+            # 确定实际的服务器用户名
+            actual_server_username = user.username  # 默认使用系统用户名
+            if app.server_username:
+                actual_server_username = app.server_username
+            else:
+                # 如果没有设置server_username，尝试生成
+                from username_generator import generate_username_for_user
+                generated_username, _ = generate_username_for_user(user.name or user.username, server_id)
+                if generated_username:
+                    actual_server_username = generated_username
+            
             server_accounts[server_id] = {
                 'server_id': server_id,
                 'server_name': app.server.name,
                 'server_host': app.server.host,
                 'server_port': app.server.port,
                 'server_status': app.server.status,
-                'username': user.username,
+                'username': actual_server_username,  # 使用实际的服务器用户名
                 'user_password': None,
                 'permissions': []
             }
@@ -1563,9 +1620,20 @@ def account():
             server_permissions[server_id] = {
                 'server': app.server,
                 'permissions': [],
-                'user_password': None  # 用户密码，从admin_comment中提取
+                'user_password': None,  # 用户密码，从admin_comment中提取
+                'server_username': None  # 实际的服务器用户名
             }
         server_permissions[server_id]['permissions'].append(app)
+        
+        # 设置服务器用户名（使用第一个找到的server_username，如果没有则使用系统用户名）
+        if server_permissions[server_id]['server_username'] is None:
+            if app.server_username:
+                server_permissions[server_id]['server_username'] = app.server_username
+            else:
+                # 如果没有设置server_username，尝试生成或使用系统用户名
+                from username_generator import generate_username_for_user
+                generated_username, _ = generate_username_for_user(user.name or user.username, server_id)
+                server_permissions[server_id]['server_username'] = generated_username or user.username
         
         # 提取用户密码（只需要提取一次）
         if server_permissions[server_id]['user_password'] is None and app.admin_comment:

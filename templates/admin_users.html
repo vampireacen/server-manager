@@ -38,7 +38,7 @@
             <div class="d-flex align-items-center">
                 <div class="flex-grow-1">
                     <div class="claude-metric-value" style="color: var(--claude-danger);">
-                        {{ users|selectattr('role', 'equalto', 'admin')|list|length }}
+                        {{ (users|selectattr('role', 'equalto', 'admin')|list|length) + (users|selectattr('role', 'equalto', 'super_admin')|list|length) }}
                     </div>
                     <div class="claude-metric-label">管理员</div>
                 </div>
@@ -116,9 +116,9 @@
                             </div>
                         </td>
                         <td>
-                            <span class="claude-badge claude-badge-{{ 'danger' if user.role == 'admin' else 'info' }}">
-                                <i class="bi bi-{{ 'shield-check' if user.role == 'admin' else 'person' }}"></i>
-                                {{ '管理员' if user.role == 'admin' else '普通用户' }}
+                            <span class="claude-badge claude-badge-{{ 'primary' if user.role == 'super_admin' else 'danger' if user.role == 'admin' else 'info' }}">
+                                <i class="bi bi-{{ 'star-fill' if user.role == 'super_admin' else 'shield-check' if user.role == 'admin' else 'person' }}"></i>
+                                {{ '超级管理员' if user.role == 'super_admin' else '管理员' if user.role == 'admin' else '普通用户' }}
                             </span>
                         </td>
                         <td>
@@ -141,12 +141,16 @@
                                     <i class="bi bi-person-gear"></i>
                                 </button>
                                 {% if user.id != session.user_id %}
-                                <button class="claude-btn claude-btn-sm claude-btn-{{ 'warning' if user.role == 'admin' else 'secondary' }}" onclick="toggleUserRole({{ user.id }}, '{{ user.role }}', '{{ user.username }}')" title="{{ '降为普通用户' if user.role == 'admin' else '提升为管理员' }}">
-                                    <i class="bi bi-{{ 'arrow-down-circle' if user.role == 'admin' else 'arrow-up-circle' }}"></i>
-                                </button>
-                                <button class="claude-btn claude-btn-sm claude-btn-danger" onclick="deleteUser({{ user.id }}, '{{ user.username }}')" title="删除用户">
-                                    <i class="bi bi-trash"></i>
-                                </button>
+                                    {% if current_user.can_manage_roles() %}
+                                    <button class="claude-btn claude-btn-sm claude-btn-{{ 'warning' if user.role == 'admin' else 'secondary' }}" onclick="toggleUserRole({{ user.id }}, '{{ user.role }}', '{{ user.username }}')" title="{{ '降为普通用户' if user.role == 'admin' else '提升为管理员' }}">
+                                        <i class="bi bi-{{ 'arrow-down-circle' if user.role == 'admin' else 'arrow-up-circle' }}"></i>
+                                    </button>
+                                    {% endif %}
+                                    {% if current_user.is_super_admin() or (current_user.role == 'admin' and user.role == 'user') %}
+                                    <button class="claude-btn claude-btn-sm claude-btn-danger" onclick="deleteUser({{ user.id }}, '{{ user.username }}')" title="删除用户">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                    {% endif %}
                                 {% endif %}
                             </div>
                         </td>
@@ -194,6 +198,9 @@
                         <select class="form-select claude-input" id="new_role" name="role">
                             <option value="user">普通用户</option>
                             <option value="admin">管理员</option>
+                            {% if current_user.is_super_admin() %}
+                            <option value="super_admin">超级管理员</option>
+                            {% endif %}
                         </select>
                     </div>
                 </div>
@@ -769,6 +776,9 @@ function editUserProfile(userId) {
                                     <select class="claude-form-control" name="role">
                                         <option value="user" ${user.role === 'user' ? 'selected' : ''}>普通用户</option>
                                         <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>管理员</option>
+                                        {% if current_user.is_super_admin() %}
+                                        <option value="super_admin" ${user.role === 'super_admin' ? 'selected' : ''}>超级管理员</option>
+                                        {% endif %}
                                     </select>
                                 </div>
                             </div>
@@ -884,8 +894,8 @@ function manageUserAccounts(userId, username) {
                             <p><strong>用户名:</strong> ${data.user.username}</p>
                             <p><strong>姓名:</strong> ${data.user.name || '未设置'}</p>
                             <p><strong>角色:</strong> 
-                                <span class="claude-badge claude-badge-${data.user.role === 'admin' ? 'danger' : 'info'}">
-                                    ${data.user.role === 'admin' ? '管理员' : '普通用户'}
+                                <span class="claude-badge claude-badge-${data.user.role === 'super_admin' ? 'primary' : data.user.role === 'admin' ? 'danger' : 'info'}">
+                                    ${data.user.role === 'super_admin' ? '超级管理员' : data.user.role === 'admin' ? '管理员' : '普通用户'}
                                 </span>
                             </p>
                         </div>

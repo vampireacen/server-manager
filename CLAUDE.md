@@ -6,27 +6,31 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is a comprehensive Flask-based server management system (服务器管理系统) for monitoring Linux servers and managing user access permissions with automated server-side user provisioning. The application provides real-time server monitoring, batch-based permission request system, admin approval workflows, automatic user creation and permission configuration on target servers, and comprehensive account management features.
 
-**Latest Updates (v3.2 - Advanced Permission Management & Enhanced UX):**
-- 🆕 **Enhanced User Deletion**: Three-option deletion modal with complete server account management
-  - **Delete User Only**: Removes user records while preserving server accounts
-  - **Complete Deletion**: Revokes all permissions and deletes server accounts across all systems
-  - Multi-step confirmation with detailed impact preview and server account information
-- 🆕 **Individual Permission Revocation**: Granular permission management with server-side cleanup
-  - Permission display as individual rows with dedicated delete buttons in admin interface
-  - Automatic server-side permission revocation and Linux group removal
-  - Real-time permission status updates and comprehensive audit trail
-- 🆕 **Streamlined Application Process**: Simplified permission request workflow
-  - Hidden "普通用户" permission card with automatic default SSH access provisioning
-  - Optional permission selection - users can proceed without selections for basic access
-  - Updated UI text and guidance: "基本SSH功能" → "默认功能" with clear explanatory text
-- 🆕 **Enhanced Server Operations**: Complete user account lifecycle management
-  - Automatic bash shell configuration (`/bin/bash`) for all new user accounts
-  - Comprehensive user deletion across multiple servers with detailed logging and error handling
-  - Individual server account management with targeted deletion and cleanup options
-- 🆕 **Advanced Modal Interfaces**: Multi-step confirmation dialogs for critical operations
-  - Server account impact preview before user deletion with detailed permission breakdown
-  - Permission-specific confirmation dialogs with server and user information
-  - Enhanced error handling, user feedback mechanisms, and operation status reporting
+**Latest Updates (v3.3 - Super Admin Role & UI Enhancements):**
+- 🆕 **Super Administrator Role System**: Complete three-tier role management system
+  - **Super Admin**: Full system control with user role management capabilities
+  - **Admin**: All management functions except role modification
+  - **User**: Basic application and account management functions
+  - Role-based UI rendering with proper permission controls
+- 🆕 **Enhanced Role Management**: Advanced user role management interface
+  - Only super admins can promote/demote user roles
+  - Role-specific deletion permissions (admins can only delete regular users)
+  - Comprehensive role management modal with three-tier selection
+- 🆕 **Server Username Display Fix**: Corrected server account name display
+  - Fixed user interface to show actual server usernames instead of system usernames
+  - Proper server account name handling in admin management interface
+  - Consistent display of modified server usernames across all user interfaces
+- 🆕 **UI & Navigation Improvements**: Enhanced user experience
+  - Correct role badges in navigation (Super Admin, Admin, User)
+  - Fixed admin review interface to hide application IDs in confirmation modals
+  - Improved permission display with reviewer information for admins
+
+**Previous Updates (v3.2 - Advanced Permission Management & Enhanced UX):**
+- Enhanced User Deletion with three-option deletion modal
+- Individual Permission Revocation with server-side cleanup
+- Streamlined Application Process with simplified workflow
+- Enhanced Server Operations with complete user account lifecycle
+- Advanced Modal Interfaces with multi-step confirmation dialogs
 
 **Previous Updates (v3.1 - Enhanced Dashboard & Interface):**
 - Enhanced User Dashboard with comprehensive metrics display and server access visualization
@@ -91,17 +95,19 @@ pip install -r requirements.txt
 
 1. **app.py**: Main Flask application with all routes and business logic
    - Authentication system with session-based login
-   - Role-based access control (user/admin)
+   - Three-tier role-based access control (user/admin/super_admin)
    - Server monitoring dashboard
    - Permission request/approval workflow
    - Automated server operations integration
-   - 🆕 **Enhanced User Management APIs**: `/api/delete_user_enhanced`, `/api/revoke_user_permission`
-   - 🆕 **Server Account Management**: User deletion with server account cleanup options
+   - Enhanced User Management APIs: `/api/delete_user_enhanced`, `/api/revoke_user_permission`
+   - Server Account Management: User deletion with server account cleanup options
+   - Role Management System: Super admin decorators and permission controls
 
 2. **models.py**: SQLAlchemy database models
-   - User: Authentication, role management, and student information
+   - User: Authentication, three-tier role management (user/admin/super_admin), and student information
    - Server: SSH connection details for monitored servers
-   - Application: Permission requests from users with audit trail
+   - Application: Permission requests with server_username field for actual server account names
+   - ApplicationBatch: Grouped permission requests for batch processing
    - ServerMetric: Time-series monitoring data
    - PermissionType: Configurable permission categories
    - Notification: Admin notifications for new requests
@@ -156,10 +162,12 @@ pip install -r requirements.txt
 
 ### Authentication & Authorization
 
+- Default super admin: username=`superadmin`, password=`superadmin123`
 - Default admin: username=`admin`, password=`admin123`
 - Session-based authentication stored in Flask sessions
-- Two decorators: `@login_required` and `@admin_required`
-- Role-based UI rendering (admin vs user views)
+- Three decorators: `@login_required`, `@admin_required`, and `@super_admin_required`
+- Three-tier role-based UI rendering (user/admin/super_admin views)
+- Role-specific permission controls for user management and deletion
 
 ### Database Schema
 
@@ -192,9 +200,9 @@ Key relationships:
 
 ## Default Login Credentials
 
-- Username: `admin`
-- Password: `admin123`
-- Change these immediately after deployment
+- **Super Administrator**: `superadmin` / `superadmin123`
+- **System Administrator**: `admin` / `admin123` 
+- **Note**: Change these immediately after deployment for security
 
 ## Server Requirements
 
@@ -357,3 +365,53 @@ For automatic user provisioning to work:
 - Automatic retry mechanisms where appropriate
 - Fallback to manual configuration when automation fails
 - Comprehensive logging of all error conditions
+
+## Docker Deployment
+
+### Using Docker
+```bash
+# Build the Docker image
+docker build -t server-management-system .
+
+# Run the container
+docker run -d \
+  --name server-mgmt \
+  -p 8080:8080 \
+  -v $(pwd)/instance:/app/instance \
+  -v $(pwd)/logs:/app/logs \
+  server-management-system
+
+# Run with custom environment
+docker run -d \
+  --name server-mgmt \
+  -p 8080:8080 \
+  -e FLASK_ENV=production \
+  -e SECRET_KEY=your-secret-key-here \
+  -v $(pwd)/instance:/app/instance \
+  -v $(pwd)/logs:/app/logs \
+  server-management-system
+```
+
+### Docker Compose (Recommended)
+```yaml
+version: '3.8'
+services:
+  server-mgmt:
+    build: .
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./instance:/app/instance
+      - ./logs:/app/logs
+    environment:
+      - FLASK_ENV=production
+      - SECRET_KEY=your-secret-key-here
+    restart: unless-stopped
+```
+
+### Container Features
+- **Persistent Data**: Database and logs are mounted as volumes
+- **Environment Variables**: Configurable Flask settings
+- **Health Checks**: Built-in container health monitoring
+- **Security**: Non-root user execution
+- **Optimization**: Multi-stage build for smaller image size

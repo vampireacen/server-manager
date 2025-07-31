@@ -11,7 +11,7 @@ class User(db.Model):
     username = db.Column(db.String(80), unique=True, nullable=False)
     name = db.Column(db.String(100), nullable=True)  # 真实姓名
     password_hash = db.Column(db.String(120), nullable=False)
-    role = db.Column(db.String(20), nullable=False, default='user')  # user, admin
+    role = db.Column(db.String(20), nullable=False, default='user')  # user, admin, super_admin
     student_id = db.Column(db.String(50))  # 学号
     identity_type = db.Column(db.String(50))  # 身份类别：本科,硕士,博士,博后,工程师,教师,其他
     laboratory = db.Column(db.String(100))  # 实验室
@@ -26,7 +26,14 @@ class User(db.Model):
         return bcrypt.checkpw(password.encode('utf-8'), self.password_hash.encode('utf-8'))
     
     def is_admin(self):
-        return self.role == 'admin'
+        return self.role in ['admin', 'super_admin']
+    
+    def is_super_admin(self):
+        return self.role == 'super_admin'
+    
+    def can_manage_roles(self):
+        """只有超级管理员可以管理用户角色"""
+        return self.role == 'super_admin'
 
 class Server(db.Model):
     __tablename__ = 'servers'

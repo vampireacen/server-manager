@@ -668,7 +668,10 @@ function showBatchReviewModal(batchId) {
                     <div class="permission-info">
                         <div class="mb-2"><span class="claude-badge claude-badge-${permissionColorClass}">${perm.permission_type.name}</span></div>
                         <div class="description">${perm.permission_type.description}</div>
-                        ${perm.reviewed_at ? `<div class="review-time">审核时间: ${new Date(perm.reviewed_at).toLocaleString()}</div>` : ''}
+                        ${perm.reviewed_at ? `
+                        <div class="review-time">审核时间: ${new Date(perm.reviewed_at).toLocaleString()}</div>
+                        ${perm.reviewer ? `<div class="reviewer-info">审核管理员: ${perm.reviewer.username}</div>` : ''}
+                        ` : ''}
                     </div>
                     
                     ${isEditable ? `
@@ -1063,7 +1066,6 @@ function showConfirmInterface(batchId, approvedApps, rejectedApps, usernameData)
                         <div class="application-item p-2 bg-light rounded mb-2 d-flex justify-content-between align-items-center">
                             <div>
                                 <span class="claude-badge claude-badge-${permissionColorClass} me-2">${app.permission.permission_type.name}</span>
-                                <small class="text-muted">申请 #${app.id}</small>
                             </div>
                             ${app.comment ? `<div class="small text-muted">审核意见: ${app.comment}</div>` : ''}
                         </div>
@@ -1099,7 +1101,6 @@ function showConfirmInterface(batchId, approvedApps, rejectedApps, usernameData)
                         <div class="application-item p-2 bg-light rounded mb-2 d-flex justify-content-between align-items-center">
                             <div>
                                 <span class="claude-badge claude-badge-${permissionColorClass} me-2">${app.permission.permission_type.name}</span>
-                                <small class="text-muted">申请 #${app.id}</small>
                             </div>
                             ${app.comment ? `<div class="small text-muted">审核意见: ${app.comment}</div>` : ''}
                         </div>
