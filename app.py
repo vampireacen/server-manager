@@ -843,6 +843,8 @@ def admin_users():
             else:
                 # 删除相关的申请记录
                 Application.query.filter_by(user_id=user_id).delete()
+                # 删除相关的申请批次记录
+                ApplicationBatch.query.filter_by(user_id=user_id).delete()
                 # 删除相关的通知记录  
                 Notification.query.filter_by(admin_id=user_id).delete()
                 # 删除用户
