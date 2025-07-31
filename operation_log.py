@@ -147,6 +147,24 @@ class OperationLogger:
             operation_logger.error(f"命令执行失败: {log_entry}")
     
     @staticmethod
+    def log_user_deletion(server, username, success, message):
+        """记录用户删除操作"""
+        log_entry = {
+            'operation': 'DELETE_USER',
+            'server': server.name,
+            'server_host': server.host,
+            'username': username,
+            'success': success,
+            'message': message,
+            'timestamp': datetime.utcnow().isoformat()
+        }
+        
+        if success:
+            operation_logger.info(f"用户删除成功: {log_entry}")
+        else:
+            operation_logger.error(f"用户删除失败: {log_entry}")
+
+    @staticmethod
     def log_group_operation(server, username, group, operation, success, message):
         """记录组操作（添加到组或从组移除）"""
         log_entry = {

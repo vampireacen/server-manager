@@ -141,8 +141,20 @@
                     </h5>
                 </div>
                 <div class="claude-card-body">
+                    <!-- 申请说明 -->
+                    <div class="alert alert-info border-0 mb-4" style="background: var(--claude-bg-secondary);">
+                        <div class="d-flex align-items-start">
+                            <i class="bi bi-info-circle me-2 mt-1" style="color: var(--claude-primary);"></i>
+                            <p class="mb-0">
+                                <strong>申请开通所选权限，若无需额外权限，直接点击下一步</strong><br>
+                                <small class="text-muted">所选服务器若无对应账号则会同步开通，开通后可在主页面查看服务器账户及密码</small>
+                            </p>
+                        </div>
+                    </div>
+                    
                     <div class="row">
                         {% for ptype in permission_types %}
+                        {% if ptype.name != '普通用户' %}
                         <div class="col-lg-6 col-md-12 col-sm-6 mb-3">
                             <div class="permission-option" data-permission-id="{{ ptype.id }}" data-requires-reason="{{ ptype.requires_reason }}">
                                 <input type="checkbox" name="permission_type_ids" value="{{ ptype.id }}" id="permission-{{ ptype.id }}" class="d-none">
@@ -171,6 +183,7 @@
                                 </label>
                             </div>
                         </div>
+                        {% endif %}
                         {% endfor %}
                     </div>
                 </div>
@@ -179,7 +192,7 @@
                         <i class="bi bi-arrow-left me-1"></i>
                         上一步
                     </button>
-                    <button type="button" class="claude-btn claude-btn-primary" onclick="nextStep(3)" disabled id="step2-next">
+                    <button type="button" class="claude-btn claude-btn-primary" onclick="nextStep(3)" id="step2-next">
                         下一步
                         <i class="bi bi-arrow-right ms-1"></i>
                     </button>
@@ -327,11 +340,14 @@
                 
                 <div class="help-section d-none" id="help-step-2">
                     <h6 class="text-primary">选择权限类型</h6>
+                    <p class="small text-muted mb-2">
+                        <strong>默认功能</strong>: 系统会自动为用户开通基本SSH访问权限
+                    </p>
                     <ul class="small text-muted">
-                        <li><strong>普通用户</strong>: 基本SSH访问权限</li>
                         <li><strong>管理员权限</strong>: sudo权限，需要详细理由</li>
                         <li><strong>Docker权限</strong>: 容器管理权限</li>
                         <li><strong>数据库权限</strong>: 数据库访问权限</li>
+                        <li><strong>自定义权限</strong>: 其他特殊权限需求</li>
                     </ul>
                 </div>
                 
@@ -719,7 +735,8 @@ function validateCurrentStep() {
         case 1:
             return selectedServer !== null;
         case 2:
-            return selectedPermissions.length > 0;
+            // 现在允许不选择权限（将自动申请默认权限）
+            return true;
         case 3:
             // 检查是否有需要理由的权限类型
             const hasRequiredReason = selectedPermissionData.some(p => p.requires_reason);
@@ -777,7 +794,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
             }
             
-            document.getElementById('step2-next').disabled = selectedPermissions.length === 0;
+            // 现在允许不选择权限（将自动申请默认权限）
+            document.getElementById('step2-next').disabled = false;
             updateSummary();
             updateReasonSection();
         });
@@ -787,6 +805,20 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('applicationForm').addEventListener('submit', function(e) {
         e.preventDefault();
         if (validateCurrentStep()) {
+            // 如果没有选择任何权限，自动添加"普通用户"权限
+            if (selectedPermissions.length === 0) {
+                // 在表单中添加一个隐藏的input来包含普通用户权限ID
+                // 需要从后端获取普通用户权限的ID
+                {% for ptype in permission_types %}
+                {% if ptype.name == '普通用户' %}
+                const defaultPermissionInput = document.createElement('input');
+                defaultPermissionInput.type = 'hidden';
+                defaultPermissionInput.name = 'permission_type_ids';
+                defaultPermissionInput.value = '{{ ptype.id }}';
+                this.appendChild(defaultPermissionInput);
+                {% endif %}
+                {% endfor %}
+            }
             this.submit();
         }
     });
@@ -801,7 +833,7 @@ function updateSummary() {
         const permissionNames = selectedPermissions.map(p => p.name).join(', ');
         document.getElementById('summary-permission').textContent = permissionNames;
     } else {
-        document.getElementById('summary-permission').textContent = '请先选择权限';
+        document.getElementById('summary-permission').textContent = '默认权限（基本SSH访问）';
     }
     
     // 更新步骤4的确认信息
@@ -816,6 +848,9 @@ function updateSummary() {
         ).join('');
         document.getElementById('confirm-permission').innerHTML = 
             `<i class="bi bi-shield-check me-2"></i><div>${permissionHtml}</div>`;
+    } else {
+        document.getElementById('confirm-permission').innerHTML = 
+            `<i class="bi bi-shield-check me-2"></i><div><span class="claude-badge claude-badge-secondary me-1 mb-1">默认权限（基本SSH访问）</span></div>`;
     }
 }
 

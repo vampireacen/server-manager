@@ -93,29 +93,50 @@ python app.py
 3. **审核申请**: 在"管理 → 审核申请"中处理用户的权限申请
 4. **自动化配置**: 批准申请后系统自动在目标服务器创建用户和配置权限
 5. **监控查看**: 在控制台实时查看所有服务器状态
-6. **权限撤销**: 可以撤销已批准的权限，自动移除服务器端权限
+6. **🆕 权限管理**: 
+   - **个性化权限撤销**: 单独撤销用户的特定权限，自动移除服务器端配置
+   - **权限行显示**: 将权限显示为独立行，每行包含删除按钮
+   - **实时状态更新**: 权限变更后立即更新界面状态和审计记录
+   - 查看用户在各服务器的权限分布和账户状态
+7. **🆕 用户删除增强**: 
+   - **三选项删除模式**: 取消、仅删除用户记录、完全删除
+   - **仅删除用户记录**: 保留服务器账户，仅清理系统数据库记录
+   - **完全删除**: 撤销所有权限并删除所有服务器上的用户账户
+   - **影响预览**: 删除前显示将受影响的服务器和权限详情
+   - **多步确认**: 重大操作需要多层确认防止误操作
 
 ### 👤 普通用户操作流程
-1. **注册账户**: 填写学号、实验室等信息注册账户
+1. **注册账户**: 填写学号、身份类别、实验室、导师等详细信息
 2. **查看服务器**: 在控制台查看可用服务器的监控状态
-3. **申请权限**: 点击"申请权限"选择服务器和权限类型
+3. **🆕 申请权限（优化流程）**: 
+   - **默认功能申请**: 不选择任何权限卡片，系统自动开通基本SSH访问权限
+   - **额外权限申请**: 选择所需的特殊权限（管理员、Docker、数据库等）
+   - **简化界面**: 隐藏"普通用户"权限卡片，避免用户困惑
+   - **引导说明**: 在权限选择步骤顶部提供清晰的申请指导
 4. **跟踪申请**: 在"我的申请"中查看申请状态和审核结果
 5. **获取访问**: 权限批准后获得SSH连接信息和自动生成的密码
 6. **一键连接**: 使用一键复制功能快速获取SSH连接命令
-7. **🆕 账户管理**: 通过"账户信息"修改密码、查看服务器连接信息
+7. **账户管理**: 通过"账户信息"修改密码、查看服务器连接信息
 
 ### 🔄 自动化权限配置流程
 1. 管理员批准申请
 2. 系统SSH连接到目标服务器
 3. 检查用户是否存在，不存在则自动创建
-4. 生成安全随机密码
+4. **🆕 用户创建配置**：
+   - 生成安全随机密码（16位字符，包含字母数字特殊字符）
+   - 创建用户账户并配置bash shell (`useradd -m -s /bin/bash`)
+   - 设置用户主目录权限
 5. 根据权限类型自动配置：
-   - 普通用户：创建基本用户账户
-   - 管理员权限：添加到sudo组
-   - Docker权限：添加到docker组
-   - 数据库权限：添加到database组
-6. 记录详细操作日志
-7. 在用户界面显示连接信息
+   - **默认权限**：仅创建基本用户账户，提供SSH访问
+   - **管理员权限**：添加到sudo组，获得系统管理权限
+   - **Docker权限**：添加到docker组（不存在则自动创建）
+   - **数据库权限**：添加到database组（不存在则自动创建）
+   - **自定义权限**：保持基本权限，可手动配置特殊需求
+6. **🆕 操作日志增强**：
+   - 详细记录每个操作步骤和结果
+   - 区分成功、失败和警告级别日志
+   - 支持操作审计和故障追踪
+7. 在用户界面显示连接信息和生成的密码
 
 ### 监控功能
 - **实时数据**: 每30秒自动更新监控数据
@@ -126,10 +147,13 @@ python app.py
 ```
 server-manage/
 ├── app.py                  # Flask主应用，路由和业务逻辑
+│                          # 🆕 包含增强的用户删除和权限撤销API
 ├── models.py               # SQLAlchemy数据库模型
 ├── server_monitor.py       # 服务器监控逻辑
 ├── server_operations.py    # 🆕 服务器用户管理和权限配置
+│                          # 🆕 增强了用户删除和账户管理功能
 ├── operation_log.py        # 🆕 操作日志记录系统
+│                          # 🆕 支持用户删除和权限撤销日志记录
 ├── config.py               # 应用配置
 ├── requirements.txt        # Python依赖包
 ├── CLAUDE.md               # AI助手项目指导文档
@@ -145,11 +169,11 @@ server-manage/
 │   ├── dashboard.html      # 管理员控制台
 │   ├── user_dashboard.html # 🆕 用户控制台
 │   ├── account.html        # 🆕 账户信息管理页面
-│   ├── apply.html          # 权限申请页面
+│   ├── apply.html          # 🆕 权限申请页面（简化流程）
 │   ├── my_applications.html # 我的申请
 │   ├── admin_review.html   # 管理员审核页面
 │   ├── admin_servers.html  # 服务器管理
-│   └── admin_users.html    # 用户管理
+│   └── admin_users.html    # 🆕 用户管理（增强删除和权限管理）
 └── static/                 # 静态资源文件
     ├── css/
     │   └── claude-style.css # 🆕 自定义样式
@@ -326,11 +350,15 @@ The system includes 5 predefined permission categories:
 
 ### For End Users
 
-#### Requesting Permissions
+#### 🆕 Requesting Permissions (Streamlined Process)
 1. Navigate to "申请权限" (Apply for Permissions)
-2. Select target server and multiple permission types
-3. Submit batch application with reason
-4. Monitor status in "我的申请" (My Applications)
+2. **Server Selection**: Choose target server from available options
+3. **🆕 Permission Selection**: 
+   - **Default Access**: Skip permission selection to get basic SSH access
+   - **Additional Permissions**: Select specific permissions (Admin, Docker, Database, Custom)
+   - **Guided Interface**: Clear explanations and simplified workflow
+4. **Application Details**: Provide reason for special permissions if required
+5. Submit batch application and monitor status in "我的申请" (My Applications)
 
 #### Accessing Servers
 1. View approved servers in personal dashboard
@@ -354,7 +382,12 @@ The system includes 5 predefined permission categories:
 
 #### Managing Infrastructure
 - **Server Management**: Add, edit, monitor server configurations
-- **User Administration**: Manage users, reset passwords, view histories
+- **🆕 Enhanced User Administration**: 
+  - **Advanced User Management**: View users with individual permission rows
+  - **Granular Permission Control**: Delete specific permissions with server-side cleanup
+  - **Multi-Modal User Deletion**: Three-option deletion system with impact preview
+  - **Password Management**: Reset user passwords with validation and security checks
+  - **Account History Tracking**: Comprehensive user activity and permission timeline
 - **Real-time Monitoring**: Dashboard with live server metrics
 - **Notification System**: Instant alerts for new requests
 
@@ -436,7 +469,29 @@ CMD ["python", "app.py"]
 
 ## 🔄 Version History
 
-### Version 3.1 (Current) - Enhanced Dashboard & Interface
+### Version 3.2 (Current) - Advanced Permission Management & Enhanced UX
+- **🆕 Enhanced User Deletion**: Three-option deletion modal with complete server account management
+  - **Delete User Only**: Removes user records while preserving server accounts
+  - **Complete Deletion**: Revokes all permissions and deletes server accounts across all systems
+  - Multi-step confirmation with detailed impact preview
+- **🆕 Individual Permission Revocation**: Granular permission management with server-side cleanup
+  - Permission display as individual rows with dedicated delete buttons
+  - Automatic server-side permission revocation and group removal
+  - Real-time permission status updates and audit trail
+- **🆕 Streamlined Application Process**: Simplified permission request workflow
+  - Hidden "普通用户" permission card with automatic default access
+  - Optional permission selection - proceed without selections for basic SSH
+  - Updated UI text from "基本SSH功能" to "默认功能" with explanatory guidance
+- **🆕 Enhanced Server Operations**: Complete user account lifecycle management
+  - Automatic bash shell configuration (`/bin/bash`) for all new users
+  - Comprehensive user deletion across multiple servers with detailed logging
+  - Individual server account management with targeted deletion options
+- **🆕 Advanced Modal Interfaces**: Multi-step confirmation dialogs for critical operations
+  - Server account impact preview before user deletion
+  - Permission-specific confirmation with detailed server information
+  - Enhanced error handling and user feedback mechanisms
+
+### Version 3.1 - Enhanced Dashboard & Interface  
 - Enhanced user dashboard with comprehensive metrics
 - Advanced admin review interface with batch processing
 - Improved security and UX enhancements

@@ -5,6 +5,10 @@ from server_monitor import collect_all_servers_metrics, get_server_latest_metric
 from config import Config
 from datetime import datetime
 import json
+import logging
+
+# 配置日志
+logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -928,6 +932,7 @@ def api_user_server_accounts(user_id):
             }
         
         server_accounts[server_id]['permissions'].append({
+            'application_id': app.id,
             'type': app.permission_type.name,
             'status': '已配置' if app.admin_comment and '系统自动配置' in app.admin_comment else '需手动配置',
             'reviewed_at': app.reviewed_at.strftime('%Y-%m-%d %H:%M') if app.reviewed_at else '--'
@@ -1225,6 +1230,128 @@ def api_reset_server_password():
             
     except Exception as e:
         return jsonify({'success': False, 'message': f'重置密码时发生异常: {str(e)}'}), 500
+
+@app.route('/api/revoke_user_permission', methods=['POST'])
+@admin_required
+def api_revoke_user_permission():
+    """撤销用户权限API"""
+    try:
+        data = request.get_json()
+        application_id = data.get('application_id')
+        
+        if not application_id:
+            return jsonify({'success': False, 'message': '缺少申请ID参数'}), 400
+        
+        # 获取申请记录
+        application = Application.query.get(application_id)
+        if not application:
+            return jsonify({'success': False, 'message': '申请记录不存在'}), 404
+        
+        if application.status != 'approved':
+            return jsonify({'success': False, 'message': '只能撤销已批准的权限'}), 400
+        
+        # 调用服务器操作撤销权限
+        from server_operations import revoke_user_permissions
+        success, message = revoke_user_permissions(application)
+        
+        if success:
+            # 更新申请状态
+            application.status = 'revoked'
+            application.reviewed_at = datetime.utcnow()
+            application.reviewed_by = session['user_id']
+            
+            # 添加管理员备注
+            current_comment = application.admin_comment or ""
+            timestamp = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+            revoke_comment = f"[{timestamp}] 管理员撤销权限: {message}"
+            application.admin_comment = f"{current_comment}\n{revoke_comment}".strip()
+            
+            db.session.commit()
+            
+            return jsonify({
+                'success': True, 
+                'message': f'{application.permission_type.name} 权限已成功撤销'
+            })
+        else:
+            return jsonify({'success': False, 'message': f'撤销权限失败: {message}'}), 500
+            
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"撤销用户权限API异常: {e}")
+        return jsonify({'success': False, 'message': f'撤销权限时发生异常: {str(e)}'}), 500
+
+@app.route('/api/delete_user_enhanced', methods=['POST'])
+@admin_required
+def api_delete_user_enhanced():
+    """增强的用户删除API，支持两种删除模式"""
+    try:
+        data = request.get_json()
+        user_id = data.get('user_id')
+        mode = data.get('mode')
+        
+        if not user_id:
+            return jsonify({'success': False, 'message': '缺少用户ID参数'}), 400
+        
+        if mode not in ['user_only', 'delete_all']:
+            return jsonify({'success': False, 'message': '无效的删除模式'}), 400
+        
+        # 获取用户记录
+        user = User.query.get(user_id)
+        if not user:
+            return jsonify({'success': False, 'message': '用户不存在'}), 404
+        
+        # 检查是否试图删除自己
+        if user.id == session['user_id']:
+            return jsonify({'success': False, 'message': '不能删除自己的账户'}), 400
+        
+        username = user.username
+        logger.info(f"管理员请求删除用户 {username}，模式: {mode}")
+        
+        # 根据删除模式执行相应操作
+        if mode == 'delete_all':
+            # 完全删除：撤销服务器权限和删除用户记录
+            from server_operations import delete_user_from_servers
+            
+            # 先从服务器删除用户账户和权限
+            server_success, server_message = delete_user_from_servers(user)
+            
+            if not server_success:
+                logger.warning(f"服务器删除部分失败: {server_message}")
+                # 即使服务器删除失败，仍然继续删除数据库记录
+            
+            # 删除数据库中的相关记录
+            Application.query.filter_by(user_id=user_id).delete()
+            ApplicationBatch.query.filter_by(user_id=user_id).delete()
+            Notification.query.filter_by(admin_id=user_id).delete()
+            
+            db.session.delete(user)
+            db.session.commit()
+            
+            if server_success:
+                message = f'用户 {username} 及其服务器账户已完全删除'
+            else:
+                message = f'用户 {username} 数据库记录已删除，但服务器操作部分失败: {server_message}'
+            
+            logger.info(f"完全删除用户完成: {message}")
+            return jsonify({'success': True, 'message': message})
+            
+        else:  # mode == 'user_only'
+            # 仅删除用户记录，不影响服务器账户
+            Application.query.filter_by(user_id=user_id).delete()
+            ApplicationBatch.query.filter_by(user_id=user_id).delete()
+            Notification.query.filter_by(admin_id=user_id).delete()
+            
+            db.session.delete(user)
+            db.session.commit()
+            
+            message = f'用户 {username} 的系统记录已删除（服务器账户保留）'
+            logger.info(f"仅删除用户记录完成: {message}")
+            return jsonify({'success': True, 'message': message})
+            
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"增强删除用户API异常: {e}")
+        return jsonify({'success': False, 'message': f'删除用户时发生异常: {str(e)}'}), 500
 
 @app.route('/account', methods=['GET', 'POST'])
 @login_required

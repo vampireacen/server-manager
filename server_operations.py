@@ -592,3 +592,166 @@ def revoke_permission_by_type(manager, username, permission_type_name):
     
     else:
         return False, f"未知的权限类型: {permission_type_name}"
+
+
+def delete_user_from_servers(user):
+    """
+    从所有服务器删除用户账户和权限
+    用于完全删除用户时调用
+    """
+    try:
+        # 获取用户的所有已批准申请
+        approved_applications = Application.query.filter_by(
+            user_id=user.id,
+            status='approved'
+        ).options(db.joinedload(Application.server), db.joinedload(Application.permission_type)).all()
+        
+        if not approved_applications:
+            logger.info(f"用户 {user.username} 没有已批准的权限，无需删除服务器账户")
+            return True, "用户没有服务器权限，删除完成"
+        
+        # 按服务器分组
+        servers_to_process = {}
+        for app in approved_applications:
+            server_id = app.server.id
+            if server_id not in servers_to_process:
+                servers_to_process[server_id] = {
+                    'server': app.server,
+                    'applications': []
+                }
+            servers_to_process[server_id]['applications'].append(app)
+        
+        results = []
+        success_count = 0
+        total_servers = len(servers_to_process)
+        
+        logger.info(f"开始从 {total_servers} 台服务器删除用户 {user.username}")
+        
+        for server_id, data in servers_to_process.items():
+            server = data['server']
+            applications = data['applications']
+            
+            logger.info(f"处理服务器 {server.name} 上的用户 {user.username}")
+            
+            # 创建服务器管理器
+            manager = ServerUserManager(server)
+            
+            # 连接服务器
+            if not manager.connect():
+                error_msg = f"无法连接到服务器 {server.name}"
+                logger.error(error_msg)
+                OperationLogger.log_ssh_connection(server, False, error_msg)
+                results.append((server.name, False, error_msg))
+                continue
+            
+            OperationLogger.log_ssh_connection(server, True, "SSH连接成功，准备删除用户")
+            
+            try:
+                # 检查用户是否存在
+                if not manager.user_exists(user.username):
+                    logger.info(f"用户 {user.username} 在服务器 {server.name} 上不存在，跳过删除")
+                    results.append((server.name, True, "用户不存在，无需删除"))
+                    success_count += 1
+                    continue
+                
+                # 撤销所有权限
+                permissions_revoked = []
+                for app in applications:
+                    success, message = revoke_permission_by_type(manager, user.username, app.permission_type.name)
+                    if success:
+                        permissions_revoked.append(app.permission_type.name)
+                        logger.info(f"撤销权限成功: {app.permission_type.name}")
+                    else:
+                        logger.warning(f"撤销权限失败: {app.permission_type.name} - {message}")
+                
+                # 删除用户账户
+                import shlex
+                safe_username = shlex.quote(user.username)
+                success, output = manager.execute_command(
+                    f"userdel -r {safe_username}",  # -r 参数会删除用户主目录
+                    require_sudo=True
+                )
+                
+                if success:
+                    success_count += 1
+                    result_msg = f"用户账户删除成功"
+                    if permissions_revoked:
+                        result_msg += f"，撤销权限: {', '.join(permissions_revoked)}"
+                    
+                    logger.info(f"服务器 {server.name}: {result_msg}")
+                    results.append((server.name, True, result_msg))
+                    
+                    # 记录操作日志
+                    OperationLogger.log_user_deletion(server, user.username, True, result_msg)
+                else:
+                    error_msg = f"删除用户账户失败: {output}"
+                    logger.error(f"服务器 {server.name}: {error_msg}")
+                    results.append((server.name, False, error_msg))
+                    OperationLogger.log_user_deletion(server, user.username, False, error_msg)
+                
+            finally:
+                manager.disconnect()
+        
+        # 汇总结果
+        if success_count == total_servers:
+            summary = f"成功从所有 {total_servers} 台服务器删除用户 {user.username}"
+            logger.info(summary)
+            return True, summary
+        elif success_count > 0:
+            summary = f"部分成功：从 {success_count}/{total_servers} 台服务器删除用户 {user.username}"
+            logger.warning(summary)
+            return False, summary
+        else:
+            summary = f"删除失败：无法从任何服务器删除用户 {user.username}"
+            logger.error(summary)
+            return False, summary
+            
+    except Exception as e:
+        logger.error(f"删除用户服务器账户异常: {e}")
+        return False, f"删除用户时发生异常: {str(e)}"
+
+
+def delete_user_account_only(username, server):
+    """
+    仅删除指定服务器上的用户账户（不撤销权限记录）
+    用于单独的用户账户删除操作
+    """
+    try:
+        logger.info(f"开始删除服务器 {server.name} 上的用户账户 {username}")
+        
+        # 创建服务器管理器
+        manager = ServerUserManager(server)
+        
+        # 连接服务器
+        if not manager.connect():
+            error_msg = f"无法连接到服务器 {server.name}"
+            logger.error(error_msg)
+            return False, error_msg
+        
+        try:
+            # 检查用户是否存在
+            if not manager.user_exists(username):
+                return True, "用户不存在，无需删除"
+            
+            # 删除用户账户
+            import shlex
+            safe_username = shlex.quote(username)
+            success, output = manager.execute_command(
+                f"userdel -r {safe_username}",  # -r 参数会删除用户主目录
+                require_sudo=True
+            )
+            
+            if success:
+                logger.info(f"服务器 {server.name} 上的用户账户 {username} 删除成功")
+                return True, "用户账户删除成功"
+            else:
+                error_msg = f"删除用户账户失败: {output}"
+                logger.error(f"服务器 {server.name}: {error_msg}")
+                return False, error_msg
+                
+        finally:
+            manager.disconnect()
+            
+    except Exception as e:
+        logger.error(f"删除用户账户异常: {e}")
+        return False, f"删除用户账户时发生异常: {str(e)}"

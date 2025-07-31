@@ -344,6 +344,139 @@
         </div>
     </div>
 </div>
+
+<!-- 撤销权限确认模态框 -->
+<div class="modal fade" id="revokePermissionModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content claude-modal">
+            <div class="modal-header">
+                <h5 class="modal-title" style="color: var(--claude-text-primary); font-weight: 600;">
+                    <i class="bi bi-exclamation-triangle me-2" style="color: var(--claude-warning);"></i>
+                    撤销权限确认
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    <strong>注意：</strong>撤销权限将立即生效，服务器上的相关权限配置将被移除
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label"><strong>权限类型:</strong> <span id="revokePermissionType"></span></label>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label"><strong>目标服务器:</strong> <span id="revokePermissionServer"></span></label>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label"><strong>用户:</strong> <span id="revokePermissionUser"></span></label>
+                </div>
+                <div id="revokePermissionError" class="alert alert-danger d-none"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="claude-btn claude-btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="claude-btn claude-btn-danger" onclick="executeRevokePermission()">
+                    <i class="bi bi-trash me-1"></i>确认撤销权限
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 增强用户删除确认模态框 -->
+<div class="modal fade" id="enhancedDeleteUserModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content claude-modal">
+            <div class="modal-header">
+                <h5 class="modal-title" style="color: var(--claude-text-primary); font-weight: 600;">
+                    <i class="bi bi-exclamation-triangle me-2" style="color: var(--claude-danger);"></i>
+                    删除用户确认
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    <strong>注意：</strong>此操作不可撤销，请仔细选择删除方式
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label"><strong>删除用户:</strong> <span id="deleteUserName"></span></label>
+                </div>
+                
+                <div class="mb-4">
+                    <h6 class="mb-3">删除方式选择：</h6>
+                    <div class="d-grid gap-2">
+                        <button type="button" class="btn btn-outline-secondary" onclick="confirmUserDeletion('user_only')">
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-person-dash me-2"></i>
+                                <div class="text-start">
+                                    <div><strong>仅删除用户记录</strong></div>
+                                    <small class="text-muted">只删除系统中的用户记录，不影响服务器账户</small>
+                                </div>
+                            </div>
+                        </button>
+                        <button type="button" class="btn btn-outline-danger" onclick="confirmUserDeletion('delete_all')">
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-trash me-2"></i>
+                                <div class="text-start">
+                                    <div><strong>完全删除</strong></div>
+                                    <small class="text-muted">删除用户记录并撤销所有服务器权限和账户</small>
+                                </div>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="claude-btn claude-btn-secondary" data-bs-dismiss="modal">取消操作</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 最终确认删除模态框 -->
+<div class="modal fade" id="finalDeleteConfirmModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content claude-modal">
+            <div class="modal-header">
+                <h5 class="modal-title" style="color: var(--claude-text-primary); font-weight: 600;">
+                    <i class="bi bi-exclamation-triangle me-2" style="color: var(--claude-danger);"></i>
+                    最终确认
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-danger">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    <strong>警告：</strong>此操作不可撤销！
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label"><strong>用户:</strong> <span id="finalDeleteUserName"></span></label>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label"><strong>删除方式:</strong> <span id="finalDeleteMode"></span></label>
+                </div>
+                
+                <div class="form-check mb-3">
+                    <input class="form-check-input" type="checkbox" id="confirmDeleteCheckbox">
+                    <label class="form-check-label" for="confirmDeleteCheckbox">
+                        我确认要执行此删除操作
+                    </label>
+                </div>
+                
+                <div id="deleteUserError" class="alert alert-danger d-none"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="claude-btn claude-btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="claude-btn claude-btn-danger" onclick="executeUserDeletion()" disabled id="finalDeleteButton">
+                    <i class="bi bi-trash me-1"></i>确认删除
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -492,6 +625,23 @@
 
 .server-accounts-section {
     background: #ffffff;
+}
+
+.permissions-list {
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.permission-item {
+    transition: background-color 0.2s ease;
+}
+
+.permission-item:hover {
+    background-color: rgba(0, 0, 0, 0.02);
+}
+
+.permission-item:last-child {
+    border-bottom: none !important;
 }
 </style>
 
@@ -771,17 +921,45 @@ function manageUserAccounts(userId, username) {
                             </div>
                             
                             <div class="permissions-info mt-3">
-                                <strong>权限列表:</strong>
-                                <div class="mt-2">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <strong>权限列表:</strong>
+                                    <small class="text-muted">(${account.permissions.length} 项权限)</small>
+                                </div>
+                                <div class="permissions-list">
                     `;
                     
-                    account.permissions.forEach(perm => {
+                    if (account.permissions.length > 0) {
+                        account.permissions.forEach(perm => {
+                            const permissionIcon = {
+                                '普通用户': 'bi-person',
+                                '管理员权限': 'bi-shield-check',
+                                'Docker权限': 'bi-box',
+                                '数据库权限': 'bi-database',
+                                '自定义权限': 'bi-gear'
+                            }[perm.type] || 'bi-shield';
+                            
+                            content += `
+                                <div class="permission-item d-flex justify-content-between align-items-center py-2 border-bottom">
+                                    <div class="d-flex align-items-center">
+                                        <i class="${permissionIcon} me-2 text-primary"></i>
+                                        <span class="fw-medium">${perm.type}</span>
+                                        <small class="text-muted ms-2">(${perm.status})</small>
+                                    </div>
+                                    <button class="btn btn-sm btn-outline-danger" 
+                                            onclick="confirmRevokePermission(${perm.application_id}, '${perm.type}', '${account.server_name}')"
+                                            title="删除此权限">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                            `;
+                        });
+                    } else {
                         content += `
-                            <span class="claude-badge claude-badge-info me-2 mb-1">
-                                ${perm.type}
-                            </span>
+                            <div class="text-center text-muted py-3">
+                                <i class="bi bi-shield-x me-2"></i>暂无权限
+                            </div>
                         `;
-                    });
+                    }
                     
                     content += `
                                 </div>
@@ -999,27 +1177,89 @@ function toggleUserRole(userId, currentRole, username) {
 }
 
 
+// 增强的用户删除功能
+let currentDeleteUserId = null;
+let currentDeleteUsername = null;
+let currentDeleteMode = null;
+
 function deleteUser(userId, username) {
-    if (confirm(`确定要删除用户 "${username}" 吗？\n\n注意：删除后该用户的所有申请记录也将被删除。`)) {
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.style.display = 'none';
-        
-        const userIdInput = document.createElement('input');
-        userIdInput.type = 'hidden';
-        userIdInput.name = 'user_id';
-        userIdInput.value = userId;
-        form.appendChild(userIdInput);
-        
-        const actionInput = document.createElement('input');
-        actionInput.type = 'hidden';
-        actionInput.name = 'action';
-        actionInput.value = 'delete';
-        form.appendChild(actionInput);
-        
-        document.body.appendChild(form);
-        form.submit();
+    currentDeleteUserId = userId;
+    currentDeleteUsername = username;
+    
+    // 设置用户名并显示第一个模态框
+    document.getElementById('deleteUserName').textContent = username;
+    
+    const modal = new bootstrap.Modal(document.getElementById('enhancedDeleteUserModal'));
+    modal.show();
+}
+
+function confirmUserDeletion(mode) {
+    currentDeleteMode = mode;
+    
+    // 关闭第一个模态框
+    const firstModal = bootstrap.Modal.getInstance(document.getElementById('enhancedDeleteUserModal'));
+    firstModal.hide();
+    
+    // 设置第二个确认模态框的内容
+    document.getElementById('finalDeleteUserName').textContent = currentDeleteUsername;
+    document.getElementById('finalDeleteMode').textContent = 
+        mode === 'user_only' ? '仅删除用户记录' : '完全删除（包含服务器账户）';
+    
+    // 重置确认复选框和按钮状态
+    document.getElementById('confirmDeleteCheckbox').checked = false;
+    document.getElementById('finalDeleteButton').disabled = true;
+    document.getElementById('deleteUserError').classList.add('d-none');
+    
+    // 显示最终确认模态框
+    const confirmModal = new bootstrap.Modal(document.getElementById('finalDeleteConfirmModal'));
+    confirmModal.show();
+}
+
+function executeUserDeletion() {
+    if (!currentDeleteUserId || !currentDeleteMode) {
+        return;
     }
+    
+    const errorDiv = document.getElementById('deleteUserError');
+    errorDiv.classList.add('d-none');
+    
+    document.getElementById('finalDeleteButton').disabled = true;
+    
+    // 发送删除请求
+    fetch('/api/delete_user_enhanced', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            user_id: currentDeleteUserId,
+            mode: currentDeleteMode
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // 关闭确认模态框
+            const modal = bootstrap.Modal.getInstance(document.getElementById('finalDeleteConfirmModal'));
+            modal.hide();
+            
+            // 显示成功消息并刷新页面
+            showToast(data.message, 'success');
+            setTimeout(() => {
+                location.reload();
+            }, 1500);
+        } else {
+            errorDiv.textContent = data.message || '删除用户失败';
+            errorDiv.classList.remove('d-none');
+            document.getElementById('finalDeleteButton').disabled = false;
+        }
+    })
+    .catch(error => {
+        console.error('Error deleting user:', error);
+        errorDiv.textContent = '删除请求失败，请重试';
+        errorDiv.classList.remove('d-none');
+        document.getElementById('finalDeleteButton').disabled = false;
+    });
 }
 
 function showToast(message, type, duration = 3000) {
@@ -1041,6 +1281,93 @@ function showToast(message, type, duration = 3000) {
             toast.parentNode.removeChild(toast);
         }
     }, duration);
+}
+
+// 权限撤销相关函数
+let currentRevokeApplicationId = null;
+let currentRevokeUser = null;
+
+function confirmRevokePermission(applicationId, permissionType, serverName) {
+    // 设置全局变量
+    currentRevokeApplicationId = applicationId;
+    
+    // 从用户账户模态框的标题中获取用户名
+    const userAccountsModal = document.getElementById('userAccountsModal');
+    const modalTitle = userAccountsModal.querySelector('.modal-title');
+    const titleText = modalTitle.textContent;
+    // 从"用户账户管理"中提取用户名，这里需要改进
+    currentRevokeUser = currentEditUserId; // 使用已有的全局变量
+    
+    // 设置模态框内容
+    document.getElementById('revokePermissionType').textContent = permissionType;
+    document.getElementById('revokePermissionServer').textContent = serverName;
+    document.getElementById('revokePermissionUser').textContent = '正在获取...';
+    
+    // 获取用户信息并显示
+    fetch(`/api/user_profile/${currentEditUserId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('revokePermissionUser').textContent = data.user.username;
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching user info:', error);
+        });
+    
+    // 清除错误信息
+    document.getElementById('revokePermissionError').classList.add('d-none');
+    
+    // 显示确认模态框
+    const modal = new bootstrap.Modal(document.getElementById('revokePermissionModal'));
+    modal.show();
+}
+
+function executeRevokePermission() {
+    if (!currentRevokeApplicationId) {
+        return;
+    }
+    
+    const errorDiv = document.getElementById('revokePermissionError');
+    errorDiv.classList.add('d-none');
+    
+    // 发送撤销权限请求
+    fetch('/api/revoke_user_permission', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            application_id: currentRevokeApplicationId
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // 关闭确认模态框
+            const modal = bootstrap.Modal.getInstance(document.getElementById('revokePermissionModal'));
+            modal.hide();
+            
+            // 显示成功消息
+            showToast(data.message, 'success');
+            
+            // 刷新用户账户信息
+            if (currentEditUserId) {
+                const usernameSpan = document.getElementById('revokePermissionUser');
+                if (usernameSpan) {
+                    manageUserAccounts(currentEditUserId, usernameSpan.textContent);
+                }
+            }
+        } else {
+            errorDiv.textContent = data.message || '撤销权限失败';
+            errorDiv.classList.remove('d-none');
+        }
+    })
+    .catch(error => {
+        console.error('Error revoking permission:', error);
+        errorDiv.textContent = '撤销权限请求失败，请重试';
+        errorDiv.classList.remove('d-none');
+    });
 }
 
 // 表单验证
@@ -1085,6 +1412,16 @@ document.addEventListener('DOMContentLoaded', function() {
             } else {
                 customPasswordField.style.display = 'block';
             }
+        });
+    }
+    
+    // 确认删除复选框事件监听
+    const confirmDeleteCheckbox = document.getElementById('confirmDeleteCheckbox');
+    const finalDeleteButton = document.getElementById('finalDeleteButton');
+    
+    if (confirmDeleteCheckbox && finalDeleteButton) {
+        confirmDeleteCheckbox.addEventListener('change', function() {
+            finalDeleteButton.disabled = !this.checked;
         });
     }
 });
