@@ -89,9 +89,9 @@ class ApplicationBatch(db.Model):
         statuses = [app.status for app in apps]
         if self.status == 'cancelled':
             return 'cancelled'
-        elif all(s in ['approved', 'rejected'] for s in statuses):
+        elif all(s in ['approved', 'rejected', 'revoked'] for s in statuses):
             return 'completed'
-        elif any(s in ['approved', 'rejected'] for s in statuses):
+        elif any(s in ['approved', 'rejected', 'revoked'] for s in statuses):
             return 'processing'
         else:
             return 'pending'

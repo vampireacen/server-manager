@@ -243,7 +243,7 @@
                                     <small class="text-muted">{{ batch.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
                                 </td>
                                 <td>
-                                    <small class="text-muted">--</small>
+                                    {% set applications_list = batch.applications.all() %}                                    {% set reviewed_apps = applications_list|selectattr('reviewed_at')|list %}                                    {% set latest_review = reviewed_apps|sort(attribute='reviewed_at', reverse=true)|first if reviewed_apps else None %}                                    {% if latest_review and latest_review.reviewed_at %}                                        <small class="text-muted">{{ latest_review.reviewed_at.strftime('%Y-%m-%d %H:%M') }}</small>                                    {% else %}                                        <small class="text-muted">--</small>                                    {% endif %}
                                 </td>
                             </tr>
                             {% endfor %}
@@ -568,7 +568,7 @@ function togglePasswordDisplay(serverId, password) {
 
 function copyConnectionInfo(username, host, port, password) {
     const connectionCommand = `ssh ${username}@${host} -p ${port}`;
-    const fullInfo = `连接命令: ${connectionCommand}\n密码: ${password}`;
+    const fullInfo = `连接命令: ${connectionCommand}密码: ${password}`;
     
     if (navigator.clipboard) {
         navigator.clipboard.writeText(fullInfo).then(() => {

@@ -872,3 +872,21 @@ body {
   opacity: 1;
   visibility: visible;
 }
+
+/* 移除特定申请按钮的悬浮文字颜色变化 */
+a[href*="apply"]:hover,
+a[href*="apply"]:focus,
+.claude-btn[href*="apply"]:hover,
+.claude-btn[href*="apply"]:focus {
+  color: inherit !important;
+  text-decoration: none !important;
+}
+
+/* 确保申请按钮保持原有颜色 */
+.claude-btn-primary[href*="apply"]:hover {
+  color: white !important;
+}
+
+.claude-btn-secondary[href*="apply"]:hover {
+  color: var(--claude-text-secondary) !important;
+}

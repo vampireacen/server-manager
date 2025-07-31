@@ -1292,7 +1292,7 @@ def api_delete_user_enhanced():
         if not user_id:
             return jsonify({'success': False, 'message': '缺少用户ID参数'}), 400
         
-        if mode not in ['user_only', 'delete_all']:
+        if mode not in ['user_only', 'server_only', 'delete_all']:
             return jsonify({'success': False, 'message': '无效的删除模式'}), 400
         
         # 获取用户记录
@@ -1335,6 +1335,21 @@ def api_delete_user_enhanced():
             logger.info(f"完全删除用户完成: {message}")
             return jsonify({'success': True, 'message': message})
             
+        elif mode == 'server_only':
+            # 仅删除服务器账户，保留系统记录
+            from server_operations import delete_user_from_servers
+            
+            # 从服务器删除用户账户和权限
+            server_success, server_message = delete_user_from_servers(user)
+            
+            if server_success:
+                message = f'用户 {username} 的所有服务器账户已删除（系统记录保留）'
+                logger.info(f"仅删除服务器账户完成: {message}")
+                return jsonify({'success': True, 'message': message})
+            else:
+                logger.warning(f"服务器账户删除失败: {server_message}")
+                return jsonify({'success': False, 'message': f'删除服务器账户失败: {server_message}'}), 500
+                
         else:  # mode == 'user_only'
             # 仅删除用户记录，不影响服务器账户
             Application.query.filter_by(user_id=user_id).delete()

@@ -108,21 +108,21 @@
 {% if batches %}
 <div class="row">
     {% for batch in batches %}
-    <div class="col-12 mb-4">
-        <div class="claude-card uniform-card-height {{ 'border-warning' if batch.get_status_summary() == 'pending' else 'border-info' if batch.get_status_summary() == 'processing' else 'border-success' if batch.get_status_summary() == 'completed' else 'border-secondary' }}" 
+    <div class="col-12 mb-3">
+        <div class="claude-card {{ 'border-warning' if batch.get_status_summary() == 'pending' else 'border-info' if batch.get_status_summary() == 'processing' else 'border-success' if batch.get_status_summary() == 'completed' else 'border-secondary' }}" 
              style="border-left-width: 4px !important;">
             <!-- 申请批次头部 -->
-            <div class="claude-card-header">
+            <div class="claude-card-header py-2">
                 <div class="d-flex justify-content-between align-items-center">
                     <div class="d-flex align-items-center">
-                        <div class="me-3">
-                            <div class="bg-light rounded-circle d-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
-                                <i class="bi bi-person-circle" style="font-size: 1.5rem; color: var(--claude-primary);"></i>
+                        <div class="me-2">
+                            <div class="bg-light rounded-circle d-flex align-items-center justify-content-center" style="width: 36px; height: 36px;">
+                                <i class="bi bi-person-circle" style="font-size: 1.2rem; color: var(--claude-primary);"></i>
                             </div>
                         </div>
                         <div>
-                            <h6 class="mb-1 fw-semibold">{{ batch.user.name or batch.user.username }}</h6>
-                            <small class="text-muted">申请时间: {{ batch.created_at.strftime('%m-%d %H:%M') }}</small>
+                            <h6 class="mb-1 fw-semibold" style="font-size: 0.95rem;">{{ batch.user.name or batch.user.username }}</h6>
+                            <small class="text-muted" style="font-size: 0.8rem;">申请时间: {{ batch.created_at.strftime('%m-%d %H:%M') }}</small>
                         </div>
                     </div>
                     <span class="claude-badge claude-badge-{{ 'warning' if batch.get_status_summary() == 'pending' else 'info' if batch.get_status_summary() == 'processing' else 'success' if batch.get_status_summary() == 'completed' else 'secondary' }}">
@@ -133,28 +133,28 @@
             </div>
             
             <!-- 申请详情 -->
-            <div class="claude-card-body">
-                <div class="row mb-3">
+            <div class="claude-card-body py-2">
+                <div class="row mb-2">
                     <div class="col-6">
                         <div class="application-detail-item">
-                            <label>目标服务器</label>
+                            <label style="font-size: 0.85rem; margin-bottom: 0.25rem;">目标服务器</label>
                             <div class="application-detail-value">
-                                <i class="bi bi-server me-2" style="color: var(--claude-primary);"></i>
+                                <i class="bi bi-server me-2" style="color: var(--claude-primary); font-size: 0.9rem;"></i>
                                 <div>
-                                    <strong>{{ batch.server.name }}</strong>
-                                    <br><small class="text-muted">{{ batch.server.host }}</small>
+                                    <strong style="font-size: 0.9rem;">{{ batch.server.name }}</strong>
+                                    <br><small class="text-muted" style="font-size: 0.75rem;">{{ batch.server.host }}</small>
                                 </div>
                             </div>
                         </div>
                     </div>
                     <div class="col-6">
                         <div class="application-detail-item">
-                            <label>申请权限</label>
+                            <label style="font-size: 0.85rem; margin-bottom: 0.25rem;">申请权限</label>
                             <div class="application-detail-value">
                                 <i class="bi bi-shield-check me-2" style="color: var(--claude-info);"></i>
                                 <div>
                                     <strong>{{ batch.applications.count() }} 个权限</strong>
-                                    <br><small class="text-muted">{% set app_list = batch.applications.all() %}{% for app in app_list[:2] %}{{ app.permission_type.name }}{% if not loop.last %}、{% endif %}{% endfor %}{% if app_list|length > 2 %}...{% endif %}</small>
+                                    <br><div>{% set app_list = batch.applications.all() %}{% for app in app_list[:2] %}{% set permission_color = 'secondary' if app.permission_type.name == '普通用户' else 'danger' if app.permission_type.name == '管理员权限' else 'info' if app.permission_type.name == 'Docker权限' else 'warning' if app.permission_type.name == '数据库权限' else 'primary' %}<span class="claude-badge claude-badge-sm claude-badge-{{ permission_color }} me-1" style="font-size: 0.7rem;">{{ app.permission_type.name }}</span>{% endfor %}{% if app_list|length > 2 %}<span class="text-muted small">...</span>{% endif %}</div>
                                 </div>
                             </div>
                         </div>
@@ -169,10 +169,11 @@
                             <div class="permissions-summary">
                                 {% for app in batch.applications %}
                                 <div class="permission-item d-flex justify-content-between align-items-center mb-1">
-                                    <span class="permission-name small">{{ app.permission_type.name }}</span>
-                                    <span class="claude-badge claude-badge-sm claude-badge-{{ 'success' if app.status == 'approved' else 'danger' if app.status == 'rejected' else 'secondary' }}">
-                                        <i class="bi bi-{{ 'check-circle' if app.status == 'approved' else 'x-circle' if app.status == 'rejected' else 'clock-history' }}"></i>
-                                        {{ '已通过' if app.status == 'approved' else '已拒绝' if app.status == 'rejected' else '待审核' }}
+                                    {% set permission_color = 'secondary' if app.permission_type.name == '普通用户' else 'danger' if app.permission_type.name == '管理员权限' else 'info' if app.permission_type.name == 'Docker权限' else 'warning' if app.permission_type.name == '数据库权限' else 'primary' %}
+                                    <span class="claude-badge claude-badge-sm claude-badge-{{ permission_color }}">{{ app.permission_type.name }}</span>
+                                    <span class="claude-badge claude-badge-sm claude-badge-{{ 'success' if app.status == 'approved' else 'danger' if app.status == 'rejected' else 'warning' if app.status == 'revoked' else 'secondary' }}">
+                                        <i class="bi bi-{{ 'check-circle' if app.status == 'approved' else 'x-circle' if app.status == 'rejected' else 'slash-circle' if app.status == 'revoked' else 'clock-history' }}"></i>
+                                        {{ '已通过' if app.status == 'approved' else '已拒绝' if app.status == 'rejected' else '已撤销' if app.status == 'revoked' else '待审核' }}
                                     </span>
                                 </div>
                                 {% endfor %}
@@ -197,9 +198,9 @@
             </div>
             
             <!-- 操作按钮 -->
-            <div class="claude-card-footer">
+            <div class="claude-card-footer py-2">
                 <div class="d-flex gap-2">
-                    <button class="claude-btn claude-btn-secondary flex-fill" 
+                    <button class="claude-btn claude-btn-sm claude-btn-secondary flex-fill" 
                             onclick="showBatchReviewModal({{ batch.id }})"
                             data-bs-toggle="modal" 
                             data-bs-target="#batchReviewModal">
@@ -614,11 +615,25 @@ function showBatchReviewModal(batchId) {
     batch.permissions.forEach(perm => {
         const isEditable = perm.status === 'pending';
         
+        // 权限类型颜色映射
+        const getPermissionColor = (permType) => {
+            const colorMap = {
+                '普通用户': 'secondary',
+                '管理员权限': 'danger',
+                'Docker权限': 'info',
+                '数据库权限': 'warning',
+                '自定义权限': 'primary'
+            };
+            return colorMap[permType] || 'primary';
+        };
+        
+        const permissionColorClass = getPermissionColor(perm.permission_type.name);
+        
         permissionsHtml += `
             <div class="permission-review-card">
                 <div class="permission-card-top">
                     <div class="permission-info">
-                        <h6>${perm.permission_type.name}</h6>
+                        <div class="mb-2"><span class="claude-badge claude-badge-${permissionColorClass}">${perm.permission_type.name}</span></div>
                         <div class="description">${perm.permission_type.description}</div>
                         ${perm.reviewed_at ? `<div class="review-time">审核时间: ${new Date(perm.reviewed_at).toLocaleString()}</div>` : ''}
                     </div>
