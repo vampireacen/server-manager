@@ -52,19 +52,57 @@ class ServerUserManager:
             # 设置主机密钥策略 - 在生产环境中应该使用更严格的策略
             self.ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
             
-            # 连接配置
+            # 基础连接配置
             connect_params = {
                 'hostname': self.server.host,
                 'port': self.server.port,
                 'username': self.server.username,
-                'password': self.server.password,
                 'timeout': 30,
                 'auth_timeout': 30,
                 'banner_timeout': 30
             }
             
-            # 验证连接参数
-            if not all([self.server.host, self.server.username, self.server.password]):
+            # 根据认证类型设置认证参数
+            auth_type = getattr(self.server, 'auth_type', 'password') or 'password'
+            
+            if auth_type == 'key':
+                # 密钥认证
+                key_path = getattr(self.server, 'key_path', None)
+                if not key_path:
+                    raise ValueError("密钥认证需要提供密钥文件路径")
+                
+                try:
+                    # 尝试加载私钥
+                    private_key = paramiko.RSAKey.from_private_key_file(key_path)
+                    connect_params['pkey'] = private_key
+                except paramiko.SSHException:
+                    try:
+                        # 尝试DSA密钥
+                        private_key = paramiko.DSSKey.from_private_key_file(key_path)
+                        connect_params['pkey'] = private_key
+                    except paramiko.SSHException:
+                        try:
+                            # 尝试ECDSA密钥
+                            private_key = paramiko.ECDSAKey.from_private_key_file(key_path)
+                            connect_params['pkey'] = private_key
+                        except paramiko.SSHException:
+                            try:
+                                # 尝试Ed25519密钥
+                                private_key = paramiko.Ed25519Key.from_private_key_file(key_path)
+                                connect_params['pkey'] = private_key
+                            except paramiko.SSHException:
+                                raise ValueError(f"无法解析密钥文件: {key_path}")
+                
+                logger.info(f"使用密钥认证连接服务器 {self.server.name}")
+            else:
+                # 密码认证
+                if not self.server.password:
+                    raise ValueError("密码认证需要提供密码")
+                connect_params['password'] = self.server.password
+                logger.info(f"使用密码认证连接服务器 {self.server.name}")
+            
+            # 验证基础连接参数
+            if not all([self.server.host, self.server.username]):
                 raise ValueError("服务器连接参数不完整")
             
             self.ssh_client.connect(**connect_params)
@@ -330,7 +368,9 @@ def configure_user_permissions_batch(applications):
         server = apps[0].server
         user = apps[0].user
         
-        logger.info(f"开始批量配置用户 {user.username} 在服务器 {server.name} 的权限")
+        # 获取服务器账户名（优先使用自定义的server_username）
+        server_username = apps[0].server_username or user.username
+        logger.info(f"开始批量配置用户 {user.username} (服务器账户: {server_username}) 在服务器 {server.name} 的权限")
         
         # 创建服务器管理器
         manager = ServerUserManager(server)
@@ -348,26 +388,26 @@ def configure_user_permissions_batch(applications):
             # 生成用户密码（如果用户不存在）
             user_password = None
             
-            # 检查并创建用户（只需要检查一次）
-            if not manager.user_exists(user.username):
-                success, result = manager.create_user(user.username)
+            # 检查并创建用户（使用服务器账户名）
+            if not manager.user_exists(server_username):
+                success, result = manager.create_user(server_username)
                 if not success:
-                    OperationLogger.log_user_creation(server, user.username, False, result)
+                    OperationLogger.log_user_creation(server, server_username, False, result)
                     for app in apps:
                         results.append((app, False, f"创建用户失败: {result}"))
                     continue
                 user_password = result
-                OperationLogger.log_user_creation(server, user.username, True, "用户创建成功", password_generated=True)
+                OperationLogger.log_user_creation(server, server_username, True, "用户创建成功", password_generated=True)
             else:
-                logger.info(f"用户 {user.username} 已存在")
-                OperationLogger.log_user_creation(server, user.username, True, "用户已存在，跳过创建")
+                logger.info(f"用户 {server_username} 已存在")
+                OperationLogger.log_user_creation(server, server_username, True, "用户已存在，跳过创建")
             
             # 批量配置所有权限
             for app in apps:
                 permission_type = app.permission_type
                 
-                # 根据权限类型配置权限
-                success, message = configure_permission_by_type(manager, user.username, permission_type.name)
+                # 根据权限类型配置权限（使用服务器账户名）
+                success, message = configure_permission_by_type(manager, server_username, permission_type.name)
                 
                 if not success:
                     OperationLogger.log_permission_grant(app, False, message)
@@ -378,7 +418,7 @@ def configure_user_permissions_batch(applications):
                 operation_log = {
                     'timestamp': datetime.utcnow().isoformat(),
                     'server': server.name,
-                    'user': user.username,
+                    'user': server_username,
                     'permission': permission_type.name,
                     'action': 'granted',
                     'password_generated': user_password is not None,
@@ -412,7 +452,10 @@ def configure_user_permissions(application):
         user = application.user
         permission_type = application.permission_type
         
-        logger.info(f"开始为用户 {user.username} 在服务器 {server.name} 配置 {permission_type.name}")
+        # 获取服务器账户名（优先使用自定义的server_username）
+        server_username = application.server_username or user.username
+        
+        logger.info(f"开始为用户 {user.username} (服务器账户: {server_username}) 在服务器 {server.name} 配置 {permission_type.name}")
         
         # 创建服务器管理器
         manager = ServerUserManager(server)
@@ -428,20 +471,20 @@ def configure_user_permissions(application):
             # 生成用户密码（如果用户不存在）
             user_password = None
             
-            # 检查并创建用户
-            if not manager.user_exists(user.username):
-                success, result = manager.create_user(user.username)
+            # 检查并创建用户（使用服务器账户名）
+            if not manager.user_exists(server_username):
+                success, result = manager.create_user(server_username)
                 if not success:
-                    OperationLogger.log_user_creation(server, user.username, False, result)
+                    OperationLogger.log_user_creation(server, server_username, False, result)
                     return False, f"创建用户失败: {result}"
                 user_password = result
-                OperationLogger.log_user_creation(server, user.username, True, "用户创建成功", password_generated=True)
+                OperationLogger.log_user_creation(server, server_username, True, "用户创建成功", password_generated=True)
             else:
-                logger.info(f"用户 {user.username} 已存在")
-                OperationLogger.log_user_creation(server, user.username, True, "用户已存在，跳过创建")
+                logger.info(f"用户 {server_username} 已存在")
+                OperationLogger.log_user_creation(server, server_username, True, "用户已存在，跳过创建")
             
-            # 根据权限类型配置权限
-            success, message = configure_permission_by_type(manager, user.username, permission_type.name)
+            # 根据权限类型配置权限（使用服务器账户名）
+            success, message = configure_permission_by_type(manager, server_username, permission_type.name)
             
             if not success:
                 OperationLogger.log_permission_grant(application, False, message)
@@ -451,7 +494,7 @@ def configure_user_permissions(application):
             operation_log = {
                 'timestamp': datetime.utcnow().isoformat(),
                 'server': server.name,
-                'user': user.username,
+                'user': server_username,
                 'permission': permission_type.name,
                 'action': 'granted',
                 'password_generated': user_password is not None,
@@ -466,7 +509,7 @@ def configure_user_permissions(application):
             
             logger.info(f"用户权限配置完成: {operation_log}")
             OperationLogger.log_permission_grant(application, True, message, details={'password_generated': user_password is not None})
-            return True, f"用户 {user.username} 的 {permission_type.name} 权限配置成功"
+            return True, f"用户 {server_username} 的 {permission_type.name} 权限配置成功"
             
         finally:
             manager.disconnect()
@@ -648,25 +691,39 @@ def delete_user_from_servers(user):
             
             try:
                 # 检查用户是否存在
-                if not manager.user_exists(user.username):
-                    logger.info(f"用户 {user.username} 在服务器 {server.name} 上不存在，跳过删除")
+                server_username = applications[0].server_username or user.username  # 使用正确的服务器账户名
+                if not manager.user_exists(server_username):
+                    logger.info(f"用户 {server_username} 在服务器 {server.name} 上不存在，跳过删除")
                     results.append((server.name, True, "用户不存在，无需删除"))
                     success_count += 1
+                    
+                    # 更新数据库状态，因为服务器上没有该账户
+                    try:
+                        for app in applications:
+                            if app.status == 'approved':
+                                app.status = 'revoked'
+                                app.admin_comment = (app.admin_comment or '') + f'\n[系统检查] 服务器上账户不存在 - {datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")}'
+                        db.session.commit()
+                        logger.info(f"已更新服务器 {server.name} 上 {len(applications)} 个权限记录状态")
+                    except Exception as db_error:
+                        logger.error(f"更新数据库状态失败: {db_error}")
+                        db.session.rollback()
+                    
                     continue
                 
-                # 撤销所有权限
+                # 撤销所有权限（使用正确的服务器账户名）
                 permissions_revoked = []
                 for app in applications:
-                    success, message = revoke_permission_by_type(manager, user.username, app.permission_type.name)
+                    success, message = revoke_permission_by_type(manager, server_username, app.permission_type.name)
                     if success:
                         permissions_revoked.append(app.permission_type.name)
                         logger.info(f"撤销权限成功: {app.permission_type.name}")
                     else:
                         logger.warning(f"撤销权限失败: {app.permission_type.name} - {message}")
                 
-                # 删除用户账户
+                # 删除用户账户（使用正确的服务器账户名）
                 import shlex
-                safe_username = shlex.quote(user.username)
+                safe_username = shlex.quote(server_username)
                 success, output = manager.execute_command(
                     f"userdel -r {safe_username}",  # -r 参数会删除用户主目录
                     require_sudo=True
@@ -682,12 +739,24 @@ def delete_user_from_servers(user):
                     results.append((server.name, True, result_msg))
                     
                     # 记录操作日志
-                    OperationLogger.log_user_deletion(server, user.username, True, result_msg)
+                    OperationLogger.log_user_deletion(server, server_username, True, result_msg)
+                    
+                    # 更新数据库中的Application记录状态为'revoked'
+                    try:
+                        for app in applications:
+                            if app.status == 'approved':
+                                app.status = 'revoked'
+                                app.admin_comment = (app.admin_comment or '') + f'\n[系统操作] 服务器账户已删除 - {datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")}'
+                        db.session.commit()
+                        logger.info(f"已更新服务器 {server.name} 上 {len(applications)} 个权限记录状态为'revoked'")
+                    except Exception as db_error:
+                        logger.error(f"更新数据库状态失败: {db_error}")
+                        db.session.rollback()
                 else:
                     error_msg = f"删除用户账户失败: {output}"
                     logger.error(f"服务器 {server.name}: {error_msg}")
                     results.append((server.name, False, error_msg))
-                    OperationLogger.log_user_deletion(server, user.username, False, error_msg)
+                    OperationLogger.log_user_deletion(server, server_username, False, error_msg)
                 
             finally:
                 manager.disconnect()

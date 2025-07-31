@@ -263,6 +263,39 @@
         </div>
     </div>
 </div>
+
+<!-- 批次审核确认模态框 -->
+<div class="modal fade" id="confirmBatchModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content" style="border: none; box-shadow: var(--claude-shadow-lg);">
+            <div class="modal-header" style="background: var(--claude-bg-secondary); border-bottom: 1px solid var(--claude-border-light);">
+                <h5 class="modal-title" style="color: var(--claude-text-primary); font-weight: 600;">
+                    <i class="bi bi-check-square me-2"></i>
+                    确认批次审核
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4" id="confirmBatchDetails">
+                <div class="text-center py-4">
+                    <div class="claude-loading">
+                        <i class="bi bi-arrow-clockwise" style="font-size: 2rem; color: var(--claude-primary);"></i>
+                        <p class="mt-2 text-muted">准备审核确认信息...</p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" style="background: var(--claude-bg-secondary); border-top: 1px solid var(--claude-border-light);">
+                <button type="button" class="claude-btn claude-btn-secondary" data-bs-dismiss="modal">
+                    <i class="bi bi-x me-1"></i>
+                    取消
+                </button>
+                <button type="button" class="claude-btn claude-btn-primary" id="finalConfirmSubmit" onclick="submitFinalBatchReview()">
+                    <i class="bi bi-check-circle me-1"></i>
+                    确认执行
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -855,6 +888,15 @@ function revokePermission(appId, username, permissionType) {
 
 // 页面加载完成后的初始化
 document.addEventListener('DOMContentLoaded', function() {
+    // 拦截批次审核表单提交
+    const batchReviewForm = document.getElementById('batchReviewForm');
+    if (batchReviewForm) {
+        batchReviewForm.addEventListener('submit', function(e) {
+            e.preventDefault(); // 阻止默认提交
+            showBatchConfirmModal(); // 显示确认窗口
+        });
+    }
+    
     // 为表单提交添加加载状态
     const reviewForm = document.getElementById('reviewForm');
     if (reviewForm) {
@@ -868,5 +910,334 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
+
+// 全局变量用于存储当前批次信息
+let currentBatchData = null;
+let currentBatchId = null;
+
+// 显示批次确认模态框
+function showBatchConfirmModal() {
+    // 获取当前批次ID
+    const form = document.getElementById('batchReviewForm');
+    const action = form.getAttribute('action');
+    const batchId = action.match(/\/admin\/review_batch\/(\d+)/)[1];
+    currentBatchId = batchId;
+    
+    // 获取当前批次数据
+    const batch = batches.find(b => b.id == batchId);
+    if (!batch) {
+        alert('找不到批次数据');
+        return;
+    }
+    
+    // 收集所有审核决定
+    const formData = new FormData(form);
+    const approvedApps = [];
+    const rejectedApps = [];
+    
+    // 解析表单数据
+    for (let [key, value] of formData.entries()) {
+        if (key.startsWith('action_') && value) {
+            const appId = key.replace('action_', '');
+            const comment = formData.get(`comment_${appId}`) || '';
+            
+            // 从批次数据中找到对应的权限信息
+            const permission = batch.permissions.find(p => p.id == appId);
+            if (!permission) continue;
+            
+            const appData = {
+                id: appId,
+                comment: comment,
+                action: value,
+                permission: permission  // 添加完整的权限信息
+            };
+            
+            if (value === 'approved') {
+                approvedApps.push(appData);
+            } else if (value === 'rejected') {
+                rejectedApps.push(appData);
+            }
+        }
+    }
+    
+    // 检查是否有需要生成用户名的申请
+    if (approvedApps.length > 0) {
+        // 生成用户名
+        generateUsernameForBatch(batchId, approvedApps, rejectedApps);
+    } else {
+        // 没有同意的申请，直接显示确认界面
+        showConfirmInterface(batchId, approvedApps, rejectedApps, null);
+    }
+}
+
+// 为批次生成用户名
+function generateUsernameForBatch(batchId, approvedApps, rejectedApps) {
+    // 显示加载状态
+    const modal = new bootstrap.Modal(document.getElementById('confirmBatchModal'));
+    modal.show();
+    
+    // 调用API生成用户名
+    fetch('/api/generate_batch_usernames', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ batch_id: batchId })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showConfirmInterface(batchId, approvedApps, rejectedApps, data.data);
+        } else {
+            // 生成失败，显示错误
+            document.getElementById('confirmBatchDetails').innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    用户名生成失败: ${data.message}
+                </div>
+            `;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        document.getElementById('confirmBatchDetails').innerHTML = `
+            <div class="alert alert-danger">
+                <i class="bi bi-exclamation-triangle me-2"></i>
+                生成用户名时发生错误，请重试
+            </div>
+        `;
+    });
+}
+
+// 显示确认界面
+function showConfirmInterface(batchId, approvedApps, rejectedApps, usernameData) {
+    let content = `
+        <div class="confirm-review-summary">
+            <h6 class="mb-3">
+                <i class="bi bi-list-check me-2"></i>
+                批次审核摘要
+            </h6>
+            
+            ${approvedApps.length > 0 ? `
+            <div class="approved-section mb-4">
+                <h6 class="text-success">
+                    <i class="bi bi-check-circle me-2"></i>
+                    同意的申请 (${approvedApps.length})
+                </h6>
+                ${usernameData ? `
+                <div class="username-section mb-3">
+                    <div class="d-flex align-items-center mb-2">
+                        <label class="form-label mb-0 me-2">服务器用户名:</label>
+                        <div class="input-group" style="max-width: 300px;">
+                            <input type="text" class="form-control" id="serverUsername" 
+                                   value="${usernameData.generated_username}" 
+                                   onchange="validateUsername(this.value)">
+                            <button class="btn btn-outline-secondary" type="button" onclick="regenerateUsername()">
+                                <i class="bi bi-arrow-clockwise"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="form-text">
+                        用户: ${usernameData.user_name} | 服务器: ${usernameData.server_name}
+                    </div>
+                    <div id="usernameValidation" class="mt-2"></div>
+                </div>
+                ` : ''}
+                <div class="applications-list">
+                    ${approvedApps.map(app => {
+                        // 权限类型颜色映射
+                        const getPermissionColor = (permType) => {
+                            const colorMap = {
+                                '普通用户': 'secondary',
+                                '管理员权限': 'danger',
+                                'Docker权限': 'info',
+                                '数据库权限': 'warning',
+                                '自定义权限': 'primary'
+                            };
+                            return colorMap[permType] || 'primary';
+                        };
+                        
+                        const permissionColorClass = getPermissionColor(app.permission.permission_type.name);
+                        
+                        return `
+                        <div class="application-item p-2 bg-light rounded mb-2 d-flex justify-content-between align-items-center">
+                            <div>
+                                <span class="claude-badge claude-badge-${permissionColorClass} me-2">${app.permission.permission_type.name}</span>
+                                <small class="text-muted">申请 #${app.id}</small>
+                            </div>
+                            ${app.comment ? `<div class="small text-muted">审核意见: ${app.comment}</div>` : ''}
+                        </div>
+                        `;
+                    }).join('')}
+                </div>
+            </div>
+            ` : ''}
+            
+            ${rejectedApps.length > 0 ? `
+            <div class="rejected-section mb-4">
+                <h6 class="text-danger">
+                    <i class="bi bi-x-circle me-2"></i>
+                    拒绝的申请 (${rejectedApps.length})
+                </h6>
+                <div class="applications-list">
+                    ${rejectedApps.map(app => {
+                        // 权限类型颜色映射
+                        const getPermissionColor = (permType) => {
+                            const colorMap = {
+                                '普通用户': 'secondary',
+                                '管理员权限': 'danger',
+                                'Docker权限': 'info',
+                                '数据库权限': 'warning',
+                                '自定义权限': 'primary'
+                            };
+                            return colorMap[permType] || 'primary';
+                        };
+                        
+                        const permissionColorClass = getPermissionColor(app.permission.permission_type.name);
+                        
+                        return `
+                        <div class="application-item p-2 bg-light rounded mb-2 d-flex justify-content-between align-items-center">
+                            <div>
+                                <span class="claude-badge claude-badge-${permissionColorClass} me-2">${app.permission.permission_type.name}</span>
+                                <small class="text-muted">申请 #${app.id}</small>
+                            </div>
+                            ${app.comment ? `<div class="small text-muted">审核意见: ${app.comment}</div>` : ''}
+                        </div>
+                        `;
+                    }).join('')}
+                </div>
+            </div>
+            ` : ''}
+            
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle me-2"></i>
+                请确认审核决定无误后点击"确认执行"按钮
+            </div>
+        </div>
+    `;
+    
+    document.getElementById('confirmBatchDetails').innerHTML = content;
+    
+    // 存储数据供最终提交使用
+    currentBatchData = {
+        batchId: batchId,
+        approvedApps: approvedApps,
+        rejectedApps: rejectedApps,
+        usernameData: usernameData
+    };
+}
+
+// 验证用户名
+function validateUsername(username) {
+    const validationDiv = document.getElementById('usernameValidation');
+    
+    if (!username.trim()) {
+        validationDiv.innerHTML = '<div class="text-danger small">用户名不能为空</div>';
+        return;
+    }
+    
+    // 基本格式验证
+    if (!/^[a-zA-Z][a-zA-Z0-9_-]{2,31}$/.test(username)) {
+        validationDiv.innerHTML = '<div class="text-danger small">用户名格式不正确（3-32位，字母开头，只能包含字母数字下划线连字符）</div>';
+        return;
+    }
+    
+    // 服务器查重验证
+    if (currentBatchData && currentBatchData.usernameData) {
+        validationDiv.innerHTML = '<div class="text-info small"><i class="bi bi-arrow-clockwise"></i> 验证中...</div>';
+        
+        fetch('/api/check_server_username', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ 
+                username: username,
+                server_id: currentBatchData.usernameData.server_id
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                if (data.exists) {
+                    validationDiv.innerHTML = '<div class="text-warning small"><i class="bi bi-exclamation-triangle me-1"></i>用户名已存在，建议使用其他用户名</div>';
+                } else {
+                    validationDiv.innerHTML = '<div class="text-success small"><i class="bi bi-check-circle me-1"></i>用户名可用</div>';
+                }
+            } else {
+                validationDiv.innerHTML = '<div class="text-muted small">无法验证用户名，请手动确认</div>';
+            }
+        })
+        .catch(error => {
+            validationDiv.innerHTML = '<div class="text-muted small">验证失败，请手动确认</div>';
+        });
+    }
+}
+
+// 重新生成用户名
+function regenerateUsername() {
+    if (currentBatchData && currentBatchData.usernameData) {
+        generateUsernameForBatch(currentBatchData.batchId, currentBatchData.approvedApps, currentBatchData.rejectedApps);
+    }
+}
+
+// 最终提交批次审核
+function submitFinalBatchReview() {
+    if (!currentBatchData) {
+        alert('没有找到批次数据，请重新操作');
+        return;
+    }
+    
+    // 获取最终用户名
+    let finalUsername = null;
+    const usernameInput = document.getElementById('serverUsername');
+    if (usernameInput) {
+        finalUsername = usernameInput.value.trim();
+        if (!finalUsername) {
+            alert('请提供服务器用户名');
+            return;
+        }
+    }
+    
+    // 构建提交数据
+    const formData = new FormData();
+    
+    // 添加审核决定
+    [...currentBatchData.approvedApps, ...currentBatchData.rejectedApps].forEach(app => {
+        formData.append(`action_${app.id}`, app.action);
+        if (app.comment) {
+            formData.append(`comment_${app.id}`, app.comment);
+        }
+    });
+    
+    // 添加用户名
+    if (finalUsername) {
+        formData.append('server_username', finalUsername);
+    }
+    
+    // 提交表单
+    const submitBtn = document.getElementById('finalConfirmSubmit');
+    submitBtn.innerHTML = '<i class="bi bi-arrow-clockwise"></i> 执行中...';
+    submitBtn.disabled = true;
+    
+    fetch(`/admin/review_batch/${currentBatchData.batchId}`, {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => {
+        if (response.ok) {
+            // 成功，重新加载页面
+            window.location.reload();
+        } else {
+            throw new Error('提交失败');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('提交失败，请重试');
+        submitBtn.innerHTML = '<i class="bi bi-check-circle me-1"></i> 确认执行';
+        submitBtn.disabled = false;
+    });
+}
 </script>
 {% endblock %}

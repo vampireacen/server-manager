@@ -14,13 +14,45 @@ class ServerMonitor:
             self.ssh_client = paramiko.SSHClient()
             self.ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
             
-            self.ssh_client.connect(
-                hostname=self.server.host,
-                port=self.server.port,
-                username=self.server.username,
-                password=self.server.password,
-                timeout=10
-            )
+            # 基础连接参数
+            connect_params = {
+                'hostname': self.server.host,
+                'port': self.server.port,
+                'username': self.server.username,
+                'timeout': 10
+            }
+            
+            # 根据认证类型设置认证参数
+            auth_type = getattr(self.server, 'auth_type', 'password') or 'password'
+            
+            if auth_type == 'key':
+                # 密钥认证
+                key_path = getattr(self.server, 'key_path', None)
+                if key_path:
+                    try:
+                        # 尝试加载私钥
+                        private_key = paramiko.RSAKey.from_private_key_file(key_path)
+                        connect_params['pkey'] = private_key
+                    except paramiko.SSHException:
+                        try:
+                            private_key = paramiko.DSSKey.from_private_key_file(key_path)
+                            connect_params['pkey'] = private_key
+                        except paramiko.SSHException:
+                            try:
+                                private_key = paramiko.ECDSAKey.from_private_key_file(key_path)
+                                connect_params['pkey'] = private_key
+                            except paramiko.SSHException:
+                                try:
+                                    private_key = paramiko.Ed25519Key.from_private_key_file(key_path)
+                                    connect_params['pkey'] = private_key
+                                except paramiko.SSHException:
+                                    print(f"无法解析密钥文件: {key_path}")
+                                    return False
+            else:
+                # 密码认证
+                connect_params['password'] = self.server.password
+            
+            self.ssh_client.connect(**connect_params)
             return True
         except Exception as e:
             print(f"连接服务器 {self.server.name} 失败: {e}")

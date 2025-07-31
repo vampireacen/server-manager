@@ -83,27 +83,8 @@
                                         </div>
                                         <div class="flex-grow-1">
                                             <h6 class="mb-1">{{ server.name }}</h6>
-                                            <p class="text-muted mb-1 small">{{ server.host }}:{{ server.port }}</p>
-                                            {% if server.location or server.datacenter or server.cpu_model or server.memory_count %}
-                                            <div class="server-extra-info small text-muted mb-1">
-                                                {% if server.location or server.datacenter %}
-                                                <div>
-                                                    <i class="bi bi-geo-alt me-1"></i>
-                                                    {% if server.location %}{{ server.location }}{% endif %}
-                                                    {% if server.location and server.datacenter %} - {% endif %}
-                                                    {% if server.datacenter %}{{ server.datacenter }}{% endif %}
-                                                </div>
-                                                {% endif %}
-                                                {% if server.cpu_model or server.memory_count %}
-                                                <div class="mt-1">
-                                                    {% if server.cpu_model %}<i class="bi bi-cpu me-1"></i>{{ server.cpu_model }}{% if server.cpu_count %} x{{ server.cpu_count }}{% endif %}{% endif %}
-                                                    {% if server.cpu_model and server.memory_count %} | {% endif %}
-                                                    {% if server.memory_count %}<i class="bi bi-memory me-1"></i>{{ server.memory_count }}GB{% endif %}
-                                                </div>
-                                                {% endif %}
-                                            </div>
-                                            {% endif %}
-                                            <span class="claude-badge claude-badge-{{ 'success' if server.status == 'online' else 'danger' if server.status == 'offline' else 'info' }} mt-1">
+                                            <p class="text-muted mb-2 small">{{ server.host }}:{{ server.port }}</p>
+                                            <span class="claude-badge claude-badge-{{ 'success' if server.status == 'online' else 'danger' if server.status == 'offline' else 'info' }}">
                                                 {{ server.status }}
                                             </span>
                                         </div>
@@ -476,6 +457,10 @@
     transition: var(--claude-transition-fast);
     text-decoration: none;
     color: inherit;
+    height: 140px;
+    min-height: 140px;
+    display: flex;
+    align-items: center;
 }
 
 .server-card:hover {

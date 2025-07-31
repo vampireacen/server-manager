@@ -37,6 +37,9 @@ class Server(db.Model):
     port = db.Column(db.Integer, default=22)
     username = db.Column(db.String(50), nullable=False)
     password = db.Column(db.String(200))  # 可选，也可以用密钥
+    auth_type = db.Column(db.String(20), default='password')  # password, key
+    key_path = db.Column(db.String(500))  # SSH密钥文件路径
+    user_selectable = db.Column(db.Boolean, default=True)  # 用户是否可选择此服务器
     status = db.Column(db.String(20), default='unknown')  # online, offline, unknown
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
@@ -112,6 +115,7 @@ class Application(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     reviewed_at = db.Column(db.DateTime)
     reviewed_by = db.Column(db.Integer, db.ForeignKey('users.id'))
+    server_username = db.Column(db.String(50))  # 服务器账户名
     admin_comment = db.Column(db.Text)  # 管理员审核意见
     
     # 关系

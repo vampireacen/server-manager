@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, redirect, url_for, session, j
 from sqlalchemy.orm import joinedload
 from models import db, User, Server, Application, ApplicationBatch, PermissionType, ServerMetric, Notification
 from server_monitor import collect_all_servers_metrics, get_server_latest_metrics, get_server_metrics_history
+from username_generator import generate_username_for_user, validate_username_format
 from config import Config
 from datetime import datetime
 import json
@@ -57,6 +58,48 @@ def migrate_database():
                 
         except Exception as e:
             print(f"数据库迁移过程中出现错误: {e}")
+            db.session.rollback()
+        
+        # 检查并添加servers表的新字段
+        try:
+            result = db.session.execute(db.text("PRAGMA table_info(servers)")).fetchall()
+            server_columns = [row[1] for row in result]
+            
+            server_missing_fields = []
+            server_expected_fields = {
+                'auth_type': 'VARCHAR(20) DEFAULT "password"',
+                'key_path': 'VARCHAR(500)',
+                'user_selectable': 'BOOLEAN DEFAULT 1'
+            }
+            
+            for field, field_type in server_expected_fields.items():
+                if field not in server_columns:
+                    server_missing_fields.append((field, field_type))
+            
+            if server_missing_fields:
+                for field, field_type in server_missing_fields:
+                    print(f"正在添加{field}字段到servers表...")
+                    db.session.execute(db.text(f"ALTER TABLE servers ADD COLUMN {field} {field_type}"))
+                db.session.commit()
+                print(f"成功添加服务器字段: {', '.join([f[0] for f in server_missing_fields])}")
+                
+        except Exception as e:
+            print(f"服务器表迁移错误: {e}")
+            db.session.rollback()
+        
+        # 检查并添加applications表的server_username字段
+        try:
+            result = db.session.execute(db.text("PRAGMA table_info(applications)")).fetchall()
+            app_columns = [row[1] for row in result]
+            
+            if 'server_username' not in app_columns:
+                print("正在添加server_username字段到applications表...")
+                db.session.execute(db.text("ALTER TABLE applications ADD COLUMN server_username VARCHAR(50)"))
+                db.session.commit()
+                print("server_username字段添加成功")
+                
+        except Exception as e:
+            print(f"applications表迁移错误: {e}")
             db.session.rollback()
 
 def create_tables():
@@ -374,7 +417,7 @@ def apply():
         flash(f'已成功提交申请批次（包含 {len(permission_type_ids)} 个权限），请等待管理员审核', 'success')
         return redirect(url_for('my_applications'))
     
-    servers = Server.query.all()
+    servers = Server.query.filter_by(user_selectable=True).all()
     permission_types = PermissionType.query.all()
     
     return render_template('apply.html', servers=servers, permission_types=permission_types)
@@ -583,6 +626,9 @@ def admin_review_batch(batch_id):
     # 获取批次中的所有申请
     applications = Application.query.filter_by(batch_id=batch_id).all()
     
+    # 获取自定义服务器用户名（如果提供）
+    server_username = request.form.get('server_username', '').strip()
+    
     # 处理每个权限的审核结果
     approved_applications = []
     
@@ -599,6 +645,9 @@ def admin_review_batch(batch_id):
             
             # 收集批准的申请，后续批量处理
             if action == 'approved':
+                # 设定自定义服务器用户名（如果提供）
+                if server_username:
+                    app.server_username = server_username
                 approved_applications.append(app)
     
     # 批量配置所有批准的权限
@@ -752,13 +801,38 @@ def admin_servers():
         
         if action == 'add':
             # 添加新服务器
+            auth_type = request.form.get('auth_type', 'password')
             server = Server(
                 name=request.form['name'],
                 host=request.form['host'],
                 port=int(request.form.get('port', 22)),
                 username=request.form['username'],
-                password=request.form.get('password', '')
+                auth_type=auth_type
             )
+            
+            if auth_type == 'password':
+                server.password = request.form.get('password', '')
+            else:
+                server.key_path = request.form.get('key_path', '')
+            
+            # 添加位置信息
+            server.location = request.form.get('location', '')
+            server.datacenter = request.form.get('datacenter', '')
+            server.rack = request.form.get('rack', '')
+            server.rack_position = request.form.get('rack_position', '')
+            
+            # 设置用户可选择属性
+            server.user_selectable = 'user_selectable' in request.form
+            
+            # 添加配置信息
+            server.cpu_model = request.form.get('cpu_model', '')
+            server.cpu_count = int(request.form['cpu_count']) if request.form.get('cpu_count') else None
+            server.gpu_model = request.form.get('gpu_model', '')
+            server.gpu_count = int(request.form['gpu_count']) if request.form.get('gpu_count') else None
+            server.memory_model = request.form.get('memory_model', '')
+            server.memory_count = int(request.form['memory_count']) if request.form.get('memory_count') else None
+            server.ssd_model = request.form.get('ssd_model', '')
+            server.ssd_count = int(request.form['ssd_count']) if request.form.get('ssd_count') else None
             db.session.add(server)
             db.session.commit()
             flash('服务器添加成功', 'success')
@@ -773,10 +847,41 @@ def admin_servers():
             server.port = int(request.form.get('port', 22))
             server.username = request.form['username']
             
-            # 只有提供了新密码才更新密码
-            new_password = request.form.get('password', '').strip()
-            if new_password:
-                server.password = new_password
+            # 更新认证类型
+            auth_type = request.form.get('auth_type', 'password')
+            server.auth_type = auth_type
+            
+            if auth_type == 'password':
+                # 只有提供了新密码才更新密码
+                new_password = request.form.get('password', '').strip()
+                if new_password:
+                    server.password = new_password
+                server.key_path = ''
+            else:
+                # 密钥认证
+                new_key_path = request.form.get('key_path', '').strip()
+                if new_key_path:
+                    server.key_path = new_key_path
+                server.password = ''
+            
+            # 更新位置信息
+            server.location = request.form.get('location', '')
+            server.datacenter = request.form.get('datacenter', '')
+            server.rack = request.form.get('rack', '')
+            server.rack_position = request.form.get('rack_position', '')
+            
+            # 更新用户可选择属性
+            server.user_selectable = 'user_selectable' in request.form
+            
+            # 更新配置信息
+            server.cpu_model = request.form.get('cpu_model', '')
+            server.cpu_count = int(request.form['cpu_count']) if request.form.get('cpu_count') else None
+            server.gpu_model = request.form.get('gpu_model', '')
+            server.gpu_count = int(request.form['gpu_count']) if request.form.get('gpu_count') else None
+            server.memory_model = request.form.get('memory_model', '')
+            server.memory_count = int(request.form['memory_count']) if request.form.get('memory_count') else None
+            server.ssd_model = request.form.get('ssd_model', '')
+            server.ssd_count = int(request.form['ssd_count']) if request.form.get('ssd_count') else None
                 
             db.session.commit()
             flash('服务器信息更新成功', 'success')
@@ -1492,6 +1597,245 @@ def api_notifications():
         unread_count = Notification.query.filter_by(admin_id=session['user_id'], is_read=False).count()
         return jsonify({'unread_count': unread_count})
     return jsonify({'unread_count': 0})
+
+@app.route('/api/generate_username', methods=['POST'])
+@login_required
+@admin_required
+def api_generate_username():
+    """为用户生成服务器账户名 API"""
+    try:
+        data = request.get_json()
+        chinese_name = data.get('chinese_name', '').strip()
+        server_id = data.get('server_id')
+        
+        if not chinese_name:
+            return jsonify({
+                'success': False, 
+                'message': '请提供中文姓名'
+            })
+        
+        if not server_id:
+            return jsonify({
+                'success': False, 
+                'message': '请提供服务器ID'
+            })
+        
+        # 检查服务器是否存在
+        server = Server.query.get(server_id)
+        if not server:
+            return jsonify({
+                'success': False, 
+                'message': '服务器不存在'
+            })
+        
+        # 生成用户名
+        username, message = generate_username_for_user(chinese_name, server_id)
+        
+        if username:
+            return jsonify({
+                'success': True,
+                'username': username,
+                'message': message
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'message': message
+            })
+            
+    except Exception as e:
+        logger.error(f"生成用户名 API 错误: {e}")
+        return jsonify({
+            'success': False,
+            'message': f'生成用户名失败: {str(e)}'
+        })
+
+@app.route('/api/validate_username', methods=['POST'])
+@login_required
+@admin_required
+def api_validate_username():
+    """验证用户名格式 API"""
+    try:
+        data = request.get_json()
+        username = data.get('username', '').strip()
+        server_id = data.get('server_id')
+        
+        if not username:
+            return jsonify({
+                'success': False,
+                'message': '请提供用户名'
+            })
+        
+        # 验证格式
+        if not validate_username_format(username):
+            return jsonify({
+                'success': False,
+                'message': '用户名不符合Linux命名规范（3-32位，字母开头，只能包含字母数字下划线连字符）'
+            })
+        
+        # 检查在服务器上是否已存在
+        if server_id:
+            existing_apps = Application.query.filter_by(
+                server_id=server_id,
+                server_username=username,
+                status='approved'
+            ).first()
+            
+            if existing_apps:
+                return jsonify({
+                    'success': False,
+                    'message': f'用户名 {username} 在该服务器上已存在'
+                })
+        
+        return jsonify({
+            'success': True,
+            'message': '用户名可用'
+        })
+        
+    except Exception as e:
+        logger.error(f"验证用户名 API 错误: {e}")
+        return jsonify({
+            'success': False,
+            'message': f'验证失败: {str(e)}'
+        })
+
+@app.route('/api/check_server_username', methods=['POST'])
+@login_required
+@admin_required
+def api_check_server_username():
+    """检查服务器上用户名是否存在 API"""
+    try:
+        data = request.get_json()
+        username = data.get('username', '').strip()
+        server_id = data.get('server_id')
+        
+        if not username or not server_id:
+            return jsonify({
+                'success': False,
+                'message': '请提供用户名和服务器ID'
+            })
+        
+        # 获取服务器
+        server = Server.query.get(server_id)
+        if not server:
+            return jsonify({
+                'success': False,
+                'message': '服务器不存在'
+            })
+        
+        # SSH连接检查用户名是否存在
+        from server_operations import ServerUserManager
+        manager = ServerUserManager(server)
+        
+        try:
+            if manager.connect():
+                exists = manager.user_exists(username)
+                manager.disconnect()
+                
+                return jsonify({
+                    'success': True,
+                    'exists': exists,
+                    'message': f'用户名 {username} {"已存在" if exists else "可用"}'
+                })
+            else:
+                return jsonify({
+                    'success': False,
+                    'message': '无法连接到服务器进行检查'
+                })
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'message': f'检查用户名时出错: {str(e)}'
+            })
+            
+    except Exception as e:
+        logger.error(f"检查服务器用户名 API 错误: {e}")
+        return jsonify({
+            'success': False,
+            'message': f'检查失败: {str(e)}'
+        })
+
+@app.route('/api/generate_batch_usernames', methods=['POST'])
+@login_required
+@admin_required
+def api_generate_batch_usernames():
+    """为批次中的权限申请生成用户名 API"""
+    try:
+        data = request.get_json()
+        batch_id = data.get('batch_id')
+        
+        if not batch_id:
+            return jsonify({
+                'success': False,
+                'message': '请提供批次ID'
+            })
+        
+        # 获取批次和权限申请
+        batch = ApplicationBatch.query.get(batch_id)
+        if not batch:
+            return jsonify({
+                'success': False,
+                'message': '批次不存在'
+            })
+        
+        applications = Application.query.filter_by(batch_id=batch_id).all()
+        if not applications:
+            return jsonify({
+                'success': False,
+                'message': '批次中没有权限申请'
+            })
+        
+        # 为每个需要创建用户的申请生成用户名
+        from username_generator import generate_username_for_user
+        
+        results = {}
+        server = applications[0].server
+        user = applications[0].user
+        
+        # 只为新用户生成用户名（检查是否已经有server_username）
+        if not applications[0].server_username:
+            # 使用用户的真实姓名生成用户名
+            user_real_name = user.name or user.username
+            username, message = generate_username_for_user(user_real_name, server.id)
+            
+            if username:
+                results = {
+                    'batch_id': batch_id,
+                    'server_id': server.id,
+                    'server_name': server.name,
+                    'user_id': user.id,
+                    'user_name': user.name or user.username,
+                    'generated_username': username,
+                    'message': message
+                }
+            else:
+                return jsonify({
+                    'success': False,
+                    'message': f'生成用户名失败: {message}'
+                })
+        else:
+            # 已有用户名，直接返回
+            results = {
+                'batch_id': batch_id,
+                'server_id': server.id,
+                'server_name': server.name,
+                'user_id': user.id,
+                'user_name': user.name or user.username,
+                'generated_username': applications[0].server_username,
+                'message': '使用现有用户名'
+            }
+        
+        return jsonify({
+            'success': True,
+            'data': results
+        })
+        
+    except Exception as e:
+        logger.error(f"生成批次用户名 API 错误: {e}")
+        return jsonify({
+            'success': False,
+            'message': f'生成用户名失败: {str(e)}'
+        })
 
 if __name__ == '__main__':
     create_tables()
