@@ -330,8 +330,8 @@ def dashboard():
             db.joinedload(ApplicationBatch.server)
         ).order_by(ApplicationBatch.created_at.desc()).limit(5).all()
         
-        # 可申请的服务器（所有服务器）
-        available_servers = Server.query.all()
+        # 可申请的服务器（仅显示管理员设置为可选择的服务器）
+        available_servers = Server.query.filter_by(user_selectable=True).all()
         
         return render_template('user_dashboard.html', 
                              user=user,
