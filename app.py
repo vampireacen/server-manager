@@ -87,16 +87,24 @@ def migrate_database():
             print(f"服务器表迁移错误: {e}")
             db.session.rollback()
         
-        # 检查并添加applications表的server_username字段
+        # 检查并添加applications表的新字段
         try:
             result = db.session.execute(db.text("PRAGMA table_info(applications)")).fetchall()
             app_columns = [row[1] for row in result]
             
+            # 检查并添加server_username字段
             if 'server_username' not in app_columns:
                 print("正在添加server_username字段到applications表...")
                 db.session.execute(db.text("ALTER TABLE applications ADD COLUMN server_username VARCHAR(50)"))
                 db.session.commit()
                 print("server_username字段添加成功")
+            
+            # 检查并添加nodekey字段
+            if 'nodekey' not in app_columns:
+                print("正在添加nodekey字段到applications表...")
+                db.session.execute(db.text("ALTER TABLE applications ADD COLUMN nodekey VARCHAR(200)"))
+                db.session.commit()
+                print("nodekey字段添加成功")
                 
         except Exception as e:
             print(f"applications表迁移错误: {e}")
@@ -139,6 +147,7 @@ def create_tables():
             {'name': '管理员权限', 'description': 'sudo权限和系统管理', 'requires_reason': True},
             {'name': 'Docker权限', 'description': 'Docker容器管理权限', 'requires_reason': True},
             {'name': '数据库权限', 'description': '数据库访问和管理权限', 'requires_reason': True},
+            {'name': 'Tailscale权限', 'description': '由于 Tailscale nodekey 具有时效性，需与管理员确认时间后再进行申请', 'requires_reason': True},
             {'name': '自定义权限', 'description': '其他特殊权限需求', 'requires_reason': True}
         ]
         
@@ -423,6 +432,16 @@ def apply():
                 server_id=server_id,
                 permission_type_id=permission_type_id
             )
+            
+            # 如果是 Tailscale 权限，添加 nodekey
+            permission_type = PermissionType.query.get(permission_type_id)
+            if permission_type and permission_type.name == 'Tailscale权限':
+                nodekey = request.form.get('nodekey', '')
+                if not nodekey:
+                    flash('Tailscale权限需要提供nodekey', 'error')
+                    return redirect(url_for('apply'))
+                application.nodekey = nodekey
+            
             db.session.add(application)
             created_applications.append(application)
         
@@ -689,7 +708,7 @@ def admin_review_batch(batch_id):
     # 批量配置所有批准的权限
     if approved_applications:
         try:
-            from server_operations import configure_user_permissions_batch
+            from server_operations import configure_user_permissions_batch, configure_tailscale_permission
             
             # 批量配置用户权限
             results = configure_user_permissions_batch(approved_applications)
@@ -701,6 +720,25 @@ def admin_review_batch(batch_id):
                     # 在管理员评论中记录自动化操作
                     auto_comment = f"\n[{timestamp}] 系统自动配置: {message}"
                     app.admin_comment = (app.admin_comment or '') + auto_comment
+                    
+                    # 如果是 Tailscale 权限，需要额外处理
+                    if app.permission_type.name == "Tailscale权限":
+                        try:
+                            tailscale_success, tailscale_message = configure_tailscale_permission(app)
+                            tailscale_timestamp = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+                            if tailscale_success:
+                                tailscale_comment = f"\n[{tailscale_timestamp}] Tailscale配置成功: {tailscale_message}"
+                                app.admin_comment += tailscale_comment
+                                logger.info(f"Tailscale权限配置成功 - 用户: {app.user.username}, 消息: {tailscale_message}")
+                            else:
+                                tailscale_comment = f"\n[{tailscale_timestamp}] Tailscale配置失败: {tailscale_message}"
+                                app.admin_comment += tailscale_comment
+                                logger.error(f"Tailscale权限配置失败 - 用户: {app.user.username}, 错误: {tailscale_message}")
+                        except Exception as e:
+                            tailscale_timestamp = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+                            tailscale_comment = f"\n[{tailscale_timestamp}] Tailscale配置异常: {str(e)}"
+                            app.admin_comment += tailscale_comment
+                            logger.error(f"Tailscale权限配置异常 - 用户: {app.user.username}, 异常: {str(e)}")
                 else:
                     # 在管理员评论中记录错误信息
                     error_comment = f"\n[{timestamp}] 自动配置失败: {message}，需要手动处理"
@@ -751,7 +789,7 @@ def admin_review_application(app_id):
         # 如果是批准状态，自动配置服务器权限
         if action == 'approved':
             try:
-                from server_operations import configure_user_permissions
+                from server_operations import configure_user_permissions, configure_tailscale_permission
                 
                 # 尝试自动配置用户权限
                 success, message = configure_user_permissions(application)
@@ -764,6 +802,25 @@ def admin_review_application(app_id):
                     timestamp = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
                     auto_comment = f"\n[{timestamp}] 系统自动配置: {message}"
                     application.admin_comment = (application.admin_comment or '') + auto_comment
+                    
+                    # 如果是 Tailscale 权限，需要额外处理
+                    if application.permission_type.name == "Tailscale权限":
+                        try:
+                            tailscale_success, tailscale_message = configure_tailscale_permission(application)
+                            tailscale_timestamp = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+                            if tailscale_success:
+                                tailscale_comment = f"\n[{tailscale_timestamp}] Tailscale配置成功: {tailscale_message}"
+                                application.admin_comment += tailscale_comment
+                                flash(f'Tailscale权限配置成功: {tailscale_message}', 'success')
+                            else:
+                                tailscale_comment = f"\n[{tailscale_timestamp}] Tailscale配置失败: {tailscale_message}"
+                                application.admin_comment += tailscale_comment
+                                flash(f'Tailscale权限配置失败: {tailscale_message}', 'warning')
+                        except Exception as e:
+                            tailscale_timestamp = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+                            tailscale_comment = f"\n[{tailscale_timestamp}] Tailscale配置异常: {str(e)}"
+                            application.admin_comment += tailscale_comment
+                            flash(f'Tailscale权限配置异常: {str(e)}', 'error')
                     
                 else:
                     # 权限配置失败，但申请状态保持为批准
@@ -1529,6 +1586,12 @@ def api_delete_user_enhanced():
         db.session.rollback()
         logger.error(f"增强删除用户API异常: {e}")
         return jsonify({'success': False, 'message': f'删除用户时发生异常: {str(e)}'}), 500
+
+@app.route('/tailscale_tutorial')
+@login_required
+def tailscale_tutorial():
+    """Tailscale教程页面"""
+    return render_template('tailscale_tutorial.html')
 
 @app.route('/account', methods=['GET', 'POST'])
 @login_required

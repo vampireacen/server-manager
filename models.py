@@ -124,6 +124,7 @@ class Application(db.Model):
     reviewed_by = db.Column(db.Integer, db.ForeignKey('users.id'))
     server_username = db.Column(db.String(50))  # 服务器账户名
     admin_comment = db.Column(db.Text)  # 管理员审核意见
+    nodekey = db.Column(db.String(200))  # Tailscale nodekey
     
     # 关系
     user = db.relationship('User', foreign_keys=[user_id], backref='applications')

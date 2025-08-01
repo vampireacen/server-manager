@@ -559,12 +559,130 @@ def configure_permission_by_type(manager, username, permission_type_name):
         else:
             return False, f"配置数据库权限失败: {output}"
     
+    elif permission_type_name == "Tailscale权限":
+        # Tailscale 权限需要特殊处理，直接返回成功
+        # 实际的配置将通过 configure_tailscale_permission 函数处理
+        return True, "Tailscale权限配置完成（通过headscale服务器）"
+    
     elif permission_type_name == "自定义权限":
         # 自定义权限保持基本权限，具体配置可能需要管理员手动处理
         return True, "自定义权限配置完成（可能需要管理员手动配置特定权限）"
     
     else:
         return False, f"未知的权限类型: {permission_type_name}"
+
+
+def configure_tailscale_permission(application):
+    """
+    配置Tailscale权限 - 在headscale服务器上注册节点
+    """
+    try:
+        # 获取相关信息
+        user = application.user
+        nodekey = application.nodekey
+        
+        if not nodekey:
+            return False, "缺少nodekey"
+        
+        # 连接到headscale服务器 (100.64.0.10)
+        headscale_manager = ServerUserManager(
+            host="100.64.0.10",
+            port=22,
+            username="root",  # 或者配置文件中的用户名
+            password=None,  # 需要配置密码或密钥
+            auth_type="password"  # 或者 "key"
+        )
+        
+        # 注册节点
+        register_cmd = f"sudo headscale nodes register --user iic --key {nodekey}"
+        success, output = headscale_manager.execute_command(register_cmd, require_sudo=False)
+        
+        if not success:
+            logger.error(f"Headscale节点注册失败: {output}")
+            return False, f"节点注册失败: {output}"
+        
+        logger.info(f"Headscale节点注册成功: {output}")
+        
+        # 获取最后一行节点信息
+        list_cmd = "sudo headscale nodes list | grep -v '^[[:space:]]*$' | tail -n 1"
+        success, nodes_output = headscale_manager.execute_command(list_cmd, require_sudo=False)
+        
+        if not success:
+            logger.warning(f"获取节点列表失败: {nodes_output}")
+            return True, "节点注册成功，但无法获取节点ID"
+        
+        # 解析节点ID（假设格式包含ID）
+        # 这里需要根据实际的headscale nodes list输出格式调整
+        try:
+            lines = nodes_output.strip().split('\n')
+            last_line = lines[-1] if lines else ""
+            # 假设第一列是ID，需要根据实际格式调整
+            parts = last_line.split()
+            if parts:
+                node_id = parts[0]
+                logger.info(f"获取到节点ID: {node_id}")
+                
+                # 生成设备名称
+                device_name = generate_device_name(user.name, headscale_manager)
+                
+                # 重命名设备
+                if device_name:
+                    rename_cmd = f"sudo headscale nodes rename {device_name} -i {node_id}"
+                    success, rename_output = headscale_manager.execute_command(rename_cmd, require_sudo=False)
+                    
+                    if success:
+                        logger.info(f"设备重命名成功: {device_name}")
+                        return True, f"Tailscale节点注册成功，设备已重命名为: {device_name}"
+                    else:
+                        logger.warning(f"设备重命名失败: {rename_output}")
+                        return True, f"节点注册成功，但重命名失败: {rename_output}"
+                else:
+                    return True, "节点注册成功，但设备名称生成失败"
+            else:
+                return True, "节点注册成功，但无法解析节点ID"
+        except Exception as e:
+            logger.error(f"解析节点信息失败: {e}")
+            return True, f"节点注册成功，但解析节点信息失败: {str(e)}"
+        
+    except Exception as e:
+        logger.error(f"配置Tailscale权限异常: {e}")
+        return False, f"配置Tailscale权限时发生异常: {str(e)}"
+
+
+def generate_device_name(user_name, headscale_manager):
+    """
+    根据用户姓名生成唯一的设备名称
+    """
+    try:
+        if not user_name:
+            return None
+        
+        # 转换中文姓名为拼音（简单处理，实际可能需要更复杂的转换）
+        # 这里假设user_name已经是拼音或英文
+        base_name = user_name.lower().replace(" ", "")
+        
+        # 检查重名并生成唯一名称
+        counter = 1
+        while True:
+            device_name = f"{base_name}-{counter:02d}"
+            
+            # 检查是否已存在
+            check_cmd = f'sudo headscale nodes list | grep "{device_name}"'
+            success, output = headscale_manager.execute_command(check_cmd, require_sudo=False)
+            
+            # 如果grep没有找到匹配（失败），说明名称可用
+            if not success:
+                return device_name
+            
+            counter += 1
+            # 防止无限循环
+            if counter > 99:
+                logger.warning(f"设备名称生成达到最大尝试次数: {base_name}")
+                return f"{base_name}-{counter:02d}"
+                
+    except Exception as e:
+        logger.error(f"生成设备名称失败: {e}")
+        return None
 
 
 def revoke_user_permissions(application):
@@ -577,7 +695,10 @@ def revoke_user_permissions(application):
         user = application.user
         permission_type = application.permission_type
         
-        logger.info(f"开始撤销用户 {user.username} 在服务器 {server.name} 的 {permission_type.name}")
+        # 获取服务器上的实际账户名
+        server_username = application.server_username or user.username
+        
+        logger.info(f"开始撤销用户 {user.username} (服务器账户: {server_username}) 在服务器 {server.name} 的 {permission_type.name}")
         
         manager = ServerUserManager(server)
         
@@ -586,11 +707,11 @@ def revoke_user_permissions(application):
         
         try:
             # 检查用户是否存在
-            if not manager.user_exists(user.username):
-                return True, "用户不存在，无需撤销权限"
+            if not manager.user_exists(server_username):
+                return True, "服务器账户不存在，无需撤销权限"
             
             # 根据权限类型撤销权限
-            success, message = revoke_permission_by_type(manager, user.username, permission_type.name)
+            success, message = revoke_permission_by_type(manager, server_username, permission_type.name)
             
             logger.info(f"权限撤销完成: {user.username} - {permission_type.name}")
             return success, message

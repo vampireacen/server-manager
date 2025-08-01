@@ -1,0 +1,635 @@
+{% extends "base.html" %}
+
+{% block title %}Tailscale教程 - 服务器管理系统{% endblock %}
+
+{% block content %}
+<!-- 页面头部 -->
+<div class="mb-4">
+    <h1 class="h3 mb-2" style="color: var(--claude-text-primary); font-weight: 600;">
+        <i class="bi bi-router me-2" style="color: var(--claude-primary);"></i>
+        Tailscale VPN 使用教程
+    </h1>
+    <p class="text-muted mb-0">选择您的操作系统查看详细的安装和配置指南</p>
+</div>
+
+<!-- 系统选择区域 -->
+<div class="claude-card mb-4">
+    <div class="claude-card-body text-center">
+        <h5 class="mb-4">选择您的操作系统</h5>
+        <div class="row justify-content-center">
+            <div class="col-lg-2 col-md-3 col-sm-4 col-6 mb-3">
+                <div class="system-option" data-system="windows">
+                    <div class="system-card">
+                        <i class="bi bi-windows"></i>
+                        <span>Windows</span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-2 col-md-3 col-sm-4 col-6 mb-3">
+                <div class="system-option" data-system="macos">
+                    <div class="system-card">
+                        <i class="bi bi-apple"></i>
+                        <span>macOS</span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-2 col-md-3 col-sm-4 col-6 mb-3">
+                <div class="system-option" data-system="linux">
+                    <div class="system-card">
+                        <i class="bi bi-ubuntu"></i>
+                        <span>Linux</span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-2 col-md-3 col-sm-4 col-6 mb-3">
+                <div class="system-option" data-system="ios">
+                    <div class="system-card">
+                        <i class="bi bi-phone"></i>
+                        <span>iOS</span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-2 col-md-3 col-sm-4 col-6 mb-3">
+                <div class="system-option" data-system="android">
+                    <div class="system-card">
+                        <i class="bi bi-android2"></i>
+                        <span>Android</span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-2 col-md-3 col-sm-4 col-6 mb-3">
+                <div class="system-option" data-system="faq">
+                    <div class="system-card">
+                        <i class="bi bi-question-circle"></i>
+                        <span>常见问题</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Linux 教程内容 -->
+<div class="tutorial-content" id="tutorial-linux" style="display: none;">
+    <div class="claude-card">
+        <div class="claude-card-header">
+            <h5 class="mb-0">
+                <i class="bi bi-ubuntu me-2"></i>
+                Linux 安装与配置
+            </h5>
+        </div>
+        <div class="claude-card-body">
+            <h6 class="text-primary">安装 Tailscale</h6>
+            <div class="mb-4">
+                <p><strong>1. 自动安装（推荐）</strong></p>
+                <div class="code-block">
+                    <pre><code>curl -fsSL https://tailscale.com/install.sh | sh</code></pre>
+                </div>
+                
+                <p class="mt-3"><strong>2. 手动安装</strong></p>
+                <p>添加 Tailscale 的软件包签名密钥和软件源：</p>
+                <div class="code-block">
+                    <pre><code>curl -fsSL https://pkgs.tailscale.com/stable/ubuntu/jammy.noarmor.gpg | sudo tee /usr/share/keyrings/tailscale-archive-keyring.gpg >/dev/null
+curl -fsSL https://pkgs.tailscale.com/stable/ubuntu/jammy.tailscale-keyring.list | sudo tee /etc/apt/sources.list.d/tailscale.list</code></pre>
+                </div>
+                
+                <p class="mt-2">安装 Tailscale：</p>
+                <div class="code-block">
+                    <pre><code>sudo apt-get update
+sudo apt-get install tailscale</code></pre>
+                </div>
+            </div>
+            
+            <h6 class="text-primary">注册设备</h6>
+            <div class="alert alert-warning">
+                <i class="bi bi-exclamation-triangle me-2"></i>
+                <strong>重要提示：</strong>注册设备之前一定要先与管理员联系并确定管理员是否可以进行操作，如果管理员现在没空，那你下面的操作也都会白费！
+            </div>
+            
+            <p>确保已经安装好 Tailscale 后，注册当前设备：</p>
+            <div class="code-block">
+                <pre><code>sudo tailscale up --login-server=http://111.15.182.56:3400/ --accept-routes=true --accept-dns=false</code></pre>
+            </div>
+            
+            <p class="mt-3">执行完上述命令后会出现一个链接，点击链接（在管理员注册完当前设备前请不要退出该命令，直到出现 Success.）</p>
+            <div class="code-block">
+                <pre><code>To authenticate, visit:
+
+        http://111.15.182.56:3400/register/nodekey:{YOUR_API}</code></pre>
+            </div>
+            
+            <p class="mt-3">在弹出的网页中复制命令给管理员：</p>
+            <div class="code-block">
+                <pre><code>headscale nodes register --user USERNAME --key nodekey:{YOUR_KEY}</code></pre>
+            </div>
+            
+            <p class="mt-3">等待管理员注册完成，命令行出现 <code>Success.</code> 后表示注册完成：</p>
+            <div class="code-block">
+                <pre><code>To authenticate, visit:
+
+        http://111.15.182.56:3400/register/nodekey:{YOUR_KEY}
+
+Success.</code></pre>
+            </div>
+            
+            <p class="mt-3">注册完成后即可访问 Tailscale 网络。</p>
+        </div>
+    </div>
+</div>
+
+<!-- Windows 教程内容 -->
+<div class="tutorial-content" id="tutorial-windows" style="display: none;">
+    <div class="claude-card">
+        <div class="claude-card-header">
+            <h5 class="mb-0">
+                <i class="bi bi-windows me-2"></i>
+                Windows 安装与配置
+            </h5>
+        </div>
+        <div class="claude-card-body">
+            <h6 class="text-primary">安装 Tailscale</h6>
+            <div class="mb-4">
+                <p>从 Tailscale 官网下载客户端并安装：</p>
+                <p><a href="https://tailscale.com/download" target="_blank" class="btn btn-outline-primary btn-sm">
+                    <i class="bi bi-download me-1"></i>下载 Tailscale
+                </a></p>
+                <div class="text-center my-3">
+                    <img src="{{ url_for('static', filename='images/tailscale/Untitled 1.png') }}" 
+                         class="img-fluid rounded shadow-sm" alt="Windows Tailscale 下载页面" style="max-width: 600px;">
+                </div>
+                <p class="mt-2">同意并安装，在安装过程中最好关掉其他 VPN，可能会加速安装。</p>
+            </div>
+            
+            <h6 class="text-primary">注册设备</h6>
+            <div class="alert alert-warning">
+                <i class="bi bi-exclamation-triangle me-2"></i>
+                <strong>重要提示：</strong>注册设备之前一定要先与管理员联系并确定管理员是否可以进行操作，如果管理员现在没空，那你下面的操作也都会白费！
+            </div>
+            
+            <p>安装成功后，不需要自己注册账号并登录（如果你想也可以）。</p>
+            <p>在浏览器输入网址：<a href="http://111.15.182.56:3400/windows" target="_blank">http://111.15.182.56:3400/windows</a></p>
+            <div class="text-center my-3">
+                <img src="{{ url_for('static', filename='images/tailscale/Untitled 2.png') }}" 
+                     class="img-fluid rounded shadow-sm" alt="Windows 注册页面" style="max-width: 600px;">
+            </div>
+            
+            <p class="mt-3">复制界面中的命令行到终端并执行：</p>
+            <div class="code-block">
+                <pre><code>tailscale login --login-server http://111.15.182.56:3400</code></pre>
+            </div>
+            
+            <p class="mt-3">执行完上述命令后会出现一个链接，点击链接（在管理员注册完当前设备前请不要退出该命令，直到出现 Success.）</p>
+            <div class="code-block">
+                <pre><code>To authenticate, visit:
+
+        http://111.15.182.56:3400/register/nodekey:{YOUR_API}</code></pre>
+            </div>
+            
+            <p class="mt-3">在弹出的网页中复制命令给管理员：</p>
+            <div class="code-block">
+                <pre><code>headscale nodes register --user USERNAME --key nodekey:{YOUR_KEY}</code></pre>
+            </div>
+            
+            <p class="mt-3">等待管理员注册完成，命令行出现 <code>Success.</code> 后表示注册完成。</p>
+            <p class="mt-2">注册完成后任务栏托盘中的 Tailscale 图标会发生变化，表示连接成功。</p>
+            <div class="text-center my-3">
+                <img src="{{ url_for('static', filename='images/tailscale/Untitled 3.png') }}" 
+                     class="img-fluid rounded shadow-sm" alt="Windows Tailscale 连接成功图标" style="max-width: 400px;">
+            </div>
+            
+            <h6 class="text-primary mt-4">查看信息</h6>
+            <p>注册完成后，点击任务栏图标即可显示当前的 Tailscale 网络和设备信息。</p>
+            <p><strong>This Device</strong> 为当前设备信息：设备名(IPv6地址)</p>
+            <p><strong>Network Devices → My Devices</strong> 为当前 Tailscale 网络中的所有设备，点击设备即可复制设备的 IPv6 地址。</p>
+            
+            <p class="mt-2">在命令行输入如下命令，可查看当前设备的 IPv4：</p>
+            <div class="code-block">
+                <pre><code>tailscale ip -4</code></pre>
+            </div>
+            
+            <p class="mt-2">输入如下命令，可查看 Tailscale 网络的连接情况：</p>
+            <div class="code-block">
+                <pre><code>tailscale status</code></pre>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- macOS 教程内容 -->
+<div class="tutorial-content" id="tutorial-macos" style="display: none;">
+    <div class="claude-card">
+        <div class="claude-card-header">
+            <h5 class="mb-0">
+                <i class="bi bi-apple me-2"></i>
+                macOS 安装与配置
+            </h5>
+        </div>
+        <div class="claude-card-body">
+            <h6 class="text-primary">安装 Tailscale</h6>
+            <div class="mb-4">
+                <p>macOS 的安装有三种方式，参考链接：<a href="https://tailscale.com/kb/1065/macos-variants/" target="_blank">Three ways to run Tailscale on macOS</a></p>
+                <ul>
+                    <li>如果你有美区的 Apple ID，建议使用第一种，切换到美区账号下载完再切回来</li>
+                    <li>如果没有美区的 Apple ID，可以尝试使用第二种或者第三种</li>
+                </ul>
+                <p>在安装过程中，会提示要添加 VPN（一定要点击同意）</p>
+                <p>安装完成后如果 Tailscale 的 app 没有在应用程序中，需要把 app 移动到应用程序中。</p>
+            </div>
+            
+            <h6 class="text-primary">注册设备</h6>
+            <div class="alert alert-warning">
+                <i class="bi bi-exclamation-triangle me-2"></i>
+                <strong>重要提示：</strong>注册设备之前一定要先与管理员联系并确定管理员是否可以进行操作，如果管理员现在没空，那你下面的操作也都会白费！
+            </div>
+            
+            <p>不需要自己注册账号并登录（如果你想也可以）。首先检查命令行中 tailscale 是否存在：</p>
+            <div class="code-block">
+                <pre><code>$ tailscale
+zsh: command not found: tailscale</code></pre>
+            </div>
+            
+            <p class="mt-3">如果出现以上情况需要执行：</p>
+            <div class="code-block">
+                <pre><code>alias tailscale='/Applications/Tailscale.app/Contents/MacOS/Tailscale'</code></pre>
+            </div>
+            
+            <p class="mt-2">或者直接把这行命令写到 ~/.zshrc 中并 source（推荐）</p>
+            
+            <p class="mt-3">检查无误后，浏览器输入：<a href="http://111.15.182.56:3400/apple" target="_blank">http://111.15.182.56:3400/apple</a></p>
+            <div class="text-center my-3">
+                <img src="{{ url_for('static', filename='images/tailscale/Untitled 4.png') }}" 
+                     class="img-fluid rounded shadow-sm" alt="macOS 注册页面" style="max-width: 600px;">
+            </div>
+            
+            <p class="mt-3">复制界面中的命令行到终端并执行：</p>
+            <div class="code-block">
+                <pre><code>tailscale login --login-server http://111.15.182.56:3400</code></pre>
+            </div>
+            
+            <p class="mt-3">执行完上述命令后会出现一个链接，点击链接（在管理员注册完当前设备前请不要退出该命令，直到出现 Success.）</p>
+            <div class="code-block">
+                <pre><code>To authenticate, visit:
+
+        http://111.15.182.56:3400/register/nodekey:{YOUR_API}</code></pre>
+            </div>
+            
+            <p class="mt-3">在弹出的网页中复制命令给管理员：</p>
+            <div class="code-block">
+                <pre><code>headscale nodes register --user USERNAME --key nodekey:{YOUR_KEY}</code></pre>
+            </div>
+            
+            <p class="mt-3">等待管理员注册完成，命令行出现 <code>Success.</code> 后表示注册完成。</p>
+            <p class="mt-2">注册完成后顶部菜单栏托盘中的 Tailscale 图标会发生变化。</p>
+            <div class="text-center my-3">
+                <img src="{{ url_for('static', filename='images/tailscale/Untitled 5.png') }}" 
+                     class="img-fluid rounded shadow-sm" alt="macOS Tailscale 连接成功图标" style="max-width: 400px;">
+            </div>
+            
+            <h6 class="text-primary mt-4">查看信息</h6>
+            <p>注册完成后，点击任务栏图标即可显示当前的 Tailscale 网络和设备信息。</p>
+            <p><strong>This Device</strong> 为当前设备信息：设备名(IPv6地址)</p>
+            <p><strong>Network Devices → My Devices</strong> 为当前 Tailscale 网络中的所有设备，点击设备即可复制设备的 IPv6 地址。</p>
+            
+            <p class="mt-2">在命令行输入如下命令，可查看当前设备的 IPv4：</p>
+            <div class="code-block">
+                <pre><code>tailscale ip -4</code></pre>
+            </div>
+            
+            <p class="mt-2">输入如下命令，可查看 Tailscale 网络的连接情况：</p>
+            <div class="code-block">
+                <pre><code>tailscale status</code></pre>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- iOS 教程内容 -->
+<div class="tutorial-content" id="tutorial-ios" style="display: none;">
+    <div class="claude-card">
+        <div class="claude-card-header">
+            <h5 class="mb-0">
+                <i class="bi bi-phone me-2"></i>
+                iOS 安装与配置
+            </h5>
+        </div>
+        <div class="claude-card-body">
+            <div class="alert alert-warning">
+                <i class="bi bi-exclamation-triangle me-2"></i>
+                <strong>重要提示：</strong>注册设备之前一定要先与管理员联系并确定管理员是否可以进行操作，如果管理员现在没空，那你下面的操作也都会白费！
+            </div>
+            
+            <h6 class="text-primary">安装步骤</h6>
+            <ol>
+                <li class="mb-2">从 <strong>App Store</strong> 下载 Tailscale app</li>
+                    <div class="text-center my-3">
+                        <img src="{{ url_for('static', filename='images/tailscale/Untitled 8.png') }}" 
+                                class="img-fluid rounded shadow-sm" alt="iOS Tailscale 主界面" style="max-width: 300px;">
+                    </div>
+                <li class="mb-2">打开应用的主界面，<strong>不要点击 Log in，点击右上角的头像 logo</strong>
+                    <div class="text-center my-3">
+                        <img src="{{ url_for('static', filename='images/tailscale/Untitled 9.png') }}" 
+                             class="img-fluid rounded shadow-sm" alt="iOS 账号选择界面" style="max-width: 300px;">
+                    </div>
+                </li>
+                <li class="mb-2">如果有别的账号，这里会显示别的账号，如果没有这里就是空的，<strong>点击右上角的三个点</strong>
+                    <div class="text-center my-3">
+                        <img src="{{ url_for('static', filename='images/tailscale/Untitled 10.png') }}" 
+                             class="img-fluid rounded shadow-sm" alt="iOS 自定义服务器选项" style="max-width: 300px;">
+                    </div>
+                </li>
+                <li class="mb-2">在弹出来的菜单中选择第一个选项：<strong>Use a custom coordination server</strong>
+                    <div class="text-center my-3">
+                        <img src="{{ url_for('static', filename='images/tailscale/Untitled 11.png') }}" 
+                             class="img-fluid rounded shadow-sm" alt="iOS 服务器地址输入" style="max-width: 300px;">
+                    </div>
+                </li>
+                <li class="mb-2">在弹出的界面中的输入框中输入：<code>http://111.15.182.56:3400</code> 并点击 <strong>Log in 开始注册设备</strong>
+                    <div class="text-center my-3">
+                        <img src="{{ url_for('static', filename='images/tailscale/Untitled 12.png') }}" 
+                             class="img-fluid rounded shadow-sm" alt="iOS 连接成功状态" style="max-width: 300px;">
+                    </div>
+                </li>
+                <li class="mb-2">点击后会弹出一个对话框，点击继续，接着会弹出一个新页面，复制页面中的最下方的命令行给管理员并等待管理员操作完成</li>
+                <li class="mb-2">管理员操作完成后弹出的页面会自己关闭，状态栏右上角显示 VPN 图标则表示连接成功
+                </li>
+            </ol>
+        </div>
+    </div>
+</div>
+
+<!-- Android 教程内容 -->
+<div class="tutorial-content" id="tutorial-android" style="display: none;">
+    <div class="claude-card">
+        <div class="claude-card-header">
+            <h5 class="mb-0">
+                <i class="bi bi-android2 me-2"></i>
+                Android 安装与配置
+            </h5>
+        </div>
+        <div class="claude-card-body">
+            <div class="alert alert-warning">
+                <i class="bi bi-exclamation-triangle me-2"></i>
+                <strong>重要提示：</strong>注册设备之前一定要先与管理员联系并确定管理员是否可以进行操作，如果管理员现在没空，那你下面的操作也都会白费！
+            </div>
+            
+            <h6 class="text-primary">安装步骤</h6>
+            <ol>
+                <li class="mb-2">从 <strong>Google Play</strong> 下载 Tailscale apk</li>
+                <li class="mb-2">打开应用的主界面，<strong>不要点击 Log in，点击右上角的头像 logo</strong>
+                    <div class="text-center my-3">
+                        <img src="{{ url_for('static', filename='images/tailscale/Untitled 8.png') }}" 
+                             class="img-fluid rounded shadow-sm" alt="Android Tailscale 主界面" style="max-width: 300px;">
+                    </div>
+                </li>
+                <li class="mb-2">如果有别的账号，这里会显示别的账号，如果没有这里就是空的，<strong>点击右上角的三个点</strong>
+                    <div class="text-center my-3">
+                        <img src="{{ url_for('static', filename='images/tailscale/Untitled 9.png') }}" 
+                             class="img-fluid rounded shadow-sm" alt="Android 账号选择界面" style="max-width: 300px;">
+                    </div>
+                </li>
+                <li class="mb-2">在弹出来的菜单中选择第一个选项：<strong>Use a custom coordination server</strong>
+                    <div class="text-center my-3">
+                        <img src="{{ url_for('static', filename='images/tailscale/Untitled 10.png') }}" 
+                             class="img-fluid rounded shadow-sm" alt="Android 自定义服务器选项" style="max-width: 300px;">
+                    </div>
+                </li>
+                <li class="mb-2">在弹出的界面中的输入框中输入：<code>http://111.15.182.56:3400</code> 并点击 <strong>Log in 开始注册设备</strong>
+                    <div class="text-center my-3">
+                        <img src="{{ url_for('static', filename='images/tailscale/Untitled 11.png') }}" 
+                             class="img-fluid rounded shadow-sm" alt="Android 服务器地址输入" style="max-width: 300px;">
+                    </div>
+                </li>
+                <li class="mb-2">点击后会弹出一个对话框，点击继续，接着会弹出一个新页面，复制页面中的最下方的命令行给管理员并等待管理员操作完成</li>
+                <li class="mb-2">管理员操作完成后弹出的页面会自己关闭，状态栏右上角显示 VPN 图标则表示连接成功
+                    <div class="text-center my-3">
+                        <img src="{{ url_for('static', filename='images/tailscale/Untitled 12.png') }}" 
+                             class="img-fluid rounded shadow-sm" alt="Android 连接成功状态" style="max-width: 300px;">
+                    </div>
+                </li>
+            </ol>
+        </div>
+    </div>
+</div>
+
+<!-- FAQ 教程内容 -->
+<div class="tutorial-content" id="tutorial-faq" style="display: none;">
+    <div class="claude-card">
+        <div class="claude-card-header">
+            <h5 class="mb-0">
+                <i class="bi bi-question-circle me-2"></i>
+                常见问题解答
+            </h5>
+        </div>
+        <div class="claude-card-body">
+            <div class="accordion" id="faqAccordion">
+                <div class="accordion-item">
+                    <h2 class="accordion-header" id="faq1">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse1">
+                            <i class="bi bi-clock me-2"></i>
+                            延迟问题
+                        </button>
+                    </h2>
+                    <div id="collapse1" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+                        <div class="accordion-body">
+                            <p><strong>问题描述：</strong>ping 服务器的延迟在 100ms 以上，说明当前设备与服务器的连接使用的是国外节点，需要切换到自建节点（qd-custom-2）延迟才能恢复正常。</p>
+                            
+                            <p><strong>解决办法：</strong></p>
+                            <ol>
+                                <li>使用当前网络 ping 服务器，确认延迟较高问题存在</li>
+                                <li>断开当前网络，并连接手机热点（连接网线的设备，<strong>确保有线网络已断开后再连接手机热点</strong>）</li>
+                                <li>连接热点后，再 ping 服务器，等待几秒钟，正常情况延迟已经恢复到 50ms 左右或以下</li>
+                                <li>若连接热点时延迟已经正常，则切换回有线网络即可正常使用</li>
+                            </ol>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="accordion-item">
+                    <h2 class="accordion-header" id="faq2">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse2">
+                            <i class="bi bi-shield-x me-2"></i>
+                            连接失败问题
+                        </button>
+                    </h2>
+                    <div id="collapse2" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+                        <div class="accordion-body">
+                            <p><strong>问题描述：</strong>无法连接到 Tailscale 网络或者连接后无法访问其他设备。</p>
+                            
+                            <p><strong>可能的解决方案：</strong></p>
+                            <ul>
+                                <li>确认防火墙设置没有阻止 Tailscale</li>
+                                <li>检查其他 VPN 软件是否冲突，建议关闭其他 VPN</li>
+                                <li>重启 Tailscale 服务或重新安装</li>
+                                <li>联系管理员确认节点是否正确注册</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="accordion-item">
+                    <h2 class="accordion-header" id="faq3">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse3">
+                            <i class="bi bi-key me-2"></i>
+                            Nodekey 相关问题
+                        </button>
+                    </h2>
+                    <div id="collapse3" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+                        <div class="accordion-body">
+                            <p><strong>什么是 Nodekey？</strong></p>
+                            <p>Nodekey 是 Tailscale 设备的唯一标识符，用于向 Headscale 服务器注册设备。每次设备尝试连接时都会生成。</p>
+                            
+                            <p><strong>如何获取 Nodekey？</strong></p>
+                            <p>执行连接命令后，系统会显示包含 nodekey 的注册链接，格式如：<code>http://111.15.182.56:3400/register/nodekey:xxxxxxxx</code></p>
+                            
+                            <p><strong>Nodekey 过期了怎么办？</strong></p>
+                            <p>Nodekey 具有时效性，如果过期需要重新执行连接命令生成新的 nodekey，然后重新申请权限。</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<style>
+/* 系统选择卡片样式 */
+.system-option {
+    cursor: pointer;
+    transition: var(--claude-transition-fast);
+}
+
+.system-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px 15px;
+    border: 2px solid var(--claude-border-light);
+    border-radius: var(--claude-radius-md);
+    background: white;
+    transition: var(--claude-transition-fast);
+    height: 120px;
+    justify-content: center;
+}
+
+.system-card:hover {
+    border-color: var(--claude-primary);
+    box-shadow: var(--claude-shadow-md);
+    transform: translateY(-2px);
+}
+
+.system-option.active .system-card {
+    border-color: var(--claude-primary);
+    background: rgba(255, 107, 53, 0.05);
+}
+
+.system-card i {
+    font-size: 2.5rem;
+    color: var(--claude-primary);
+    margin-bottom: 8px;
+}
+
+.system-card span {
+    font-weight: 500;
+    color: var(--claude-text-primary);
+}
+
+/* 代码块样式 */
+.code-block {
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: var(--claude-radius);
+    margin: 10px 0;
+}
+
+.code-block pre {
+    margin: 0;
+    padding: 12px 16px;
+    background: transparent;
+    border: none;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+.code-block code {
+    color: #d63384;
+    background: transparent;
+    font-size: 0.875rem;
+}
+
+/* 教程内容样式 */
+.tutorial-content {
+    animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* FAQ 样式 */
+.accordion-button {
+    background: white !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
+.accordion-button:not(.collapsed) {
+    background: rgba(255, 107, 53, 0.05) !important;
+    color: var(--claude-primary) !important;
+}
+
+.accordion-button:focus {
+    box-shadow: none !important;
+}
+
+.accordion-item {
+    border: 1px solid var(--claude-border-light) !important;
+    border-radius: var(--claude-radius) !important;
+    margin-bottom: 8px;
+}
+
+.accordion-item:last-of-type {
+    border-bottom: 1px solid var(--claude-border-light) !important;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // 系统选择功能
+    const systemOptions = document.querySelectorAll('.system-option');
+    const tutorialContents = document.querySelectorAll('.tutorial-content');
+    
+    systemOptions.forEach(option => {
+        option.addEventListener('click', function() {
+            const selectedSystem = this.dataset.system;
+            
+            // 移除所有活动状态
+            systemOptions.forEach(opt => opt.classList.remove('active'));
+            tutorialContents.forEach(content => content.style.display = 'none');
+            
+            // 设置当前选择为活动状态
+            this.classList.add('active');
+            
+            // 显示对应的教程内容
+            const targetContent = document.getElementById(`tutorial-${selectedSystem}`);
+            if (targetContent) {
+                targetContent.style.display = 'block';
+                // 滚动到教程内容
+                targetContent.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        });
+    });
+    
+    // 不设置默认选择，让用户自己选择操作系统
+});
+</script>
+{% endblock %}

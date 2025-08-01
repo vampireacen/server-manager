@@ -154,7 +154,7 @@
                                 <i class="bi bi-shield-check me-2" style="color: var(--claude-info);"></i>
                                 <div>
                                     <strong>{{ batch.applications.count() }} 个权限</strong>
-                                    <br><div>{% set app_list = batch.applications.all() %}{% for app in app_list[:2] %}{% set permission_color = 'secondary' if app.permission_type.name == '普通用户' else 'danger' if app.permission_type.name == '管理员权限' else 'info' if app.permission_type.name == 'Docker权限' else 'warning' if app.permission_type.name == '数据库权限' else 'primary' %}<span class="claude-badge claude-badge-sm claude-badge-{{ permission_color }} me-1" style="font-size: 0.7rem;">{{ app.permission_type.name }}</span>{% endfor %}{% if app_list|length > 2 %}<span class="text-muted small">...</span>{% endif %}</div>
+                                    <br><div>{% set app_list = batch.applications.all() %}{% for app in app_list[:2] %}{% set permission_color = 'secondary' if app.permission_type.name == '普通用户' else 'danger' if app.permission_type.name == '管理员权限' else 'info' if app.permission_type.name == 'Docker权限' else 'warning' if app.permission_type.name == '数据库权限' else 'danger' if app.permission_type.name == 'Tailscale权限' else 'primary' %}<span class="claude-badge claude-badge-sm claude-badge-{{ permission_color }} me-1" style="font-size: 0.7rem;">{{ app.permission_type.name }}</span>{% endfor %}{% if app_list|length > 2 %}<span class="text-muted small">...</span>{% endif %}</div>
                                 </div>
                             </div>
                         </div>
@@ -169,7 +169,7 @@
                             <div class="permissions-summary">
                                 {% for app in batch.applications %}
                                 <div class="permission-item d-flex justify-content-between align-items-center mb-1">
-                                    {% set permission_color = 'secondary' if app.permission_type.name == '普通用户' else 'danger' if app.permission_type.name == '管理员权限' else 'info' if app.permission_type.name == 'Docker权限' else 'warning' if app.permission_type.name == '数据库权限' else 'primary' %}
+                                    {% set permission_color = 'secondary' if app.permission_type.name == '普通用户' else 'danger' if app.permission_type.name == '管理员权限' else 'info' if app.permission_type.name == 'Docker权限' else 'warning' if app.permission_type.name == '数据库权限' else 'danger' if app.permission_type.name == 'Tailscale权限' else 'primary' %}
                                     <span class="claude-badge claude-badge-sm claude-badge-{{ permission_color }}">{{ app.permission_type.name }}</span>
                                     <span class="claude-badge claude-badge-sm claude-badge-{{ 'success' if app.status == 'approved' else 'danger' if app.status == 'rejected' else 'warning' if app.status == 'revoked' else 'secondary' }}">
                                         <i class="bi bi-{{ 'check-circle' if app.status == 'approved' else 'x-circle' if app.status == 'rejected' else 'slash-circle' if app.status == 'revoked' else 'clock-history' }}"></i>
@@ -408,6 +408,30 @@
 .permission-info {
     flex: 1;
     padding-right: 20px;
+}
+
+/* Tailscale nodekey 显示样式 */
+.tailscale-nodekey {
+    margin-top: 12px;
+    padding: 8px;
+    background: rgba(220, 53, 69, 0.05);
+    border: 1px solid rgba(220, 53, 69, 0.2);
+    border-radius: 6px;
+}
+
+.nodekey-display {
+    display: flex;
+    align-items: center;
+    word-break: break-all;
+}
+
+.nodekey-display code {
+    flex: 1;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 0.8rem;
+    background: transparent;
+    border: none;
+    color: #d63384;
 }
 
 .permission-info h6 {
@@ -655,6 +679,7 @@ function showBatchReviewModal(batchId) {
                 '管理员权限': 'danger',
                 'Docker权限': 'info',
                 '数据库权限': 'warning',
+                'Tailscale权限': 'danger',
                 '自定义权限': 'primary'
             };
             return colorMap[permType] || 'primary';
@@ -668,6 +693,20 @@ function showBatchReviewModal(batchId) {
                     <div class="permission-info">
                         <div class="mb-2"><span class="claude-badge claude-badge-${permissionColorClass}">${perm.permission_type.name}</span></div>
                         <div class="description">${perm.permission_type.description}</div>
+                        ${perm.permission_type.name === 'Tailscale权限' && perm.nodekey ? `
+                        <div class="tailscale-nodekey mt-2">
+                            <label class="form-label small fw-bold text-danger">
+                                <i class="bi bi-key me-1"></i>Tailscale Nodekey:
+                            </label>
+                            <div class="nodekey-display bg-light p-2 rounded">
+                                <code class="small">${perm.nodekey}</code>
+                                <button type="button" class="btn btn-sm btn-outline-secondary ms-2" 
+                                        onclick="copyToClipboard('${perm.nodekey}', this)">
+                                    <i class="bi bi-clipboard"></i>
+                                </button>
+                            </div>
+                        </div>
+                        ` : ''}
                         ${perm.reviewed_at ? `
                         <div class="review-time">审核时间: ${new Date(perm.reviewed_at).toLocaleString()}</div>
                         ${perm.reviewer ? `<div class="reviewer-info">审核管理员: ${perm.reviewer.username}</div>` : ''}
@@ -1055,6 +1094,7 @@ function showConfirmInterface(batchId, approvedApps, rejectedApps, usernameData)
                                 '管理员权限': 'danger',
                                 'Docker权限': 'info',
                                 '数据库权限': 'warning',
+                                'Tailscale权限': 'danger',
                                 '自定义权限': 'primary'
                             };
                             return colorMap[permType] || 'primary';
@@ -1090,6 +1130,7 @@ function showConfirmInterface(batchId, approvedApps, rejectedApps, usernameData)
                                 '管理员权限': 'danger',
                                 'Docker权限': 'info',
                                 '数据库权限': 'warning',
+                                'Tailscale权限': 'danger',
                                 '自定义权限': 'primary'
                             };
                             return colorMap[permType] || 'primary';
@@ -1238,6 +1279,26 @@ function submitFinalBatchReview() {
         alert('提交失败，请重试');
         submitBtn.innerHTML = '<i class="bi bi-check-circle me-1"></i> 确认执行';
         submitBtn.disabled = false;
+    });
+}
+
+// 复制到剪贴板函数
+function copyToClipboard(text, button) {
+    navigator.clipboard.writeText(text).then(function() {
+        // 成功复制，显示反馈
+        const originalIcon = button.innerHTML;
+        button.innerHTML = '<i class="bi bi-check"></i>';
+        button.classList.add('btn-success');
+        button.classList.remove('btn-outline-secondary');
+        
+        setTimeout(() => {
+            button.innerHTML = originalIcon;
+            button.classList.remove('btn-success');
+            button.classList.add('btn-outline-secondary');
+        }, 2000);
+    }).catch(function(err) {
+        console.error('复制失败: ', err);
+        alert('复制失败，请手动复制');
     });
 }
 </script>

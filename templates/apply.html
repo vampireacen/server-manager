@@ -137,18 +137,28 @@
                         {% for ptype in permission_types %}
                         {% if ptype.name != '普通用户' %}
                         <div class="col-lg-6 col-md-12 col-sm-6 mb-3">
-                            <div class="permission-option" data-permission-id="{{ ptype.id }}" data-requires-reason="{{ ptype.requires_reason }}">
+                            <div class="permission-option" data-permission-id="{{ ptype.id }}" data-requires-reason="{{ ptype.requires_reason }}" data-is-tailscale="{{ 'true' if ptype.name == 'Tailscale权限' else 'false' }}">
                                 <input type="checkbox" name="permission_type_ids" value="{{ ptype.id }}" id="permission-{{ ptype.id }}" class="d-none">
-                                <label for="permission-{{ ptype.id }}" class="permission-card">
+                                <label for="permission-{{ ptype.id }}" class="permission-card {% if ptype.name == 'Tailscale权限' %}tailscale-card{% endif %}">
                                     <div class="permission-header">
                                         <div class="d-flex justify-content-between align-items-start">
-                                            <h6 class="mb-0">{{ ptype.name }}</h6>
+                                            <h6 class="mb-0">
+                                                {% if ptype.name == 'Tailscale权限' %}
+                                                <i class="bi bi-router me-1"></i>
+                                                {% endif %}
+                                                {{ ptype.name }}
+                                            </h6>
                                             <div class="check-icon">
                                                 <i class="bi bi-check-circle"></i>
                                             </div>
                                         </div>
                                         <div class="permission-badge-container">
-                                            {% if ptype.requires_reason %}
+                                            {% if ptype.name == 'Tailscale权限' %}
+                                            <span class="claude-badge claude-badge-danger mt-2">
+                                                <i class="bi bi-clock me-1"></i>
+                                                时效性权限
+                                            </span>
+                                            {% elif ptype.requires_reason %}
                                             <span class="claude-badge claude-badge-warning mt-2">
                                                 <i class="bi bi-exclamation-triangle me-1"></i>
                                                 需要说明理由
@@ -166,6 +176,29 @@
                         </div>
                         {% endif %}
                         {% endfor %}
+                    </div>
+                    
+                    <!-- Tailscale nodekey 输入区域 -->
+                    <div id="tailscale-nodekey-container" style="display: none;" class="mt-4">
+                        <div class="alert alert-info border-0" style="background: var(--claude-bg-secondary);">
+                            <div class="d-flex align-items-start">
+                                <i class="bi bi-info-circle me-2 mt-1" style="color: var(--claude-primary);"></i>
+                                <div>
+                                    <strong>Tailscale Nodekey 说明</strong><br>
+                                    <small class="text-muted">请按照 <a href="{{ url_for('tailscale_tutorial') }}" target="_blank">Tailscale教程</a> 完成安装后，将生成的 nodekey 粘贴到下方输入框中， 仅输入 nodekey 部分即可，无需完整命令</small>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <label for="nodekey" class="claude-form-label">
+                            Tailscale Nodekey <span class="text-danger">*</span>
+                        </label>
+                        <input type="text" class="claude-form-control" id="nodekey" name="nodekey" 
+                               placeholder="请输入 nodekey">
+                        <div class="form-text mt-2">
+                            <i class="bi bi-key me-1"></i>
+                            nodekey 从 Tailscale 连接命令生成的注册链接中获取，具有时效性，请确保在有效期内提交申请
+                        </div>
                     </div>
                 </div>
                 <div class="claude-card-footer d-flex justify-content-between">
@@ -585,6 +618,27 @@
 .help-section li {
     margin-bottom: 6px;
 }
+
+/* Tailscale 权限卡片特殊样式 */
+.tailscale-card {
+    border-color: #dc3545 !important;
+    background: rgba(220, 53, 69, 0.02) !important;
+}
+
+.tailscale-card:hover {
+    border-color: #dc3545 !important;
+    box-shadow: 0 4px 15px rgba(220, 53, 69, 0.2) !important;
+}
+
+.permission-option input:checked + .tailscale-card {
+    border-color: #dc3545 !important;
+    background: rgba(220, 53, 69, 0.1) !important;
+}
+
+.claude-badge-danger {
+    background: #dc3545;
+    color: white;
+}
 </style>
 
 <script>
@@ -721,6 +775,19 @@ function validateCurrentStep() {
             return selectedServer !== null;
         case 2:
             // 现在允许不选择权限（将自动申请默认权限）
+            // 但如果选择了 Tailscale 权限，需要验证 nodekey
+            const hasTailscale = selectedPermissionData.some(p => p.is_tailscale);
+            if (hasTailscale) {
+                const nodekey = document.getElementById('nodekey').value.trim();
+                if (!nodekey) {
+                    alert('选择 Tailscale 权限时必须提供 nodekey');
+                    return false;
+                }
+                if (!nodekey.startsWith('nodekey:')) {
+                    alert('nodekey 格式不正确，应该以 "nodekey:" 开头');
+                    return false;
+                }
+            }
             return true;
         case 3:
             // 检查是否有需要理由的权限类型
@@ -729,6 +796,16 @@ function validateCurrentStep() {
                 const reason = document.getElementById('reason').value.trim();
                 if (!reason || reason.length < 10) {
                     alert('申请包含需要理由的权限，请填写详细理由（至少10个字符）');
+                    return false;
+                }
+            }
+            
+            // 再次验证 Tailscale nodekey（防止用户在步骤3修改）
+            const hasTailscaleStep3 = selectedPermissionData.some(p => p.is_tailscale);
+            if (hasTailscaleStep3) {
+                const nodekey = document.getElementById('nodekey').value.trim();
+                if (!nodekey || !nodekey.startsWith('nodekey:')) {
+                    alert('Tailscale 权限需要有效的 nodekey');
                     return false;
                 }
             }
@@ -741,7 +818,9 @@ function validateCurrentStep() {
 // 初始化事件监听器
 document.addEventListener('DOMContentLoaded', function() {
     // 服务器选择
-    document.querySelectorAll('input[name="server_id"]').forEach(radio => {
+    const serverRadios = document.querySelectorAll('input[name="server_id"]');
+    
+    serverRadios.forEach(radio => {
         radio.addEventListener('change', function() {
             selectedServer = {
                 id: this.value,
@@ -758,25 +837,40 @@ document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('input[name="permission_type_ids"]').forEach(checkbox => {
         checkbox.addEventListener('change', function() {
             const option = this.closest('.permission-option');
+            const permissionName = option.querySelector('h6').textContent.trim();
+            const isTailscale = option.dataset.isTailscale === 'true';
             const permissionInfo = {
                 id: this.value,
-                name: option.querySelector('h6').textContent,
+                name: permissionName,
                 description: option.querySelector('.text-muted').textContent,
-                requires_reason: option.dataset.requiresReason === 'True'
+                requires_reason: option.dataset.requiresReason === 'True',
+                is_tailscale: isTailscale
             };
             
             if (this.checked) {
                 // 添加到选中列表
                 selectedPermissions.push(permissionInfo);
                 selectedPermissionData.push({
-                    requires_reason: option.dataset.requiresReason === 'True'
+                    requires_reason: option.dataset.requiresReason === 'True',
+                    is_tailscale: isTailscale
                 });
+                
+                // 如果选择了 Tailscale 权限，显示 nodekey 输入框
+                if (isTailscale) {
+                    document.getElementById('tailscale-nodekey-container').style.display = 'block';
+                }
             } else {
                 // 从选中列表移除
                 selectedPermissions = selectedPermissions.filter(p => p.id !== this.value);
                 selectedPermissionData = selectedPermissionData.filter((p, index) => {
                     return selectedPermissions[index] && selectedPermissions[index].id !== this.value;
                 });
+                
+                // 如果取消选择 Tailscale 权限，隐藏 nodekey 输入框
+                if (isTailscale) {
+                    document.getElementById('tailscale-nodekey-container').style.display = 'none';
+                    document.getElementById('nodekey').value = '';
+                }
             }
             
             // 现在允许不选择权限（将自动申请默认权限）
