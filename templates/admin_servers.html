@@ -182,10 +182,13 @@
                         </td>
                         <td>
                             <div class="btn-group">
-                                <button class="claude-btn claude-btn-sm claude-btn-secondary" onclick="testConnection({{ server.id }})" title="测试连接">
+                                <button class="claude-btn claude-btn-sm claude-btn-warning" onclick="testConnection({{ server.id }})" title="测试连接">
                                     <i class="bi bi-wifi"></i>
                                 </button>
-                                <button class="claude-btn claude-btn-sm claude-btn-secondary" onclick="editServerById({{ server.id }})" title="编辑服务器">
+                                <button class="claude-btn claude-btn-sm claude-btn-primary" onclick="retrieveServerInfo({{ server.id }})" title="信息检索">
+                                    <i class="bi bi-search"></i>
+                                </button>
+                                <button class="claude-btn claude-btn-sm claude-btn-success" onclick="editServerById({{ server.id }})" title="编辑服务器">
                                     <i class="bi bi-pencil"></i>
                                 </button>
                                 <button class="claude-btn claude-btn-sm claude-btn-danger" onclick="deleteServer({{ server.id }}, '{{ server.name }}')" title="删除服务器">
@@ -313,19 +316,19 @@
                                 <div class="row">
                                     <div class="col-md-6 mb-3">
                                         <label for="location" class="form-label">部署位置</label>
-                                        <input type="text" class="form-control claude-input" id="location" name="location" placeholder="如：北京机房">
+                                        <input type="text" class="form-control claude-input" id="location" name="location" placeholder="如：数据中心">
                                     </div>
                                     <div class="col-md-6 mb-3">
                                         <label for="datacenter" class="form-label">部署机房</label>
-                                        <input type="text" class="form-control claude-input" id="datacenter" name="datacenter" placeholder="如：A区机房">
+                                        <input type="text" class="form-control claude-input" id="datacenter" name="datacenter" placeholder="如：S110">
                                     </div>
                                     <div class="col-md-6 mb-3">
                                         <label for="rack" class="form-label">部署机柜</label>
-                                        <input type="text" class="form-control claude-input" id="rack" name="rack" placeholder="如：R-A01">
+                                        <input type="text" class="form-control claude-input" id="rack" name="rack" placeholder="如：4B09">
                                     </div>
                                     <div class="col-md-6 mb-3">
                                         <label for="rack_position" class="form-label">柜内位置</label>
-                                        <input type="text" class="form-control claude-input" id="rack_position" name="rack_position" placeholder="如：U1-U2">
+                                        <input type="text" class="form-control claude-input" id="rack_position" name="rack_position" placeholder="如：13-16U">
                                     </div>
                                 </div>
                             </div>
@@ -379,6 +382,50 @@
                                     <div class="col-md-6 mb-3">
                                         <label for="ssd_count" class="form-label">SSD数量(GB)</label>
                                         <input type="number" class="form-control claude-input" id="ssd_count" name="ssd_count" min="1" placeholder="如：1024">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 系统信息 -->
+                    <hr class="my-4">
+                    <div class="collapse-section">
+                        <button type="button" class="collapse-header" data-bs-toggle="collapse" data-bs-target="#systemInfo" aria-expanded="false">
+                            <div class="d-flex align-items-center justify-content-between w-100">
+                                <div class="d-flex align-items-center">
+                                    <i class="bi bi-info-circle me-2"></i>
+                                    <span>系统信息 (可选)</span>
+                                </div>
+                                <i class="bi bi-chevron-down collapse-icon"></i>
+                            </div>
+                        </button>
+                        
+                        <div class="collapse" id="systemInfo">
+                            <div class="collapse-content">
+                                <div class="alert alert-info d-flex align-items-start" role="alert">
+                                    <i class="bi bi-lightbulb me-2 mt-1"></i>
+                                    <div>
+                                        <strong>提示：</strong>
+                                        如果留空系统信息，在“测试连接”成功后系统将自动获取并填充这些信息。
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="hostname" class="form-label">主机名称</label>
+                                        <input type="text" class="form-control claude-input" id="hostname" name="hostname" placeholder="如：server01">
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="system_version" class="form-label">系统版本</label>
+                                        <input type="text" class="form-control claude-input" id="system_version" name="system_version" placeholder="如：Ubuntu 22.04.3 LTS">
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="kernel_version" class="form-label">内核版本</label>
+                                        <input type="text" class="form-control claude-input" id="kernel_version" name="kernel_version" placeholder="如：5.15.0-92-generic">
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="system_arch" class="form-label">系统架构</label>
+                                        <input type="text" class="form-control claude-input" id="system_arch" name="system_arch" placeholder="如：x86_64">
                                     </div>
                                 </div>
                             </div>
@@ -562,6 +609,43 @@
                                     <div class="col-md-6 mb-3">
                                         <label for="edit_ssd_count" class="form-label">SSD数量(GB)</label>
                                         <input type="number" class="form-control claude-input" id="edit_ssd_count" name="ssd_count" min="1" placeholder="如：1024">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 系统信息 -->
+                    <hr class="my-4">
+                    <div class="collapse-section">
+                        <button type="button" class="collapse-header" data-bs-toggle="collapse" data-bs-target="#editSystemInfo" aria-expanded="false">
+                            <div class="d-flex align-items-center justify-content-between w-100">
+                                <div class="d-flex align-items-center">
+                                    <i class="bi bi-info-circle me-2"></i>
+                                    <span>系统信息 (可选)</span>
+                                </div>
+                                <i class="bi bi-chevron-down collapse-icon"></i>
+                            </div>
+                        </button>
+                        
+                        <div class="collapse" id="editSystemInfo">
+                            <div class="collapse-content">
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="edit_hostname" class="form-label">主机名称</label>
+                                        <input type="text" class="form-control claude-input" id="edit_hostname" name="hostname" placeholder="如：server01">
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="edit_system_version" class="form-label">系统版本</label>
+                                        <input type="text" class="form-control claude-input" id="edit_system_version" name="system_version" placeholder="如：Ubuntu 22.04.3 LTS">
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="edit_kernel_version" class="form-label">内核版本</label>
+                                        <input type="text" class="form-control claude-input" id="edit_kernel_version" name="kernel_version" placeholder="如：5.15.0-92-generic">
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="edit_system_arch" class="form-label">系统架构</label>
+                                        <input type="text" class="form-control claude-input" id="edit_system_arch" name="system_arch" placeholder="如：x86_64">
                                     </div>
                                 </div>
                             </div>
@@ -830,7 +914,11 @@ const serversData = {
         memory_model: '{{ server.memory_model or "" }}',
         memory_count: {{ server.memory_count or 'null' }},
         ssd_model: '{{ server.ssd_model or "" }}',
-        ssd_count: {{ server.ssd_count or 'null' }}
+        ssd_count: {{ server.ssd_count or 'null' }},
+        hostname: '{{ server.hostname or "" }}',
+        system_version: '{{ server.system_version or "" }}',
+        kernel_version: '{{ server.kernel_version or "" }}',
+        system_arch: '{{ server.system_arch or "" }}'
     }{% if not loop.last %},{% endif %}
     {% endfor %}
 };
@@ -851,14 +939,13 @@ function testConnection(serverId) {
     btn.innerHTML = '<i class="bi bi-arrow-clockwise spinning"></i>';
     btn.disabled = true;
     
-    // 模拟连接测试
+    // 连接测试
     setTimeout(() => {
-        // 这里可以调用真实的测试连接API
         fetch(`/api/test_connection/${serverId}`)
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    showToast('连接测试成功', 'success');
+                    showToast(data.message, 'success'); 
                 } else {
                     showToast(`连接测试失败: ${data.error}`, 'error');
                 }
@@ -867,10 +954,102 @@ function testConnection(serverId) {
                 showToast('连接测试失败', 'error');
             })
             .finally(() => {
-                btn.innerHTML = originalText;
-                btn.disabled = false;
+                setTimeout(() => {
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                    icon.classList.remove('spinning');
+                }, 1000);
             });
-    }, 2000);
+    }, 500);
+}
+
+function retrieveServerInfo(serverId) {
+    const btn = event.target.closest('button');
+    const originalText = btn.innerHTML;
+    const icon = btn.querySelector('i');
+    
+    icon.classList.add('spinning');
+    btn.innerHTML = '<i class="bi bi-arrow-clockwise spinning"></i>';
+    btn.disabled = true;
+    
+    // 信息检索
+    setTimeout(() => {
+        fetch(`/api/retrieve_server_info/${serverId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    let message = data.message;
+                    
+                    // 更新页面上的服务器数据
+                    if (data.updated_info && Object.keys(data.updated_info).length > 0) {
+                        if (serversData[serverId]) {
+                            Object.assign(serversData[serverId], data.updated_info);
+                        }
+                        
+                        // 如果编辑模态框正在显示这个服务器，就更新表单
+                        const editModal = document.getElementById('editServerModal');
+                        if (editModal && editModal.style.display !== 'none') {
+                            const currentServerId = document.getElementById('edit_server_id').value;
+                            if (currentServerId == serverId) {
+                                // 更新系统信息表单
+                                if (data.updated_info.hostname && document.getElementById('edit_hostname')) {
+                                    document.getElementById('edit_hostname').value = data.updated_info.hostname;
+                                }
+                                if (data.updated_info.system_version && document.getElementById('edit_system_version')) {
+                                    document.getElementById('edit_system_version').value = data.updated_info.system_version;
+                                }
+                                if (data.updated_info.kernel_version && document.getElementById('edit_kernel_version')) {
+                                    document.getElementById('edit_kernel_version').value = data.updated_info.kernel_version;
+                                }
+                                if (data.updated_info.system_arch && document.getElementById('edit_system_arch')) {
+                                    document.getElementById('edit_system_arch').value = data.updated_info.system_arch;
+                                }
+                                
+                                // 更新硬件配置表单（如果存在）
+                                if (data.updated_info.cpu_model && document.getElementById('edit_cpu_model')) {
+                                    document.getElementById('edit_cpu_model').value = data.updated_info.cpu_model;
+                                }
+                                if (data.updated_info.cpu_count && document.getElementById('edit_cpu_count')) {
+                                    document.getElementById('edit_cpu_count').value = data.updated_info.cpu_count;
+                                }
+                                if (data.updated_info.memory_count && document.getElementById('edit_memory_count')) {
+                                    document.getElementById('edit_memory_count').value = data.updated_info.memory_count;
+                                }
+                                if (data.updated_info.memory_model && document.getElementById('edit_memory_model')) {
+                                    document.getElementById('edit_memory_model').value = data.updated_info.memory_model;
+                                }
+                                if (data.updated_info.gpu_model && document.getElementById('edit_gpu_model')) {
+                                    document.getElementById('edit_gpu_model').value = data.updated_info.gpu_model;
+                                }
+                                if (data.updated_info.gpu_count && document.getElementById('edit_gpu_count')) {
+                                    document.getElementById('edit_gpu_count').value = data.updated_info.gpu_count;
+                                }
+                                if (data.updated_info.ssd_model && document.getElementById('edit_ssd_model')) {
+                                    document.getElementById('edit_ssd_model').value = data.updated_info.ssd_model;
+                                }
+                                if (data.updated_info.ssd_count && document.getElementById('edit_ssd_count')) {
+                                    document.getElementById('edit_ssd_count').value = data.updated_info.ssd_count;
+                                }
+                            }
+                        }
+                    }
+                    
+                    showToast(message, 'success');
+                } else {
+                    showToast(`信息检索失败: ${data.error}`, 'error');
+                }
+            })
+            .catch(error => {
+                showToast('信息检索失败', 'error');
+            })
+            .finally(() => {
+                setTimeout(() => {
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                    icon.classList.remove('spinning');
+                }, 1000);
+            });
+    }, 500);
 }
 
 function editServer(serverId, serverData) {
@@ -913,6 +1092,12 @@ function editServer(serverId, serverData) {
     document.getElementById('edit_ssd_model').value = serverData.ssd_model || '';
     document.getElementById('edit_ssd_count').value = serverData.ssd_count || '';
     
+    // 填充系统信息
+    document.getElementById('edit_hostname').value = serverData.hostname || '';
+    document.getElementById('edit_system_version').value = serverData.system_version || '';
+    document.getElementById('edit_kernel_version').value = serverData.kernel_version || '';
+    document.getElementById('edit_system_arch').value = serverData.system_arch || '';
+    
     // 显示编辑模态框
     const modal = new bootstrap.Modal(document.getElementById('editServerModal'));
     modal.show();
@@ -944,26 +1129,12 @@ function deleteServer(serverId, serverName) {
 }
 
 function showToast(message, type) {
-    // 创建简单的toast提示
-    const toast = document.createElement('div');
-    toast.className = `alert alert-${type === 'success' ? 'success' : 'danger'} alert-dismissible fade show position-fixed`;
-    toast.style.cssText = 'top: 80px; right: 20px; z-index: 1050; min-width: 300px;';
-    toast.innerHTML = `
-        <div class="d-flex align-items-center">
-            <i class="bi bi-${type === 'success' ? 'check-circle' : 'exclamation-triangle'} me-2"></i>
-            ${message}
-        </div>
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    `;
-    
-    document.body.appendChild(toast);
-    
-    // 3秒后自动移除
-    setTimeout(() => {
-        if (toast.parentNode) {
-            toast.parentNode.removeChild(toast);
-        }
-    }, 3000);
+    // 使用统一的顶部提示系统
+    if (type === 'success') {
+        showSuccess(message);
+    } else {
+        showError(message);
+    }
 }
 
 // 服务器搜索和筛选功能

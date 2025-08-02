@@ -127,14 +127,14 @@
             </div>
             
             <!-- 移动端菜单按钮 -->
-            <button class="claude-mobile-menu-btn d-md-none" type="button" id="mobileMenuBtn">
+            <button class="claude-mobile-menu-btn d-xl-none" type="button" id="mobileMenuBtn">
                 <i class="bi bi-list"></i>
             </button>
         </div>
     </nav>
     
     <!-- 移动端导航菜单 -->
-    <div class="claude-mobile-nav d-md-none" id="mobileNav">
+    <div class="claude-mobile-nav d-xl-none" id="mobileNav">
         <div class="claude-mobile-nav-content">
             <ul class="claude-mobile-nav-list">
                 <!-- 控制台 - 所有用户 -->
@@ -174,7 +174,7 @@
     </div>
     
     <!-- 移动端遮罩层 -->
-    <div class="claude-mobile-overlay d-md-none" id="mobileOverlay"></div>
+    <div class="claude-mobile-overlay d-xl-none" id="mobileOverlay"></div>
     
     <!-- 主内容区域 -->
     <div class="claude-main-content" id="mainContent">
@@ -318,6 +318,89 @@
     </script>
     {% endif %}
     
+    <!-- 统一的顶部提示系统 -->
+    <script>
+        // 创建统一的顶部提示函数
+        function showTopAlert(message, type = 'info', duration = 5000) {
+            // 移除现有的动态提示
+            const existingAlerts = document.querySelectorAll('.claude-dynamic-alert');
+            existingAlerts.forEach(alert => alert.remove());
+            
+            // 创建新的提示元素
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type === 'error' ? 'danger' : type} alert-dismissible fade show mb-4 claude-dynamic-alert`;
+            alertDiv.setAttribute('role', 'alert');
+            alertDiv.style.cssText = 'margin-top: 80px; z-index: 1055;';
+            
+            alertDiv.innerHTML = `
+                <div class="d-flex align-items-center">
+                    <i class="bi bi-${getAlertIcon(type)} me-2"></i>
+                    <span>${message}</span>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            `;
+            
+            // 插入到主内容区域的开头
+            const contentWrapper = document.querySelector('.claude-content-wrapper');
+            if (contentWrapper) {
+                contentWrapper.insertBefore(alertDiv, contentWrapper.firstChild);
+            } else {
+                // 如果找不到内容包装器，插入到body开头
+                document.body.insertBefore(alertDiv, document.body.firstChild);
+            }
+            
+            // 自动关闭
+            if (duration > 0) {
+                setTimeout(() => {
+                    if (alertDiv && alertDiv.parentNode) {
+                        alertDiv.classList.remove('show');
+                        setTimeout(() => {
+                            if (alertDiv && alertDiv.parentNode) {
+                                alertDiv.remove();
+                            }
+                        }, 150);
+                    }
+                }, duration);
+            }
+        }
+        
+        function getAlertIcon(type) {
+            switch (type) {
+                case 'success': return 'check-circle';
+                case 'error':
+                case 'danger': return 'exclamation-circle';
+                case 'warning': return 'exclamation-triangle';
+                case 'info':
+                default: return 'info-circle';
+            }
+        }
+        
+        // 替代原生alert的函数
+        function showAlert(message, type = 'info') {
+            showTopAlert(message, type);
+        }
+        
+        // 成功提示
+        function showSuccess(message) {
+            showTopAlert(message, 'success');
+        }
+        
+        // 错误提示
+        function showError(message) {
+            showTopAlert(message, 'error');
+        }
+        
+        // 警告提示
+        function showWarning(message) {
+            showTopAlert(message, 'warning');
+        }
+        
+        // 信息提示
+        function showInfo(message) {
+            showTopAlert(message, 'info');
+        }
+    </script>
+    
     {% block scripts %}{% endblock %}
     
     <style>
@@ -341,6 +424,7 @@
             height: 100%;
             padding: 0 24px;
             max-width: 100%;
+            flex-wrap: nowrap;
         }
         
         .claude-topbar-brand .claude-brand-link {
@@ -366,22 +450,32 @@
         .claude-nav-list {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 4px;
             list-style: none;
             margin: 0;
             padding: 0;
+            flex-wrap: nowrap;
+            overflow-x: auto;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+        
+        .claude-nav-list::-webkit-scrollbar {
+            display: none;
         }
         
         .claude-nav-link {
             display: flex;
             align-items: center;
-            gap: 8px;
-            padding: 8px 16px;
+            gap: 6px;
+            padding: 8px 12px;
             color: #64748b;
             text-decoration: none;
             border-radius: 8px;
             transition: all 0.2s ease;
             font-weight: 500;
+            white-space: nowrap;
+            flex-shrink: 0;
         }
         
         .claude-nav-link:hover,
@@ -467,6 +561,8 @@
         
         .claude-mobile-nav-content {
             padding: 16px;
+            max-height: calc(100vh - 120px);
+            overflow-y: auto;
         }
         
         .claude-mobile-nav-list {
@@ -535,6 +631,24 @@
             margin: 0;
         }
         
+        @media (max-width: 576px) {
+            .claude-content-wrapper {
+                padding: 16px;
+            }
+            
+            .claude-topbar-brand .claude-brand-link span {
+                display: none;
+            }
+            
+            .claude-topbar-container {
+                padding: 0 12px;
+            }
+            
+            .claude-user-name {
+                display: none;
+            }
+        }
+        
         .claude-notification-badge {
             position: absolute;
             top: -4px;
@@ -552,7 +666,7 @@
             line-height: 1;
         }
         
-        @media (max-width: 991px) {
+        @media (max-width: 1199px) {
             .claude-topbar-nav {
                 display: none;
             }
@@ -562,9 +676,25 @@
             }
         }
         
-        @media (min-width: 992px) {
+        @media (min-width: 1200px) {
             .claude-mobile-menu-btn {
                 display: none;
+            }
+        }
+        
+        @media (max-width: 1399px) and (min-width: 1200px) {
+            .claude-nav-link {
+                padding: 8px 10px;
+                gap: 4px;
+                font-size: 0.9rem;
+            }
+            
+            .claude-nav-link span {
+                display: none;
+            }
+            
+            .claude-nav-list {
+                gap: 2px;
             }
         }
     </style>

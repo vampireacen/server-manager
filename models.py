@@ -65,6 +65,12 @@ class Server(db.Model):
     memory_count = db.Column(db.Integer)      # 内存数量
     ssd_model = db.Column(db.String(100))     # SSD型号
     ssd_count = db.Column(db.Integer)         # SSD数量
+    
+    # 系统信息 (可选)
+    hostname = db.Column(db.String(100))       # 主机名称
+    system_version = db.Column(db.String(100)) # 系统版本
+    kernel_version = db.Column(db.String(100)) # 内核版本
+    system_arch = db.Column(db.String(50))     # 系统架构
 
 class PermissionType(db.Model):
     __tablename__ = 'permission_types'

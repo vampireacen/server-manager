@@ -572,6 +572,30 @@
     border-color: var(--claude-primary);
     box-shadow: var(--claude-shadow-md);
     transform: translateY(-2px);
+    color: var(--claude-text-primary) !important;
+}
+
+.permission-card:hover h6 {
+    color: var(--claude-text-primary) !important;
+}
+
+.permission-card:hover .permission-description p {
+    color: var(--claude-text-muted) !important;
+}
+
+.server-card:hover {
+    border-color: var(--claude-primary);
+    box-shadow: var(--claude-shadow-md);
+    transform: translateY(-2px);
+    color: var(--claude-text-primary) !important;
+}
+
+.server-card:hover h6 {
+    color: var(--claude-text-primary) !important;
+}
+
+.server-card:hover .text-muted {
+    color: var(--claude-text-muted) !important;
 }
 
 .permission-option input:checked + .permission-card {
@@ -646,6 +670,14 @@ let currentStep = 1;
 let selectedServer = null;
 let selectedPermissions = [];
 let selectedPermissionData = [];
+
+// 默认权限ID
+let defaultPermissionId = null;
+{% for ptype in permission_types %}
+{% if ptype.name == '普通用户' %}
+defaultPermissionId = {{ ptype.id }};
+{% endif %}
+{% endfor %}
 
 // 服务器搜索功能
 function initApplyServerSearch() {
@@ -780,11 +812,11 @@ function validateCurrentStep() {
             if (hasTailscale) {
                 const nodekey = document.getElementById('nodekey').value.trim();
                 if (!nodekey) {
-                    alert('选择 Tailscale 权限时必须提供 nodekey');
+                    showWarning('选择 Tailscale 权限时必须提供 nodekey');
                     return false;
                 }
                 if (!nodekey.startsWith('nodekey:')) {
-                    alert('nodekey 格式不正确，应该以 "nodekey:" 开头');
+                    showWarning('nodekey 格式不正确，应该以 "nodekey:" 开头');
                     return false;
                 }
             }
@@ -795,7 +827,7 @@ function validateCurrentStep() {
             if (hasRequiredReason) {
                 const reason = document.getElementById('reason').value.trim();
                 if (!reason || reason.length < 10) {
-                    alert('申请包含需要理由的权限，请填写详细理由（至少10个字符）');
+                    showWarning('申请包含需要理由的权限，请填写详细理由（至少10个字符）');
                     return false;
                 }
             }
@@ -805,7 +837,7 @@ function validateCurrentStep() {
             if (hasTailscaleStep3) {
                 const nodekey = document.getElementById('nodekey').value.trim();
                 if (!nodekey || !nodekey.startsWith('nodekey:')) {
-                    alert('Tailscale 权限需要有效的 nodekey');
+                    showWarning('Tailscale 权限需要有效的 nodekey');
                     return false;
                 }
             }
@@ -885,18 +917,13 @@ document.addEventListener('DOMContentLoaded', function() {
         e.preventDefault();
         if (validateCurrentStep()) {
             // 如果没有选择任何权限，自动添加"普通用户"权限
-            if (selectedPermissions.length === 0) {
+            if (selectedPermissions.length === 0 && defaultPermissionId) {
                 // 在表单中添加一个隐藏的input来包含普通用户权限ID
-                // 需要从后端获取普通用户权限的ID
-                {% for ptype in permission_types %}
-                {% if ptype.name == '普通用户' %}
                 const defaultPermissionInput = document.createElement('input');
                 defaultPermissionInput.type = 'hidden';
                 defaultPermissionInput.name = 'permission_type_ids';
-                defaultPermissionInput.value = '{{ ptype.id }}';
+                defaultPermissionInput.value = defaultPermissionId;
                 this.appendChild(defaultPermissionInput);
-                {% endif %}
-                {% endfor %}
             }
             this.submit();
         }

@@ -177,6 +177,46 @@ body {
   border-radius: 0 2px 2px 0;
 }
 
+/* 用户管理按钮特定颜色样式 - 蓝色 */
+.claude-sidebar-nav-link[href*="admin_users"].active {
+  background: rgba(59, 130, 246, 0.15);
+  color: var(--claude-info);
+}
+
+.claude-sidebar-nav-link[href*="admin_users"].active::before {
+  background: var(--claude-info);
+}
+
+/* 移动端用户管理按钮样式 - 蓝色 */
+.claude-mobile-nav-link[href*="admin_users"].active {
+  background: rgba(59, 130, 246, 0.15);
+  color: var(--claude-info) !important;
+}
+
+/* 服务器管理页面的信息检索按钮 - 蓝色 */
+.claude-btn-primary[onclick*="retrieveServerInfo"] {
+  background: linear-gradient(135deg, var(--claude-info) 0%, var(--claude-info-dark) 100%);
+  color: white;
+}
+
+.claude-btn-primary[onclick*="retrieveServerInfo"]:hover {
+  background: linear-gradient(135deg, var(--claude-info-dark) 0%, #1d4ed8 100%);
+  transform: translateY(-1px);
+  box-shadow: var(--claude-shadow-md);
+}
+
+/* 用户管理页面的编辑用户信息按钮 - 蓝色 */
+.claude-btn-primary[onclick*="editUserProfile"] {
+  background: linear-gradient(135deg, var(--claude-info) 0%, var(--claude-info-dark) 100%);
+  color: white;
+}
+
+.claude-btn-primary[onclick*="editUserProfile"]:hover {
+  background: linear-gradient(135deg, var(--claude-info-dark) 0%, #1d4ed8 100%);
+  transform: translateY(-1px);
+  box-shadow: var(--claude-shadow-md);
+}
+
 .claude-sidebar-nav-link i {
   width: 20px;
   min-width: 20px;
@@ -873,20 +913,17 @@ body {
   visibility: visible;
 }
 
-/* 移除特定申请按钮的悬浮文字颜色变化 */
-a[href*="apply"]:hover,
-a[href*="apply"]:focus,
-.claude-btn[href*="apply"]:hover,
-.claude-btn[href*="apply"]:focus {
-  color: inherit !important;
+/* 保持菜单栏导航链接的正常悬浮效果，只对非导航链接的申请按钮应用特殊规则 */
+.claude-btn[href*="apply"]:hover:not(.claude-nav-link),
+.claude-btn[href*="apply"]:focus:not(.claude-nav-link) {
   text-decoration: none !important;
 }
 
-/* 确保申请按钮保持原有颜色 */
-.claude-btn-primary[href*="apply"]:hover {
+/* 确保非导航的申请按钮保持原有颜色 */
+.claude-btn-primary[href*="apply"]:hover:not(.claude-nav-link) {
   color: white !important;
 }
 
-.claude-btn-secondary[href*="apply"]:hover {
+.claude-btn-secondary[href*="apply"]:hover:not(.claude-nav-link) {
   color: var(--claude-text-secondary) !important;
 }

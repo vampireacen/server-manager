@@ -69,7 +69,11 @@ def migrate_database():
             server_expected_fields = {
                 'auth_type': 'VARCHAR(20) DEFAULT "password"',
                 'key_path': 'VARCHAR(500)',
-                'user_selectable': 'BOOLEAN DEFAULT 1'
+                'user_selectable': 'BOOLEAN DEFAULT 1',
+                'hostname': 'VARCHAR(100)',
+                'system_version': 'VARCHAR(100)',
+                'kernel_version': 'VARCHAR(100)',
+                'system_arch': 'VARCHAR(50)'
             }
             
             for field, field_type in server_expected_fields.items():
@@ -358,7 +362,7 @@ def api_server_metrics_history(server_id):
 @app.route('/api/test_connection/<int:server_id>')
 @admin_required
 def api_test_connection(server_id):
-    """测试服务器连接API"""
+    """测试服务器连接API - 仅测试连接"""
     server = Server.query.get_or_404(server_id)
     
     try:
@@ -367,10 +371,11 @@ def api_test_connection(server_id):
         
         # 尝试连接服务器
         if monitor.connect():
+            message = f'连接到服务器 {server.name} 成功'
             monitor.disconnect()
             return jsonify({
                 'success': True,
-                'message': f'连接到服务器 {server.name} 成功'
+                'message': message
             })
         else:
             return jsonify({
@@ -381,6 +386,116 @@ def api_test_connection(server_id):
         return jsonify({
             'success': False,
             'error': f'连接测试异常: {str(e)}'
+        })
+
+@app.route('/api/retrieve_server_info/<int:server_id>')
+@admin_required
+def api_retrieve_server_info(server_id):
+    """检索并填充服务器的系统信息和硬件配置"""
+    try:
+        server = Server.query.get_or_404(server_id)
+        
+        # 检查哪些字段为空
+        system_fields_to_check = ['hostname', 'system_version', 'kernel_version', 'system_arch']
+        hardware_fields_to_check = ['cpu_model', 'cpu_count', 'memory_model', 'memory_count', 
+                                  'gpu_model', 'gpu_count', 'ssd_model', 'ssd_count']
+        
+        empty_system_fields = [field for field in system_fields_to_check 
+                              if not getattr(server, field)]
+        empty_hardware_fields = [field for field in hardware_fields_to_check 
+                               if not getattr(server, field)]
+        
+        if not empty_system_fields and not empty_hardware_fields:
+            return jsonify({
+                'success': True,
+                'message': '所有配置信息和系统信息都已完整，无需检索',
+                'updated_info': {}
+            })
+        
+        # 连接服务器并获取信息
+        from server_monitor import ServerMonitor
+        monitor = ServerMonitor(server)
+        
+        if monitor.connect():
+            message = '连接成功'
+            updated_info = {}
+            
+            try:
+                # 获取完整信息
+                print(f"🚀 [INFO] 开始检索服务器 {server.name} 的完整信息...")
+                complete_info = monitor.get_complete_info()
+                print(f"🚀 [INFO] 检索到的完整信息: {complete_info}")
+                
+                # 只更新空字段
+                system_updated = []
+                hardware_updated = []
+                
+                for field in empty_system_fields:
+                    if complete_info.get(field):
+                        setattr(server, field, complete_info[field])
+                        updated_info[field] = complete_info[field]
+                        if field == 'hostname':
+                            system_updated.append(f'主机名: {complete_info[field]}')
+                        elif field == 'system_version':
+                            system_updated.append(f'系统版本: {complete_info[field]}')
+                        elif field == 'kernel_version':
+                            system_updated.append(f'内核版本: {complete_info[field]}')
+                        elif field == 'system_arch':
+                            system_updated.append(f'系统架构: {complete_info[field]}')
+                
+                for field in empty_hardware_fields:
+                    if complete_info.get(field):
+                        setattr(server, field, complete_info[field])
+                        updated_info[field] = complete_info[field]
+                        if field == 'cpu_model':
+                            cpu_info = complete_info[field]
+                            if complete_info.get('cpu_count'):
+                                cpu_info += f' x{complete_info["cpu_count"]}'
+                            hardware_updated.append(f'CPU: {cpu_info}')
+                        elif field == 'memory_model':
+                            memory_info = complete_info[field]
+                            if complete_info.get('memory_count'):
+                                memory_info = f'{complete_info["memory_count"]}GB {memory_info}'
+                            hardware_updated.append(f'内存: {memory_info}')
+                        elif field == 'gpu_model':
+                            gpu_info = complete_info[field]
+                            if complete_info.get('gpu_count'):
+                                gpu_info += f' x{complete_info["gpu_count"]}'
+                            hardware_updated.append(f'GPU: {gpu_info}')
+                        elif field == 'ssd_model':
+                            storage_info = complete_info[field]
+                            hardware_updated.append(f'存储: {storage_info}')
+                
+                # 提交数据库更新
+                if updated_info:
+                    db.session.commit()
+                    
+                    if system_updated:
+                        message += f'\n\n系统信息已检索：\n' + '\n'.join(system_updated)
+                    if hardware_updated:
+                        message += f'\n\n硬件配置已检测：\n' + '\n'.join(hardware_updated)
+                else:
+                    message += '\n注意：未能检索到有效的配置信息'
+                        
+            except Exception as e:
+                print(f'检索服务器信息失败: {e}')
+                message += f'\n注意：检索服务器信息失败: {str(e)}'
+            
+            monitor.disconnect()
+            return jsonify({
+                'success': True,
+                'message': message,
+                'updated_info': updated_info
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': f'无法连接到服务器 {server.name}，请检查网络连接和SSH配置'
+            })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'信息检索异常: {str(e)}'
         })
 
 @app.route('/api/collect_metrics')
@@ -926,6 +1041,12 @@ def admin_servers():
             server.memory_count = int(request.form['memory_count']) if request.form.get('memory_count') else None
             server.ssd_model = request.form.get('ssd_model', '')
             server.ssd_count = int(request.form['ssd_count']) if request.form.get('ssd_count') else None
+            
+            # 添加系统信息
+            server.hostname = request.form.get('hostname', '')
+            server.system_version = request.form.get('system_version', '')
+            server.kernel_version = request.form.get('kernel_version', '')
+            server.system_arch = request.form.get('system_arch', '')
             db.session.add(server)
             db.session.commit()
             flash('服务器添加成功', 'success')
@@ -975,6 +1096,12 @@ def admin_servers():
             server.memory_count = int(request.form['memory_count']) if request.form.get('memory_count') else None
             server.ssd_model = request.form.get('ssd_model', '')
             server.ssd_count = int(request.form['ssd_count']) if request.form.get('ssd_count') else None
+            
+            # 更新系统信息
+            server.hostname = request.form.get('hostname', '')
+            server.system_version = request.form.get('system_version', '')
+            server.kernel_version = request.form.get('kernel_version', '')
+            server.system_arch = request.form.get('system_arch', '')
                 
             db.session.commit()
             flash('服务器信息更新成功', 'success')

@@ -968,7 +968,7 @@ function showBatchConfirmModal() {
     // 获取当前批次数据
     const batch = batches.find(b => b.id == batchId);
     if (!batch) {
-        alert('找不到批次数据');
+        showError('找不到批次数据');
         return;
     }
     
@@ -1226,7 +1226,7 @@ function regenerateUsername() {
 // 最终提交批次审核
 function submitFinalBatchReview() {
     if (!currentBatchData) {
-        alert('没有找到批次数据，请重新操作');
+        showError('没有找到批次数据，请重新操作');
         return;
     }
     
@@ -1236,7 +1236,7 @@ function submitFinalBatchReview() {
     if (usernameInput) {
         finalUsername = usernameInput.value.trim();
         if (!finalUsername) {
-            alert('请提供服务器用户名');
+            showWarning('请提供服务器用户名');
             return;
         }
     }
@@ -1268,15 +1268,18 @@ function submitFinalBatchReview() {
     })
     .then(response => {
         if (response.ok) {
-            // 成功，重新加载页面
-            window.location.reload();
+            // 成功，显示提示并延迟刷新页面
+            showSuccess('批次审核已成功提交！');
+            setTimeout(() => {
+                window.location.reload();
+            }, 1500);
         } else {
             throw new Error('提交失败');
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('提交失败，请重试');
+        showError('提交失败，请重试');
         submitBtn.innerHTML = '<i class="bi bi-check-circle me-1"></i> 确认执行';
         submitBtn.disabled = false;
     });
@@ -1298,7 +1301,7 @@ function copyToClipboard(text, button) {
         }, 2000);
     }).catch(function(err) {
         console.error('复制失败: ', err);
-        alert('复制失败，请手动复制');
+        showError('复制失败，请手动复制');
     });
 }
 </script>
