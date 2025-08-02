@@ -205,7 +205,7 @@
                                     <i class="bi bi-eye"></i> 查看密码
                                 </button>
                                 <button class="claude-btn claude-btn-sm claude-btn-secondary" 
-                                        onclick="copyConnectionInfo('{{ server_username }}', '{{ server.host }}', {{ server.port }}, '{{ user_password|replace("'", "\\'") }}')"
+                                        onclick="copyConnectionWithVerification('{{ server_username }}', '{{ server.host }}', {{ server.port }}, '{{ user_password|replace("'", "\\'") }}')"
                                         title="复制SSH命令">
                                     <i class="bi bi-clipboard"></i> 复制连接
                                 </button>
@@ -520,6 +520,44 @@ function showPassword(serverId, userPassword) {
     currentServerId = serverId;
     currentUserPassword = userPassword;
     
+    // 首先检查密码验证缓存状态
+    fetch('/api/check_password_verification')
+    .then(response => response.json())
+    .then(data => {
+        if (data.verified) {
+            // 缓存有效，直接显示密码
+            console.log(`密码验证缓存有效，剩余 ${data.remaining_minutes} 分钟`);
+            showPasswordDirectly(serverId, userPassword);
+        } else {
+            // 缓存无效，显示验证模态框
+            showPasswordVerificationModal();
+        }
+    })
+    .catch(error => {
+        console.error('检查密码验证状态失败:', error);
+        // 出错时显示验证模态框
+        showPasswordVerificationModal();
+    });
+}
+
+function showPasswordDirectly(serverId, userPassword) {
+    // 直接显示密码，无需验证
+    const passwordField = document.getElementById(`pwd-${serverId}`);
+    passwordField.innerHTML = `<code class="claude-code">${userPassword}</code>`;
+    
+    // 显示成功提示
+    showSuccess('密码已显示（验证缓存有效）');
+    
+    // 5秒后隐藏密码
+    setTimeout(() => {
+        passwordField.innerHTML = '<code class="claude-code">••••••••</code>';
+    }, 5000);
+}
+
+function showPasswordVerificationModal() {
+    // 设置模态框为查看密码模式
+    document.querySelector('#passwordVerifyModal .modal-title').textContent = '验证密码以查看密码';
+    
     // 清空之前的输入
     document.getElementById('verify_password').value = '';
     document.getElementById('verify_error').classList.add('d-none');
@@ -550,18 +588,32 @@ function verifyPassword() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            // 验证成功，显示用户密码
-            const passwordField = document.getElementById(`pwd-${currentServerId}`);
-            passwordField.innerHTML = `<code class="claude-code">${currentUserPassword}</code>`;
-            
             // 关闭模态框
             const modal = bootstrap.Modal.getInstance(document.getElementById('passwordVerifyModal'));
             modal.hide();
             
-            // 5秒后隐藏密码
-            setTimeout(() => {
-                passwordField.innerHTML = '<code class="claude-code">••••••••</code>';
-            }, 5000);
+            // 根据触发的操作执行相应的逻辑
+            if (pendingConnectionInfo) {
+                // 复制连接信息模式
+                copyConnectionInfoDirectly(
+                    pendingConnectionInfo.username, 
+                    pendingConnectionInfo.host, 
+                    pendingConnectionInfo.port
+                );
+                pendingConnectionInfo = null; // 清理状态
+                
+                // 重置模态框标题
+                document.querySelector('#passwordVerifyModal .modal-title').textContent = '验证密码';
+            } else if (currentServerId && currentUserPassword) {
+                // 查看密码模式
+                const passwordField = document.getElementById(`pwd-${currentServerId}`);
+                passwordField.innerHTML = `<code class="claude-code">${currentUserPassword}</code>`;
+                
+                // 5秒后隐藏密码
+                setTimeout(() => {
+                    passwordField.innerHTML = '<code class="claude-code">••••••••</code>';
+                }, 5000);
+            }
         } else {
             errorDiv.textContent = data.message || '密码验证失败';
             errorDiv.classList.remove('d-none');
@@ -574,39 +626,83 @@ function verifyPassword() {
     });
 }
 
-function copyConnectionInfo(username, host, port, password) {
+// 全局变量存储待复制的连接信息
+let pendingConnectionInfo = null;
+
+function copyConnectionWithVerification(username, host, port, password) {
+    // 存储连接信息
+    pendingConnectionInfo = { username, host, port, password };
+    
+    // 首先检查密码验证缓存状态
+    fetch('/api/check_password_verification')
+    .then(response => response.json())
+    .then(data => {
+        if (data.verified) {
+            // 缓存有效，直接复制连接信息
+            console.log(`密码验证缓存有效，剩余 ${data.remaining_minutes} 分钟`);
+            copyConnectionInfoDirectly(username, host, port);
+        } else {
+            // 缓存无效，显示验证模态框并设置复制模式
+            showConnectionVerificationModal();
+        }
+    })
+    .catch(error => {
+        console.error('检查密码验证状态失败:', error);
+        // 出错时显示验证模态框
+        showConnectionVerificationModal();
+    });
+}
+
+function copyConnectionInfoDirectly(username, host, port) {
     const sshCommand = `ssh ${username}@${host} -p ${port}`;
     
+    // 使用现代的Clipboard API，如果不支持则fallback到execCommand
+    if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(sshCommand).then(() => {
+            showSuccess('SSH连接命令已复制到剪贴板（验证缓存有效）');
+        }).catch(err => {
+            console.error('复制失败:', err);
+            fallbackCopyTextToClipboard(sshCommand);
+        });
+    } else {
+        fallbackCopyTextToClipboard(sshCommand);
+    }
+}
+
+function fallbackCopyTextToClipboard(text) {
     // 创建临时文本区域
     const textArea = document.createElement('textarea');
-    textArea.value = sshCommand;
+    textArea.value = text;
     document.body.appendChild(textArea);
     textArea.select();
     
     try {
         document.execCommand('copy');
-        // 显示成功提示
-        const alert = document.createElement('div');
-        alert.className = 'alert alert-success alert-dismissible fade show position-fixed';
-        alert.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
-        alert.innerHTML = `
-            <i class="bi bi-check-circle me-2"></i>
-            SSH连接命令已复制到剪贴板
-            <button type="button" class="btn-close" onclick="this.parentElement.remove()"></button>
-        `;
-        document.body.appendChild(alert);
-        
-        // 3秒后自动移除提示
-        setTimeout(() => {
-            if (alert.parentElement) {
-                alert.remove();
-            }
-        }, 3000);
+        showSuccess('SSH连接命令已复制到剪贴板');
     } catch (err) {
         console.error('复制失败:', err);
+        showError('复制失败，请手动复制命令');
     }
     
     document.body.removeChild(textArea);
+}
+
+function showConnectionVerificationModal() {
+    // 设置模态框为复制连接模式
+    document.querySelector('#passwordVerifyModal .modal-title').textContent = '验证密码以复制连接信息';
+    
+    // 清空之前的输入
+    document.getElementById('verify_password').value = '';
+    document.getElementById('verify_error').classList.add('d-none');
+    
+    // 显示验证模态框
+    const modal = new bootstrap.Modal(document.getElementById('passwordVerifyModal'));
+    modal.show();
+}
+
+// 保留原有的copyConnectionInfo函数以兼容其他可能的调用
+function copyConnectionInfo(username, host, port, password) {
+    copyConnectionInfoDirectly(username, host, port);
 }
 
 // 密码确认验证

@@ -1295,6 +1295,7 @@ def api_user_server_accounts(user_id):
         'user': {
             'id': user.id,
             'username': user.username,
+            'name': user.name,  # 添加name字段以正确显示用户姓名
             'role': user.role,
             'student_id': user.student_id,
             'laboratory': user.laboratory,
@@ -1837,14 +1838,42 @@ def account():
 @app.route('/api/verify_password', methods=['POST'])
 @login_required
 def api_verify_password():
-    """验证用户密码API"""
+    """验证用户密码API - 支持临时认证缓存"""
     password = request.json.get('password')
     user = User.query.get(session['user_id'])
     
     if user.check_password(password):
+        # 验证成功，设置临时认证缓存，有效期15分钟
+        from datetime import datetime, timedelta
+        session['password_verified_at'] = datetime.now().isoformat()
+        session['password_verified_until'] = (datetime.now() + timedelta(minutes=15)).isoformat()
         return jsonify({'success': True})
     else:
         return jsonify({'success': False, 'message': '密码不正确'})
+
+@app.route('/api/check_password_verification', methods=['GET'])
+@login_required
+def api_check_password_verification():
+    """检查密码验证缓存状态API"""
+    from datetime import datetime
+    
+    # 检查是否有有效的密码验证缓存
+    if 'password_verified_until' in session:
+        try:
+            verified_until = datetime.fromisoformat(session['password_verified_until'])
+            if datetime.now() < verified_until:
+                # 缓存仍然有效
+                remaining_minutes = int((verified_until - datetime.now()).total_seconds() / 60)
+                return jsonify({
+                    'verified': True, 
+                    'remaining_minutes': remaining_minutes
+                })
+        except ValueError:
+            # 如果日期格式有问题，清除缓存
+            session.pop('password_verified_at', None)
+            session.pop('password_verified_until', None)
+    
+    return jsonify({'verified': False})
 
 @app.route('/api/notifications')
 @login_required

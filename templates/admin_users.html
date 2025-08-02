@@ -659,6 +659,30 @@
 .permission-item:last-child {
     border-bottom: none !important;
 }
+
+/* 密码查看功能样式 */
+.password-field {
+    display: inline-flex;
+    align-items: center;
+}
+
+.password-hidden {
+    letter-spacing: 2px;
+}
+
+.claude-code {
+    background: #f1f5f9;
+    color: #475569;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 0.8rem;
+}
+
+.claude-btn-sm {
+    padding: 4px 12px;
+    font-size: 0.8rem;
+}
 </style>
 
 <script>
@@ -893,6 +917,14 @@ function manageUserAccounts(userId, username) {
                         <div class="col-md-6">
                             <p><strong>用户名:</strong> ${data.user.username}</p>
                             <p><strong>姓名:</strong> ${data.user.name || '未设置'}</p>
+                            <p><strong>用户密码:</strong> 
+                                <span class="text-muted">已加密存储</span>
+                                <button class="claude-btn claude-btn-sm claude-btn-info p-0 ms-1" 
+                                        onclick="showUserPasswordInfo(${data.user.id}, '${data.user.username}')" 
+                                        title="点击查看密码管理选项">
+                                    <i class="bi bi-gear"></i>
+                                </button>
+                            </p>
                             <p><strong>角色:</strong> 
                                 <span class="claude-badge claude-badge-${data.user.role === 'super_admin' ? 'primary' : data.user.role === 'admin' ? 'danger' : 'info'}">
                                     ${data.user.role === 'super_admin' ? '超级管理员' : data.user.role === 'admin' ? '管理员' : '普通用户'}
@@ -937,7 +969,14 @@ function manageUserAccounts(userId, username) {
                                         <p class="mb-2">
                                             <strong>密码:</strong> 
                                             ${account.user_password ? 
-                                                `<code class="text-muted">••••••••</code>` : 
+                                                `<span class="password-field" id="pwd-admin-${account.server_id}-${data.user.id}">
+                                                    <code class="claude-code password-hidden">••••••••</code>
+                                                    <button class="claude-btn claude-btn-sm claude-btn-secondary p-0 ms-1" 
+                                                            onclick="showAdminPassword('admin-${account.server_id}-${data.user.id}', '${account.user_password.replace(/'/g, "\\'")}', 'server')" 
+                                                            title="显示密码">
+                                                        <i class="bi bi-eye" id="eye-admin-${account.server_id}-${data.user.id}"></i>
+                                                    </button>
+                                                </span>` : 
                                                 '<span class="text-muted">未配置</span>'
                                             }
                                         </p>
@@ -1476,5 +1515,217 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
+
+// 管理员密码查看功能的全局变量
+let currentAdminAction = null;
+let currentAdminPasswordId = null;
+let currentAdminPassword = null;
+let currentAdminPasswordType = null;
+
+function showAdminPassword(passwordId, password, passwordType) {
+    currentAdminAction = 'view';
+    currentAdminPasswordId = passwordId;
+    currentAdminPassword = password;
+    currentAdminPasswordType = passwordType;
+    
+    // 首先检查密码验证缓存状态
+    fetch('/api/check_password_verification')
+    .then(response => response.json())
+    .then(data => {
+        if (data.verified) {
+            // 缓存有效，直接显示密码
+            console.log(`管理员密码验证缓存有效，剩余 ${data.remaining_minutes} 分钟`);
+            toggleAdminPasswordDisplay(passwordId, password);
+            showTopAlert('密码已显示（验证缓存有效）', 'success');
+        } else {
+            // 缓存无效，显示验证模态框
+            showAdminPasswordVerificationModal();
+        }
+    })
+    .catch(error => {
+        console.error('检查密码验证状态失败:', error);
+        // 出错时显示验证模态框
+        showAdminPasswordVerificationModal();
+    });
+}
+
+function showAdminPasswordVerificationModal() {
+    // 创建或显示密码验证模态框
+    let modal = document.getElementById('adminPasswordVerifyModal');
+    if (!modal) {
+        // 如果模态框不存在，创建一个
+        const modalHtml = `
+            <div class="modal fade" id="adminPasswordVerifyModal" tabindex="-1">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">
+                                <i class="bi bi-shield-lock me-2"></i>管理员验证密码
+                            </h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p class="text-muted">为了保护系统安全，请输入您的管理员密码以查看用户密码。</p>
+                            <div class="mb-3">
+                                <label for="admin_verify_password" class="form-label">管理员密码</label>
+                                <input type="password" class="form-control" id="admin_verify_password" 
+                                       placeholder="请输入您的管理员密码">
+                            </div>
+                            <div id="admin_verify_error" class="alert alert-danger d-none"></div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                            <button type="button" class="btn btn-primary" onclick="verifyAdminPassword()">
+                                <i class="bi bi-check-circle me-1"></i>验证
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        modal = document.getElementById('adminPasswordVerifyModal');
+    }
+    
+    // 清空之前的输入
+    document.getElementById('admin_verify_password').value = '';
+    document.getElementById('admin_verify_error').classList.add('d-none');
+    
+    // 显示验证模态框
+    const bootstrapModal = new bootstrap.Modal(modal);
+    bootstrapModal.show();
+}
+
+function verifyAdminPassword() {
+    const password = document.getElementById('admin_verify_password').value;
+    const errorDiv = document.getElementById('admin_verify_error');
+    
+    if (!password) {
+        errorDiv.textContent = '请输入密码';
+        errorDiv.classList.remove('d-none');
+        return;
+    }
+    
+    // 发送验证请求
+    fetch('/api/verify_password', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ password: password })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // 验证成功，执行相应操作
+            if (currentAdminAction === 'view') {
+                toggleAdminPasswordDisplay(currentAdminPasswordId, currentAdminPassword);
+            }
+            
+            // 关闭模态框
+            const modal = bootstrap.Modal.getInstance(document.getElementById('adminPasswordVerifyModal'));
+            modal.hide();
+            
+            showTopAlert('密码验证成功', 'success');
+        } else {
+            errorDiv.textContent = data.message || '密码验证失败';
+            errorDiv.classList.remove('d-none');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        errorDiv.textContent = '验证请求失败，请重试';
+        errorDiv.classList.remove('d-none');
+    });
+}
+
+function toggleAdminPasswordDisplay(passwordId, password) {
+    const passwordField = document.getElementById(`pwd-${passwordId}`);
+    const eyeIcon = document.getElementById(`eye-${passwordId}`);
+    const codeElement = passwordField.querySelector('code');
+    
+    if (codeElement.classList.contains('password-hidden')) {
+        codeElement.textContent = password;
+        codeElement.classList.remove('password-hidden');
+        eyeIcon.className = 'bi bi-eye-slash';
+        
+        // 5秒后自动隐藏密码
+        setTimeout(() => {
+            codeElement.textContent = '••••••••';
+            codeElement.classList.add('password-hidden');
+            eyeIcon.className = 'bi bi-eye';
+        }, 5000);
+    } else {
+        codeElement.textContent = '••••••••';
+        codeElement.classList.add('password-hidden');
+        eyeIcon.className = 'bi bi-eye';
+    }
+}
+
+function showUserPasswordInfo(userId, username) {
+    // 创建用户密码管理信息模态框
+    let modal = document.getElementById('userPasswordInfoModal');
+    if (!modal) {
+        const modalHtml = `
+            <div class="modal fade" id="userPasswordInfoModal" tabindex="-1">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">
+                                <i class="bi bi-shield-lock me-2"></i>用户密码管理
+                            </h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="alert alert-info">
+                                <i class="bi bi-info-circle me-2"></i>
+                                <strong>安全说明：</strong>用户系统密码采用加密存储，管理员无法查看原始密码。
+                            </div>
+                            <div class="user-password-info">
+                                <h6 class="mb-3">用户: <span id="userPasswordInfoUsername"></span></h6>
+                                <div class="d-grid gap-2">
+                                    <button class="btn btn-warning" onclick="resetUserPasswordFromInfo()">
+                                        <i class="bi bi-key me-2"></i>重置用户密码
+                                    </button>
+                                    <button class="btn btn-secondary" data-bs-dismiss="modal">
+                                        <i class="bi bi-x-circle me-2"></i>关闭
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        modal = document.getElementById('userPasswordInfoModal');
+    }
+    
+    // 设置用户信息
+    document.getElementById('userPasswordInfoUsername').textContent = username;
+    
+    // 存储当前用户ID，供重置密码使用
+    modal.setAttribute('data-user-id', userId);
+    modal.setAttribute('data-username', username);
+    
+    // 显示模态框
+    const bootstrapModal = new bootstrap.Modal(modal);
+    bootstrapModal.show();
+}
+
+function resetUserPasswordFromInfo() {
+    const modal = document.getElementById('userPasswordInfoModal');
+    const userId = modal.getAttribute('data-user-id');
+    const username = modal.getAttribute('data-username');
+    
+    // 关闭信息模态框
+    const infoModal = bootstrap.Modal.getInstance(modal);
+    infoModal.hide();
+    
+    // 延迟一点时间后显示重置密码模态框，确保前一个模态框完全关闭
+    setTimeout(() => {
+        showResetUserPasswordModal(userId, username);
+    }, 300);
+}
 </script>
 {% endblock %}
