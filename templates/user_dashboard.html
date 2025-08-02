@@ -466,6 +466,9 @@ let currentServerId = null;
 let currentPassword = null;
 let currentConnectionInfo = null;
 
+// 会话级别的缓存提示状态
+let cacheNotificationShown = false;
+
 function showPasswordForView(serverId, password) {
     currentAction = 'view';
     currentServerId = serverId;
@@ -479,7 +482,12 @@ function showPasswordForView(serverId, password) {
             // 缓存有效，直接显示密码
             console.log(`密码验证缓存有效，剩余 ${data.remaining_minutes} 分钟`);
             togglePasswordDisplay(serverId, password);
-            showSuccess('密码已显示（验证缓存有效）');
+            
+            // 只在第一次显示缓存提示
+            if (!cacheNotificationShown) {
+                showSuccess('密码已显示（验证缓存有效）');
+                cacheNotificationShown = true;
+            }
         } else {
             // 缓存无效，显示验证模态框
             showPasswordVerificationModal();
@@ -520,7 +528,14 @@ function showPasswordForCopy(serverId, username, host, port, password) {
         if (data.verified) {
             // 缓存有效，直接复制连接信息
             console.log(`密码验证缓存有效，剩余 ${data.remaining_minutes} 分钟`);
-            copyConnectionInfoWithSuccess(username, host, port, password, '连接信息已复制（验证缓存有效）');
+            
+            // 只在第一次显示缓存提示
+            if (!cacheNotificationShown) {
+                copyConnectionInfoWithSuccess(username, host, port, password, '连接信息已复制（验证缓存有效）');
+                cacheNotificationShown = true;
+            } else {
+                copyConnectionInfoWithSuccess(username, host, port, password, '连接信息已复制');
+            }
         } else {
             // 缓存无效，显示验证模态框
             showPasswordVerificationModal();
@@ -665,27 +680,5 @@ function fallbackCopy(text) {
     document.body.removeChild(textArea);
 }
 
-function showToast(message, type) {
-    // 创建简单的toast提示
-    const toast = document.createElement('div');
-    toast.className = `alert alert-${type === 'success' ? 'success' : 'danger'} alert-dismissible fade show position-fixed`;
-    toast.style.cssText = 'top: 80px; right: 20px; z-index: 1050; min-width: 300px;';
-    toast.innerHTML = `
-        <div class="d-flex align-items-center">
-            <i class="bi bi-${type === 'success' ? 'check-circle' : 'exclamation-triangle'} me-2"></i>
-            ${message}
-        </div>
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    `;
-    
-    document.body.appendChild(toast);
-    
-    // 3秒后自动移除
-    setTimeout(() => {
-        if (toast.parentNode) {
-            toast.parentNode.removeChild(toast);
-        }
-    }, 3000);
-}
 </script>
 {% endblock %}

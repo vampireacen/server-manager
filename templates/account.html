@@ -511,6 +511,9 @@
 let currentServerId = null;
 let currentUserPassword = null;
 
+// 会话级别的缓存提示状态
+let cacheNotificationShown = false;
+
 function showEditProfileModal() {
     const modal = new bootstrap.Modal(document.getElementById('editProfileModal'));
     modal.show();
@@ -545,8 +548,11 @@ function showPasswordDirectly(serverId, userPassword) {
     const passwordField = document.getElementById(`pwd-${serverId}`);
     passwordField.innerHTML = `<code class="claude-code">${userPassword}</code>`;
     
-    // 显示成功提示
-    showSuccess('密码已显示（验证缓存有效）');
+    // 只在第一次显示缓存提示
+    if (!cacheNotificationShown) {
+        showSuccess('密码已显示（验证缓存有效）');
+        cacheNotificationShown = true;
+    }
     
     // 5秒后隐藏密码
     setTimeout(() => {
@@ -659,7 +665,13 @@ function copyConnectionInfoDirectly(username, host, port) {
     // 使用现代的Clipboard API，如果不支持则fallback到execCommand
     if (navigator.clipboard && window.isSecureContext) {
         navigator.clipboard.writeText(sshCommand).then(() => {
-            showSuccess('SSH连接命令已复制到剪贴板（验证缓存有效）');
+            // 只在第一次显示缓存提示
+            if (!cacheNotificationShown) {
+                showSuccess('SSH连接命令已复制到剪贴板（验证缓存有效）');
+                cacheNotificationShown = true;
+            } else {
+                showSuccess('SSH连接命令已复制到剪贴板');
+            }
         }).catch(err => {
             console.error('复制失败:', err);
             fallbackCopyTextToClipboard(sshCommand);

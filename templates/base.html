@@ -318,92 +318,332 @@
     </script>
     {% endif %}
     
-    <!-- 统一的顶部提示系统 -->
+    <!-- 现代化通知容器 -->
+    <div id="modern-notification-container"></div>
+    
+    <!-- 现代化通知系统 -->
     <script>
-        // 创建统一的顶部提示函数
-        function showTopAlert(message, type = 'info', duration = 5000) {
-            // 移除现有的动态提示
-            const existingAlerts = document.querySelectorAll('.claude-dynamic-alert');
-            existingAlerts.forEach(alert => alert.remove());
-            
-            // 创建新的提示元素
-            const alertDiv = document.createElement('div');
-            alertDiv.className = `alert alert-${type === 'error' ? 'danger' : type} alert-dismissible fade show mb-4 claude-dynamic-alert`;
-            alertDiv.setAttribute('role', 'alert');
-            alertDiv.style.cssText = 'margin-top: 80px; z-index: 1055;';
-            
-            alertDiv.innerHTML = `
-                <div class="d-flex align-items-center">
-                    <i class="bi bi-${getAlertIcon(type)} me-2"></i>
-                    <span>${message}</span>
-                </div>
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            `;
-            
-            // 插入到主内容区域的开头
-            const contentWrapper = document.querySelector('.claude-content-wrapper');
-            if (contentWrapper) {
-                contentWrapper.insertBefore(alertDiv, contentWrapper.firstChild);
-            } else {
-                // 如果找不到内容包装器，插入到body开头
-                document.body.insertBefore(alertDiv, document.body.firstChild);
+        // 现代化通知系统
+        class ModernNotificationSystem {
+            constructor() {
+                this.container = document.getElementById('modern-notification-container');
+                this.notifications = [];
+                this.notificationId = 0;
             }
             
-            // 自动关闭
-            if (duration > 0) {
+            // 创建通知
+            showNotification(message, type = 'info', duration = 5000) {
+                // 检查是否已存在相同的通知
+                const existingNotification = this.findExistingNotification(message, type);
+                if (existingNotification) {
+                    // 如果存在相同通知，重置其计时器并返回
+                    this.resetNotificationTimer(existingNotification, duration);
+                    return existingNotification;
+                }
+                
+                const notification = this.createNotificationElement(message, type, duration);
+                this.container.appendChild(notification);
+                this.notifications.push(notification);
+                
+                // 触发动画
+                requestAnimationFrame(() => {
+                    notification.classList.add('show');
+                });
+                
+                // 自动关闭
+                if (duration > 0) {
+                    const timeoutId = setTimeout(() => {
+                        this.removeNotification(notification);
+                    }, duration);
+                    notification.setAttribute('data-timeout-id', timeoutId);
+                }
+                
+                return notification;
+            }
+            
+            // 查找已存在的相同通知
+            findExistingNotification(message, type) {
+                return this.notifications.find(notification => {
+                    if (!notification.parentNode) return false;
+                    const messageElement = notification.querySelector('.modern-notification-message');
+                    const hasMatchingType = notification.classList.contains(`modern-notification-${type}`);
+                    const hasMatchingMessage = messageElement && messageElement.textContent.trim() === message.trim();
+                    return hasMatchingType && hasMatchingMessage;
+                });
+            }
+            
+            // 重置通知计时器
+            resetNotificationTimer(notification, duration) {
+                // 清除旧的定时器
+                const oldTimeoutId = notification.getAttribute('data-timeout-id');
+                if (oldTimeoutId) {
+                    clearTimeout(parseInt(oldTimeoutId));
+                }
+                
+                // 设置新的定时器
+                if (duration > 0) {
+                    const timeoutId = setTimeout(() => {
+                        this.removeNotification(notification);
+                    }, duration);
+                    notification.setAttribute('data-timeout-id', timeoutId);
+                }
+                
+                // 添加一个轻微的脉动效果表示重新计时
+                notification.style.transition = 'transform 0.15s ease-out';
+                notification.style.transform = 'scale(1.02)';
                 setTimeout(() => {
-                    if (alertDiv && alertDiv.parentNode) {
-                        alertDiv.classList.remove('show');
-                        setTimeout(() => {
-                            if (alertDiv && alertDiv.parentNode) {
-                                alertDiv.remove();
-                            }
-                        }, 150);
+                    notification.style.transform = 'scale(1)';
+                    setTimeout(() => {
+                        notification.style.transition = '';
+                    }, 150);
+                }, 150);
+            }
+            
+            // 创建通知元素
+            createNotificationElement(message, type, duration) {
+                const notificationId = ++this.notificationId;
+                const notification = document.createElement('div');
+                notification.className = `modern-notification modern-notification-${type}`;
+                notification.setAttribute('data-notification-id', notificationId);
+                
+                const icon = this.getNotificationIcon(type);
+                const color = this.getNotificationColor(type);
+                
+                notification.innerHTML = `
+                    <div class="modern-notification-content">
+                        <div class="modern-notification-icon">
+                            <i class="bi bi-${icon}" style="color: ${color};"></i>
+                        </div>
+                        <div class="modern-notification-message">
+                            ${message}
+                        </div>
+                        <button class="modern-notification-close" onclick="modernNotificationSystem.removeNotification(this.closest('.modern-notification'))">
+                            <i class="bi bi-x"></i>
+                        </button>
+                    </div>
+                `;
+                
+                return notification;
+            }
+            
+            // 移除通知
+            removeNotification(notification) {
+                if (!notification || !notification.parentNode) return;
+                
+                // 清除定时器
+                const timeoutId = notification.getAttribute('data-timeout-id');
+                if (timeoutId) {
+                    clearTimeout(parseInt(timeoutId));
+                }
+                
+                notification.classList.add('fade-out');
+                setTimeout(() => {
+                    if (notification && notification.parentNode) {
+                        notification.remove();
+                        this.notifications = this.notifications.filter(n => n !== notification);
                     }
-                }, duration);
+                }, 300);
+            }
+            
+            // 获取图标
+            getNotificationIcon(type) {
+                switch (type) {
+                    case 'success': return 'check-circle-fill';
+                    case 'error': return 'exclamation-circle-fill';
+                    case 'warning': return 'exclamation-triangle-fill';
+                    case 'info': return 'info-circle-fill';
+                    default: return 'info-circle-fill';
+                }
+            }
+            
+            // 获取颜色
+            getNotificationColor(type) {
+                switch (type) {
+                    case 'success': return '#10b981';
+                    case 'error': return '#ef4444';
+                    case 'warning': return '#f59e0b';
+                    case 'info': return '#3b82f6';
+                    default: return '#3b82f6';
+                }
             }
         }
         
-        function getAlertIcon(type) {
-            switch (type) {
-                case 'success': return 'check-circle';
-                case 'error':
-                case 'danger': return 'exclamation-circle';
-                case 'warning': return 'exclamation-triangle';
-                case 'info':
-                default: return 'info-circle';
-            }
+        // 创建全局通知系统实例
+        const modernNotificationSystem = new ModernNotificationSystem();
+        
+        // 公共接口函数
+        function showModernNotification(message, type = 'info', duration = 5000) {
+            return modernNotificationSystem.showNotification(message, type, duration);
         }
         
-        // 替代原生alert的函数
+        // 便捷函数
+        function showSuccess(message, duration = 5000) {
+            return showModernNotification(message, 'success', duration);
+        }
+        
+        function showError(message, duration = 5000) {
+            return showModernNotification(message, 'error', duration);
+        }
+        
+        function showWarning(message, duration = 5000) {
+            return showModernNotification(message, 'warning', duration);
+        }
+        
+        function showInfo(message, duration = 5000) {
+            return showModernNotification(message, 'info', duration);
+        }
+        
+        // 兼容旧接口
+        function showTopAlert(message, type = 'info', duration = 5000) {
+            return showModernNotification(message, type, duration);
+        }
+        
         function showAlert(message, type = 'info') {
-            showTopAlert(message, type);
+            return showModernNotification(message, type);
         }
         
-        // 成功提示
-        function showSuccess(message) {
-            showTopAlert(message, 'success');
-        }
-        
-        // 错误提示
-        function showError(message) {
-            showTopAlert(message, 'error');
-        }
-        
-        // 警告提示
-        function showWarning(message) {
-            showTopAlert(message, 'warning');
-        }
-        
-        // 信息提示
-        function showInfo(message) {
-            showTopAlert(message, 'info');
+        function showToast(message, type, duration = 3000) {
+            return showModernNotification(message, type === 'success' ? 'success' : 'error', duration);
         }
     </script>
     
     {% block scripts %}{% endblock %}
     
     <style>
+        /* 现代化通知系统样式 */
+        #modern-notification-container {
+            position: fixed;
+            top: 30%;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 9999;
+            pointer-events: none;
+            width: 100%;
+            max-width: 400px;
+            padding: 0 20px;
+        }
+        
+        .modern-notification {
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1), 0 4px 6px rgba(0, 0, 0, 0.05);
+            margin-bottom: 12px;
+            opacity: 0;
+            transform: translateY(-20px) scale(0.95);
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            pointer-events: auto;
+            overflow: hidden;
+            position: relative;
+            max-width: 400px;
+            width: 100%;
+            border: 1px solid;
+        }
+        
+        .modern-notification.show {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+        
+        .modern-notification.fade-out {
+            opacity: 0;
+            transform: translateY(-10px) scale(0.95);
+            transition: all 0.3s ease;
+        }
+        
+        .modern-notification-content {
+            display: flex;
+            align-items: center;
+            padding: 16px 20px;
+            position: relative;
+        }
+        
+        .modern-notification-icon {
+            flex-shrink: 0;
+            margin-right: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modern-notification-icon i {
+            font-size: 18px;
+        }
+        
+        .modern-notification-message {
+            flex: 1;
+            color: #374151;
+            font-size: 14px;
+            line-height: 1.5;
+            word-wrap: break-word;
+            word-break: break-word;
+            padding-right: 30px;
+        }
+        
+        .modern-notification-close {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            background: none;
+            border: none;
+            color: #9ca3af;
+            font-size: 16px;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 6px;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modern-notification-close:hover {
+            background: #f3f4f6;
+            color: #4b5563;
+        }
+        
+        /* 成功通知样式 */
+        .modern-notification-success {
+            background: #f0fdf4;
+            border-color: #10b981;
+        }
+        
+        /* 错误通知样式 */
+        .modern-notification-error {
+            background: #fef2f2;
+            border-color: #ef4444;
+        }
+        
+        /* 警告通知样式 */
+        .modern-notification-warning {
+            background: #fffbeb;
+            border-color: #f59e0b;
+        }
+        
+        /* 信息通知样式 */
+        .modern-notification-info {
+            background: #eff6ff;
+            border-color: #3b82f6;
+        }
+        
+        /* 移动端适配 */
+        @media (max-width: 768px) {
+            #modern-notification-container {
+                max-width: 90%;
+                padding: 0 10px;
+            }
+            
+            .modern-notification {
+                max-width: 100%;
+            }
+            
+            .modern-notification-content {
+                padding: 14px 16px;
+            }
+            
+            .modern-notification-message {
+                font-size: 13px;
+            }
+        }
+        
         /* 顶部导航栏样式 */
         .claude-topbar {
             position: fixed;

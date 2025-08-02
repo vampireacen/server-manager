@@ -1350,26 +1350,6 @@ function executeUserDeletion() {
     });
 }
 
-function showToast(message, type, duration = 3000) {
-    const toast = document.createElement('div');
-    toast.className = `alert alert-${type === 'success' ? 'success' : 'danger'} alert-dismissible fade show position-fixed`;
-    toast.style.cssText = 'top: 80px; right: 20px; z-index: 1050; min-width: 300px; max-width: 400px;';
-    toast.innerHTML = `
-        <div class="d-flex align-items-center">
-            <i class="bi bi-${type === 'success' ? 'check-circle' : 'exclamation-triangle'} me-2"></i>
-            <span style="word-break: break-all;">${message}</span>
-        </div>
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    `;
-    
-    document.body.appendChild(toast);
-    
-    setTimeout(() => {
-        if (toast.parentNode) {
-            toast.parentNode.removeChild(toast);
-        }
-    }, duration);
-}
 
 // 权限撤销相关函数
 let currentRevokeApplicationId = null;
@@ -1522,6 +1502,9 @@ let currentAdminPasswordId = null;
 let currentAdminPassword = null;
 let currentAdminPasswordType = null;
 
+// 会话级别的缓存提示状态
+let adminCacheNotificationShown = false;
+
 function showAdminPassword(passwordId, password, passwordType) {
     currentAdminAction = 'view';
     currentAdminPasswordId = passwordId;
@@ -1536,7 +1519,12 @@ function showAdminPassword(passwordId, password, passwordType) {
             // 缓存有效，直接显示密码
             console.log(`管理员密码验证缓存有效，剩余 ${data.remaining_minutes} 分钟`);
             toggleAdminPasswordDisplay(passwordId, password);
-            showTopAlert('密码已显示（验证缓存有效）', 'success');
+            
+            // 只在第一次显示缓存提示
+            if (!adminCacheNotificationShown) {
+                showTopAlert('密码已显示（验证缓存有效）', 'success');
+                adminCacheNotificationShown = true;
+            }
         } else {
             // 缓存无效，显示验证模态框
             showAdminPasswordVerificationModal();
